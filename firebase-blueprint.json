@@ -1,0 +1,57 @@
+{
+  "entities": {
+    "Partner": {
+      "title": "Partner",
+      "description": "Represents a business partner (Buyer or Seller) extracted from invoices.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "taxCode": { "type": "string" },
+        "address": { "type": "string" },
+        "representative": { "type": "string" },
+        "position": { "type": "string" },
+        "gender": { "type": "string", "enum": ["Nam", "Nữ", "Khác"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "taxCode"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Represents an uploaded invoice and its extracted data.",
+      "type": "object",
+      "properties": {
+        "fileName": { "type": "string" },
+        "fileType": { "type": "string", "enum": ["pdf", "xml"] },
+        "status": { "type": "string", "enum": ["pending", "processing", "completed", "error"] },
+        "extractedData": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "GeneratedDoc": {
+      "title": "Generated Document",
+      "description": "Represents a document generated from a template and invoice data.",
+      "type": "object",
+      "properties": {
+        "invoiceId": { "type": "string" },
+        "templateType": { "type": "string" },
+        "fileName": { "type": "string" },
+        "downloadUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "partners": {
+      "schema": "Partner",
+      "description": "Collection of business partners."
+    },
+    "invoices": {
+      "schema": "Invoice",
+      "description": "Collection of processed invoices."
+    },
+    "generated_docs": {
+      "schema": "GeneratedDoc",
+      "description": "Collection of generated Word documents."
+    }
+  }
+}

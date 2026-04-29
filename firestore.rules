@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // -------------------------------------------------------------------------
+    // GLOBAL HELPERS
+    // -------------------------------------------------------------------------
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(data) { return isSignedIn() && data.ownerId == request.auth.uid; }
+    function isAdmin() { return isSignedIn() && request.auth.token.email == 'gunfire2812@gmail.com'; } // Bootstrapped admin
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+
+    // -------------------------------------------------------------------------
+    // SCHEMAS
+    // -------------------------------------------------------------------------
+    function isValidPartner(data) {
+      return data.keys().hasAll(['name', 'taxCode', 'ownerId']) 
+        && data.ownerId == request.auth.uid
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.taxCode is string && data.taxCode.size() > 0 && data.taxCode.size() <= 50
+        && (!('address' in data) || (data.address is string && data.address.size() <= 500))
+        && (!('addressPostMerger' in data) || (data.addressPostMerger is string && data.addressPostMerger.size() <= 600))
+        && (!('accountNumber' in data) || (data.accountNumber is string && data.accountNumber.size() <= 100))
+        && (!('bankName' in data) || (data.bankName is string && data.bankName.size() <= 200))
+        && (!('representative' in data) || (data.representative is string && data.representative.size() <= 100))
+        && (!('position' in data) || (data.position is string && data.position.size() <= 100))
+        && (!('gender' in data) || (data.gender in ['Nam', 'Nữ', 'Khác']))
+        && data.updatedAt == request.time;
+    }
+
+    function isValidInvoice(data) {
+      return data.keys().hasAll(['fileName', 'fileType', 'status', 'createdAt', 'ownerId'])
+        && data.ownerId == request.auth.uid
+        && data.fileName is string && data.fileName.size() <= 255
+        && data.fileType in ['pdf', 'xml', 'png', 'jpg', 'jpeg']
+        && data.status in ['pending', 'processing', 'completed', 'error']
+        && data.createdAt == request.time;
+    }
+
+    function isValidGeneratedDoc(data) {
+      return data.keys().hasAll(['invoiceId', 'templateType', 'fileName', 'createdAt', 'ownerId'])
+        && data.ownerId == request.auth.uid
+        && isValidId(data.invoiceId)
+        && data.templateType in ['BB_CM', 'BB_VT', 'BB_TC']
+        && data.fileName is string && data.fileName.size() <= 255
+        && data.createdAt == request.time;
+    }
+
+    // -------------------------------------------------------------------------
+    // RULES
+    // -------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    match /partners/{partnerId} {
+      allow read: if isOwner(existing());
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isSignedIn() && isValidPartner(incoming());
+      allow update: if (
+        isSignedIn() && (
+          // Action: Full Update
+          (isValidPartner(incoming()) && incoming().taxCode == existing().taxCode && incoming().ownerId == existing().ownerId)
+          || isAdmin()
+        )
+      );
+      allow delete: if isOwner(existing());
+    }
+
+    match /invoices/{invoiceId} {
+      allow read: if isOwner(existing());
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isSignedIn() && isValidInvoice(incoming());
+      allow update: if (
+        isSignedIn() && (
+          (isValidInvoice(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'extractedData']) && incoming().ownerId == existing().ownerId)
+          || isAdmin()
+        )
+      );
+      allow delete: if isOwner(existing());
+    }
+
+    match /generated_docs/{docId} {
+      allow read: if isOwner(existing());
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isSignedIn() && isValidGeneratedDoc(incoming());
+      allow delete: if isOwner(existing());
+    }
+    
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}
