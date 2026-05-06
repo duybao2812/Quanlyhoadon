@@ -10,7 +10,7 @@
         "address": { "type": "string" },
         "representative": { "type": "string" },
         "position": { "type": "string" },
-        "gender": { "type": "string", "enum": ["Nam", "Nữ", "Khác"] },
+        "gender": { "type": "string", "enum": ["Ông", "Bà"] },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "taxCode"]
@@ -23,6 +23,8 @@
         "fileName": { "type": "string" },
         "fileType": { "type": "string", "enum": ["pdf", "xml"] },
         "status": { "type": "string", "enum": ["pending", "processing", "completed", "error"] },
+        "contractNumber": { "type": "string" },
+        "contractDate": { "type": "string" },
         "extractedData": { "type": "object" },
         "createdAt": { "type": "string", "format": "date-time" }
       }

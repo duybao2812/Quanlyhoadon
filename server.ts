@@ -60,8 +60,90 @@ function escapeXml(unsafe: string) {
 
 function formatVNNumber(num: number | string) {
   const n = typeof num === 'string' ? parseFloat(num.replace(/[^0-9]/g, '')) : num;
-  if (isNaN(n)) return '0';
+  if (isNaN(n) || n === null) return null;
   return n.toLocaleString('vi-VN');
+}
+
+function fallbackDots(val: any) {
+  if (val === undefined || val === null || val === '' || val === 'undefined' || val === 'null') {
+    return "....................";
+  }
+  return val;
+}
+
+function formatCompanyName(name: any) {
+  const val = fallbackDots(name);
+  if (val === "....................") return val;
+  if (typeof val !== 'string') return val;
+  
+  const hasDiacritics = (word: string) => /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(word);
+
+  // Mapping for common structural words that are often input without accents
+  const structuralMapping: Record<string, string> = {
+    'cong': 'Công',
+    'ty': 'ty',
+    'co': 'Cổ',
+    'phan': 'phần',
+    'dau': 'Đầu',
+    'tu': 'tư',
+    'xay': 'Xây',
+    'dung': 'dựng',
+    'thuong': 'Thương',
+    'mai': 'mại',
+    'dich': 'Dịch',
+    'vu': 'vụ',
+    'san': 'Sản',
+    'xuat': 'xuất',
+    'nhap': 'nhập',
+    'khau': 'khẩu',
+    'quoc': 'Quốc',
+    'thinh': 'Thịnh'
+  };
+
+  // Words that should definitely be Title Case even if unsigned (Names, etc.)
+  const titleCaseUnsigned = ['an', 'thanh', 'thuan', 'le', 'nguyen', 'tran', 'pham', 'vu', 'vo', 'dang', 'bui', 'do', 'ho', 'ngo', 'duong', 'minh', 'nam'];
+
+  // Higher priority acronyms
+  const upperCaseTerms = ['INT', 'VNCN', 'E&C', 'TNHH', 'CP', 'MTV', 'VN', 'JS', 'JSC', 'VAT', 'STK', 'HTX', 'PCCC', 'GTVT', 'XD', 'TM', 'DV', 'CN', 'KCN', 'SX', 'XNK'];
+
+  const words = val.trim().split(/\s+/);
+  
+  return words.map((word, index) => {
+    if (!word) return '';
+    
+    const lowerWord = word.toLowerCase();
+    const upperWord = word.toUpperCase();
+
+    // 1. If it has diacritics, keep as Title Case (don't map)
+    if (hasDiacritics(word)) {
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    }
+
+    // 2. Check structural mapping (unsigned -> signed)
+    if (structuralMapping[lowerWord]) {
+      let result = structuralMapping[lowerWord];
+      if (index === 0) result = result.charAt(0).toUpperCase() + result.slice(1);
+      return result;
+    }
+
+    // 3. Check names/words that should be Title Case
+    if (titleCaseUnsigned.includes(lowerWord)) {
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    }
+
+    // 4. Check acronyms
+    if (upperCaseTerms.includes(upperWord) || /[&/.\-]/.test(word)) {
+      return upperWord;
+    }
+
+    // 5. Short words (<= 2 chars) that aren't 'An' or 'Ty' or structural are usually acronyms
+    if (word.length <= 2) {
+      return upperWord;
+    }
+
+    // Default to Title Case for longer words to be safe
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }).join(' ');
 }
 
 async function startServer() {
@@ -103,6 +185,34 @@ async function startServer() {
   });
 
   // NEW: Secure Extraction API (Backend proxy for Mistral)
+  // NEW: Cas AddressKit Proxy API
+  app.post('/api/convert-address', async (req, res) => {
+    try {
+      const { oldAddress } = req.body;
+      if (!oldAddress) {
+        return res.status(400).json({ error: 'Missing oldAddress' });
+      }
+
+      console.log(`Proxying Cas AddressKit for: ${oldAddress}`);
+
+      const response = await fetch('https://production.cas.so/address-kit/convert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oldAddress })
+      });
+
+      const result = await response.json();
+      console.log("Cas API Response:", JSON.stringify(result, null, 2));
+      res.json(result);
+    } catch (error: any) {
+      console.error("Cas Proxy Error:", error);
+      res.status(500).json({ 
+        error: "Lỗi kết nối đến dịch vụ Cas AddressKit từ máy chủ.",
+        details: error.message 
+      });
+    }
+  });
+
   app.post('/api/process-document', async (req, res) => {
     try {
       const { base64Data, fileType } = req.body;
@@ -147,8 +257,112 @@ async function startServer() {
     }
   });
 
+  app.post('/api/parse-xml', async (req, res) => {
+    try {
+      const { xmlString } = req.body;
+      if (!xmlString) return res.status(400).json({ error: 'Missing xmlString' });
+
+      const { parseStringPromise } = await import('xml2js');
+      const result = await parseStringPromise(xmlString, { 
+        explicitArray: false,
+        tagNameProcessors: [(name) => name.replace(/^.*:/, '')] // Remove namespaces
+      });
+      
+      // Helper to clean and parse numbers
+      const parseInvoiceNumber = (val: any): number => {
+        if (val === undefined || val === null) return 0;
+        if (typeof val === 'number') return val;
+        // Remove non-digit characters except for decimal separator if it's a string
+        const cleanStr = String(val).replace(/[^0-9.-]/g, '');
+        const num = parseFloat(cleanStr);
+        return isNaN(num) ? 0 : num;
+      };
+
+      // Deep search helper
+      const deepSearch = (obj: any, targetKey: string): any => {
+        if (!obj || typeof obj !== 'object') return null;
+        if (obj[targetKey] !== undefined) return obj[targetKey];
+        
+        for (const key in obj) {
+          const res = deepSearch(obj[key], targetKey);
+          if (res) return res;
+        }
+        return null;
+      };
+
+      const findNode = (obj: any, keys: string[]) => {
+        for (const key of keys) {
+          const found = deepSearch(obj, key);
+          if (found !== null && found !== undefined) return found;
+        }
+        return null;
+      };
+
+      // 1. Get Main Blocks
+      const nBan = findNode(result, ['NBan']) || {};
+      const nMua = findNode(result, ['NMua']) || {};
+      const tTChung = findNode(result, ['TTChung']) || {};
+      const tToan = findNode(result, ['TToan', 'THTToan']) || {};
+      
+      // 2. Items extraction (Try finding HHDVu list)
+      let itemsList: any[] = [];
+      const dshhdvu = findNode(result, ['DSHHDVu', 'DSHHoa', 'ListData']);
+      if (dshhdvu) {
+        const hhdvu = findNode(dshhdvu, ['HHDVu', 'HHoa', 'Item']);
+        if (hhdvu) {
+          itemsList = Array.isArray(hhdvu) ? hhdvu : [hhdvu];
+        }
+      } else {
+        // Fallback: look for HHDVu anywhere
+        const hhdvuNode = findNode(result, ['HHDVu', 'HHoa']);
+        if (hhdvuNode) {
+          itemsList = Array.isArray(hhdvuNode) ? hhdvuNode : [hhdvuNode];
+        }
+      }
+      
+      // 3. Map values carefully
+      const parsedData = {
+        seller: {
+          name: nBan.Ten || nBan.SellerName || "",
+          taxCode: nBan.MST || nBan.TaxCode || "",
+          address: nBan.DChi || nBan.Address || ""
+        },
+        buyer: {
+          name: nMua.Ten || nMua.BuyerName || "",
+          taxCode: nMua.MST || nMua.TaxCode || "",
+          address: nMua.DChi || nMua.Address || ""
+        },
+        invoice: {
+          number: tTChung.SHDon || tTChung.InvoiceNo || "",
+          serial: tTChung.KHHDon || tTChung.Series || "",
+          date: tTChung.NLap || tTChung.InvoiceDate || "",
+          vatRate: 8 // default
+        },
+        items: itemsList.map((item: any) => ({
+          description: item.THHDVu || item.Ten || item.TenHHoa || item.ItemName || "",
+          unit: item.DVTinh || item.Unit || "",
+          quantity: parseInvoiceNumber(item.SLuong),
+          unitPrice: parseInvoiceNumber(item.DGia),
+          amount: parseInvoiceNumber(item.ThTien || item.ThanhTien || item.TotalAmount)
+        })),
+        totals: {
+          subtotal: parseInvoiceNumber(tToan.TgTCThue || tToan.SubTotal),
+          vatAmount: parseInvoiceNumber(tToan.TgTThue || tToan.VATAmount),
+          grandTotal: parseInvoiceNumber(tToan.TgTTTBSo || tToan.TgTTToan || tToan.TotalAmountWithVAT),
+          amountInWords: tToan.TgTTTBChu || tToan.AmountInWords || ""
+        },
+        classification: "BB_VT"
+      };
+
+      res.json(parsedData);
+    } catch (error: any) {
+      console.error("XML Parse Error:", error);
+      res.status(500).json({ error: 'Lỗi phân tích XML', details: error.message });
+    }
+  });
+
   app.post('/api/generate', (req, res) => {
-    const { templateType, data, partnerA, partnerB } = req.body;
+    const { templateType, data, partnerA, partnerB, contractNumber, contractDate } = req.body;
     const templatePath = path.join(process.cwd(), 'uploads/templates', `${templateType}.docx`);
 
     try {
@@ -160,14 +374,20 @@ async function startServer() {
       const rawVat = data.invoice.vatRate !== undefined && data.invoice.vatRate !== null && data.invoice.vatRate !== '' ? data.invoice.vatRate : '8';
       const vatRateStr = rawVat.toString().includes('%') ? rawVat.toString() : `${rawVat}%`;
       
-      const tableRows = (data.items || []).map((item: any, index: number) => ({
-        STT: (index + 1).toString(),
-        NOIDUNG: item.name || '',
-        DVT: item.unit || '',
-        SOLUONG: item.quantity ? formatVNNumber(item.quantity) : '',
-        DONGIA: item.unitPrice ? formatVNNumber(item.unitPrice) : '',
-        THANHTIEN: item.total ? formatVNNumber(item.total) : '0'
-      }));
+      const tableRows = (data.items || []).map((item: any, index: number) => {
+        const qty = parseFloat(item.quantity) || 0;
+        const price = parseFloat(item.unitPrice) || 0;
+        const amount = item.amount || item.total || (qty * price);
+        
+        return {
+          STT: (index + 1).toString(),
+          NOIDUNG: fallbackDots(item.description || item.name),
+          DVT: fallbackDots(item.unit),
+          SOLUONG: qty > 0 ? formatVNNumber(qty) : fallbackDots(null),
+          DONGIA: price > 0 ? formatVNNumber(price) : fallbackDots(null),
+          THANHTIEN: amount > 0 ? formatVNNumber(amount) : '0'
+        };
+      });
 
       const generateDocxTable = (items: any[]) => {
         const columns = [
@@ -260,22 +480,57 @@ async function startServer() {
         }
       };
 
+      const invoiceDateRaw = data.invoice?.date;
+      const mergerDate = new Date('2025-07-01');
+      let isAfterMerger = false;
+      if (invoiceDateRaw) {
+        const d = new Date(invoiceDateRaw);
+        if (!isNaN(d.getTime())) {
+          isAfterMerger = d >= mergerDate;
+        }
+      }
+
+      const getEffectiveAddress = (partner: any, extractedAddr: string) => {
+        if (isAfterMerger && partner.addressPostMerger) {
+          return partner.addressPostMerger;
+        }
+        return partner.address || extractedAddr;
+      };
+
+      // Đối với template Ca máy (BB_CM), hoán đổi vai trò A và B theo yêu cầu
+      let pA = partnerA || {};
+      let pB = partnerB || {};
+      let sData = data.seller;
+      let bData = data.buyer;
+
+      if (templateType === 'BB_CM') {
+        const tempP = pA;
+        pA = pB;
+        pB = tempP;
+        
+        const tempD = sData;
+        sData = bData;
+        bData = tempD;
+      }
+
       const variables = {
-        SO_HOPDONG: ".../HĐ-...",
-        NGAYKYHOPDONG: ".../.../...",
+        SO_HOPDONG: contractNumber || "....................",
+        NGAYKYHOPDONG: contractDate || "....................",
         NGAY_BB: formatDocDate(data.invoice?.date),
-        BEN_A: partnerA.name || data.seller.name,
-        BEN_B: partnerB.name || data.buyer.name,
-        DAIDIENBENA: partnerA.representative || "....................",
-        DAIDIENBENB: partnerB.representative || "....................",
-        CHUCVUBENA: partnerA.position || "....................",
-        CHUCVUBENB: partnerB.position || "....................",
-        GIOITINHBENA: partnerA.gender || "Ông/Bà",
-        GIOITINHBENB: partnerB.gender || "Ông/Bà",
-        DIACHIBENA: partnerA.address || data.seller.address,
-        DIACHIBENB: partnerB.address || data.buyer.address,
-        MSTBENA: partnerA.taxCode || data.seller.taxCode,
-        MSTBENB: partnerB.taxCode || data.buyer.taxCode,
+        BEN_A: fallbackDots(pA.name || sData.name),
+        BEN_B: fallbackDots(pB.name || bData.name),
+        BEN_A_TITLE: formatCompanyName(pA.name || sData.name),
+        BEN_B_TITLE: formatCompanyName(pB.name || bData.name),
+        DAIDIENBENA: fallbackDots(pA.representative),
+        DAIDIENBENB: fallbackDots(pB.representative),
+        CHUCVUBENA: fallbackDots(pA.position),
+        CHUCVUBENB: fallbackDots(pB.position),
+        GIOITINHBENA: fallbackDots(pA.gender || "Ông/Bà"),
+        GIOITINHBENB: fallbackDots(pB.gender || "Ông/Bà"),
+        DIACHIBENA: fallbackDots(getEffectiveAddress(pA, sData.address)),
+        DIACHIBENB: fallbackDots(getEffectiveAddress(pB, bData.address)),
+        MSTBENA: fallbackDots(pA.taxCode || sData.taxCode),
+        MSTBENB: fallbackDots(pB.taxCode || bData.taxCode),
         
         // Pass the raw XML string for the modified placeholders
         BB_BANGGIATHUEXE: tableXml,
@@ -283,11 +538,11 @@ async function startServer() {
         BB_BANGTHICONG: tableXml,
         items: tableXml,
         
-        TONGCONG: formatVNNumber(data.totals.subtotal),
-        THUE_VAT: formatVNNumber(data.totals.vatAmount),
-        TONG_THANH_TOAN: formatVNNumber(data.totals.grandTotal),
-        SO_TIEN_CHU: data.totals.amountInWords || "",
-        TONG_TIEN_BANG_CHU: data.totals.amountInWords || "",
+        TONGCONG: fallbackDots(formatVNNumber(data.totals.subtotal)),
+        THUE_VAT: fallbackDots(formatVNNumber(data.totals.vatAmount)),
+        TONG_THANH_TOAN: fallbackDots(formatVNNumber(data.totals.grandTotal)),
+        SO_TIEN_CHU: fallbackDots(data.totals.amountInWords),
+        TONG_TIEN_BANG_CHU: fallbackDots(data.totals.amountInWords),
         VAT_RATE: vatRateStr
       };
 

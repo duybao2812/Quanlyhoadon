@@ -1,41 +1,51 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
     // -------------------------------------------------------------------------
-    // GLOBAL HELPERS
+    // 1. GLOBAL HELPERS (HÀM HỖ TRỢ)
     // -------------------------------------------------------------------------
     function isSignedIn() { return request.auth != null; }
+    
+    // Kiểm tra đã xác thực email (lấy từ rules mới)
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    
+    // Kiểm tra chủ sở hữu dữ liệu
     function isOwner(data) { return isSignedIn() && data.ownerId == request.auth.uid; }
-    function isAdmin() { return isSignedIn() && request.auth.token.email == 'gunfire2812@gmail.com'; } // Bootstrapped admin
+    
+    // Quyền Admin (dành riêng cho bạn)
+    function isAdmin() { return isSignedIn() && request.auth.token.email == 'gunfire2812@gmail.com'; }
+    
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
 
     // -------------------------------------------------------------------------
-    // SCHEMAS
+    // 2. SCHEMA VALIDATION (KIỂM TRA CẤU TRÚC DỮ LIỆU)
     // -------------------------------------------------------------------------
+    
     function isValidPartner(data) {
       return data.keys().hasAll(['name', 'taxCode', 'ownerId']) 
         && data.ownerId == request.auth.uid
-        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
-        && data.taxCode is string && data.taxCode.size() > 0 && data.taxCode.size() <= 50
-        && (!('address' in data) || (data.address is string && data.address.size() <= 500))
-        && (!('addressPostMerger' in data) || (data.addressPostMerger is string && data.addressPostMerger.size() <= 600))
-        && (!('accountNumber' in data) || (data.accountNumber is string && data.accountNumber.size() <= 100))
-        && (!('bankName' in data) || (data.bankName is string && data.bankName.size() <= 200))
-        && (!('representative' in data) || (data.representative is string && data.representative.size() <= 100))
-        && (!('position' in data) || (data.position is string && data.position.size() <= 100))
-        && (!('gender' in data) || (data.gender in ['Nam', 'Nữ', 'Khác']))
-        && data.updatedAt == request.time;
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 512
+        && data.taxCode is string && data.taxCode.size() > 0 && data.taxCode.size() <= 100
+        && (!('address' in data) || (data.address is string && data.address.size() <= 1024))
+        && (!('addressPostMerger' in data) || (data.addressPostMerger is string && data.addressPostMerger.size() <= 1024))
+        && (!('gender' in data) || (data.gender in ['Ông', 'Bà']))
+        && (!('updatedAt' in data) || data.updatedAt == request.time);
     }
 
     function isValidInvoice(data) {
       return data.keys().hasAll(['fileName', 'fileType', 'status', 'createdAt', 'ownerId'])
         && data.ownerId == request.auth.uid
-        && data.fileName is string && data.fileName.size() <= 255
-        && data.fileType in ['pdf', 'xml', 'png', 'jpg', 'jpeg']
+        && data.fileName is string && data.fileName.size() <= 1024
+        && data.fileType is string && data.fileType.size() <= 100
         && data.status in ['pending', 'processing', 'completed', 'error']
-        && data.createdAt == request.time;
+        && data.createdAt == request.time
+        && (!('contractNumber' in data) || (data.contractNumber is string && data.contractNumber.size() <= 200))
+        && (!('contractDate' in data) || (data.contractDate is string && data.contractDate.size() <= 100))
+        && (!('fileURL' in data) || (data.fileURL is string && data.fileURL.size() <= 2048))
+        && (!('extractedData' in data) || (data.extractedData is map));
     }
 
     function isValidGeneratedDoc(data) {
@@ -43,51 +53,59 @@ service cloud.firestore {
         && data.ownerId == request.auth.uid
         && isValidId(data.invoiceId)
         && data.templateType in ['BB_CM', 'BB_VT', 'BB_TC']
-        && data.fileName is string && data.fileName.size() <= 255
+        && data.fileName is string && data.fileName.size() <= 1024
         && data.createdAt == request.time;
     }
 
     // -------------------------------------------------------------------------
-    // RULES
+    // 3. MAIN RULES (QUY TẮC TRUY XUẤT)
     // -------------------------------------------------------------------------
+
+    // Mặc định: Chặn mọi truy cập không được chỉ định
     match /{document=**} {
       allow read, write: if false;
     }
 
+    // Quản lý Đối tác (Partners)
     match /partners/{partnerId} {
       allow read: if isOwner(existing());
       allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
-      allow create: if isSignedIn() && isValidPartner(incoming());
-      allow update: if (
-        isSignedIn() && (
-          // Action: Full Update
-          (isValidPartner(incoming()) && incoming().taxCode == existing().taxCode && incoming().ownerId == existing().ownerId)
-          || isAdmin()
-        )
-      );
+      allow create: if isVerified() && isValidPartner(incoming());
+      allow update: if (isOwner(existing()) && isValidPartner(incoming()) && incoming().ownerId == existing().ownerId) || isAdmin();
       allow delete: if isOwner(existing());
     }
 
+    // Quản lý Hóa đơn (Invoices)
     match /invoices/{invoiceId} {
-      allow read: if isOwner(existing());
+      allow get: if isOwner(existing());
       allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
-      allow create: if isSignedIn() && isValidInvoice(incoming());
+      
+      // Chỉ User đã xác thực email mới được tạo Invoice
+      allow create: if isVerified() 
+                    && isValidInvoice(incoming())
+                    && incoming().ownerId == request.auth.uid;
+
       allow update: if (
-        isSignedIn() && (
-          (isValidInvoice(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'extractedData']) && incoming().ownerId == existing().ownerId)
-          || isAdmin()
+        isOwner(existing()) && (
+          // Cho phép cập nhật nếu đúng cấu trúc và không thay đổi chủ sở hữu
+          (isValidInvoice(incoming()) && incoming().ownerId == existing().ownerId) ||
+          // Hoặc chỉ cập nhật một số trường cụ thể (extractedData)
+          (incoming().diff(existing()).affectedKeys().hasOnly(['status', 'extractedData']))
         )
-      );
+      ) || isAdmin();
+      
       allow delete: if isOwner(existing());
     }
 
+    // Quản lý Văn bản đã tạo (Generated Docs)
     match /generated_docs/{docId} {
       allow read: if isOwner(existing());
       allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
-      allow create: if isSignedIn() && isValidGeneratedDoc(incoming());
+      allow create: if isVerified() && isValidGeneratedDoc(incoming());
       allow delete: if isOwner(existing());
     }
     
+    // Test kết nối
     match /test/connection {
       allow read: if true;
     }

@@ -6,7 +6,6 @@ export async function extractFromInvoice(file: File): Promise<any> {
       reader.readAsDataURL(file);
     });
 
-    // Call the Google Apps Script Web App instead of the local server
     const gasUrl = (import.meta as any).env.VITE_GAS_WEB_APP_URL;
     
     if (!gasUrl) {
@@ -26,12 +25,29 @@ export async function extractFromInvoice(file: File): Promise<any> {
 
     console.log(`GAS response received in ${((Date.now() - startTime)/1000).toFixed(2)}s`);
 
+    const responseText = await res.text();
+    
     if (!res.ok) {
-      const errorData = await res.json();
-      throw new Error(errorData.details || errorData.error || "Backend processing failed");
+      let errorMsg = "Backend processing failed";
+      try {
+        const errorData = JSON.parse(responseText);
+        errorMsg = errorData.details || errorData.error || errorMsg;
+      } catch (e) {
+        errorMsg = responseText || errorMsg;
+      }
+      throw new Error(errorMsg);
     }
 
-    return await res.json();
+    if (!responseText || responseText.trim() === "") {
+      throw new Error("Máy chủ trả về kết quả rỗng.");
+    }
+
+    try {
+      return JSON.parse(responseText);
+    } catch (e) {
+      console.error("Failed to parse GAS response as JSON:", responseText);
+      throw new Error("Dữ liệu trả về từ máy chủ không hợp lệ (không phải JSON).");
+    }
   } catch (error: any) {
     console.error("Extraction error:", error);
     const message = "Không thể trích xuất dữ liệu. " + (error.message || "");
@@ -40,12 +56,20 @@ export async function extractFromInvoice(file: File): Promise<any> {
 }
 
 export async function classifyInvoice(items: any[]): Promise<string> {
-  // We can also move this to backend if needed, but for now we'll do a simple fallback
-  // Or we can create another backend endpoint. For simplicity, we'll use a local heuristic
-  // since the main extraction already returns a classification from the server.
-  const itemsText = items.map(i => `${i.name}`).join(', ').toLowerCase();
+  const contentText = items.map(i => `${i.description || i.name || ''}`).join(' ').toLowerCase();
   
-  if (itemsText.includes('ca máy') || itemsText.includes('xe cuốc') || itemsText.includes('xe ủi')) return 'BB_CM';
-  if (itemsText.includes('bê tông') || itemsText.includes('xi măng') || itemsText.includes('vật tư')) return 'BB_VT';
-  return 'BB_TC';
+  // Rules for Materials (Vật tư)
+  const materialKeywords = ["thép", "bê tông", "xi măng", "nhũ tương", "cát", "đá", "vật liệu", "gạch", "sắt"];
+  if (materialKeywords.some(kw => contentText.includes(kw))) return 'BB_VT';
+
+  // Rules for Machines (Ca máy)
+  const machineKeywords = ["xe", "máy xúc", "máy ủi", "vận chuyển", "thuê máy", "lu rung", "cẩu", "uỉ"];
+  if (machineKeywords.some(kw => contentText.includes(kw))) return 'BB_CM';
+
+  // Rules for Construction (Thi công)
+  const constructionKeywords = ["giá trị hoàn thành", "thi công", "nghiệm thu", "khối lượng hoàn thành", "gia công", "lắp đặt"];
+  if (constructionKeywords.some(kw => contentText.includes(kw))) return 'BB_TC';
+
+  // Default fallback
+  return 'BB_VT';
 }
