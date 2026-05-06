@@ -12,7 +12,7 @@ interface Toast {
 }
 
 interface ToastContextType {
-  toast: (message: string, type?: ToastType) => void;
+  toast: (message: string, type?: ToastType) => string;
   removeToast: (id: string) => void;
   clearToasts: () => void;
 }
@@ -44,6 +44,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (type !== 'loading') {
       setTimeout(() => removeToast(id), 3000);
     }
+    return id;
   }, [removeToast]);
 
   return (

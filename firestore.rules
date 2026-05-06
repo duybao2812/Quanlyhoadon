@@ -102,7 +102,7 @@ service cloud.firestore {
       allow read: if isOwner(existing());
       allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
       allow create: if isVerified() && isValidGeneratedDoc(incoming());
-      allow delete: if isOwner(existing());
+      allow delete: if isSignedIn();
     }
     
     // Test kết nối

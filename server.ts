@@ -28,8 +28,8 @@ Extract structured data from the provided document.
 Map the data into this EXACT JSON structure:
 
 {
-  "seller": { "name": "", "taxCode": "", "address": "" },
-  "buyer": { "name": "", "taxCode": "", "address": "" },
+  "seller": { "name": "", "taxCode": "", "address": "", "accountNumber": "", "bankName": "" },
+  "buyer": { "name": "", "taxCode": "", "address": "", "accountNumber": "", "bankName": "" },
   "invoice": { "number": "", "serial": "", "date": "", "vatRate": 8 },
   "items": [{ "name": "", "unit": "", "quantity": 0, "unitPrice": 0, "total": 0 }],
   "totals": { "subtotal": 0, "vatAmount": 0, "grandTotal": 0, "amountInWords": "" },
@@ -38,6 +38,9 @@ Map the data into this EXACT JSON structure:
 
 Notes:
 - Tax code = MST.
+- address: Full address including province/city.
+- accountNumber: Số tài khoản ngân hàng (nếu có).
+- bankName: Tên ngân hàng (nếu có).
 - classification: "BB_CM" (Machine/Ca máy), "BB_VT" (Materials/Vật tư), "BB_TC" (Construction/Thi công).
 - If invoice has "Bê tông", it's BB_VT.
 - vatRate = Thuế suất (8, 10).
@@ -325,12 +328,16 @@ async function startServer() {
         seller: {
           name: nBan.Ten || nBan.SellerName || "",
           taxCode: nBan.MST || nBan.TaxCode || "",
-          address: nBan.DChi || nBan.Address || ""
+          address: nBan.DChi || nBan.Address || "",
+          accountNumber: nBan.STK || nBan.SoTK || nBan.AccountNumber || "",
+          bankName: nBan.TNHang || nBan.TenNH || nBan.BankName || ""
         },
         buyer: {
           name: nMua.Ten || nMua.BuyerName || "",
           taxCode: nMua.MST || nMua.TaxCode || "",
-          address: nMua.DChi || nMua.Address || ""
+          address: nMua.DChi || nMua.Address || "",
+          accountNumber: nMua.STK || nMua.SoTK || nMua.AccountNumber || "",
+          bankName: nMua.TNHang || nMua.TenNH || nMua.BankName || ""
         },
         invoice: {
           number: tTChung.SHDon || tTChung.InvoiceNo || "",
@@ -531,6 +538,10 @@ async function startServer() {
         DIACHIBENB: fallbackDots(getEffectiveAddress(pB, bData.address)),
         MSTBENA: fallbackDots(pA.taxCode || sData.taxCode),
         MSTBENB: fallbackDots(pB.taxCode || bData.taxCode),
+        STK_BENA: fallbackDots(pA.accountNumber || sData.accountNumber),
+        NH_BENA: fallbackDots(pA.bankName || sData.bankName),
+        STK_BENB: fallbackDots(pB.accountNumber || bData.accountNumber),
+        NH_BENB: fallbackDots(pB.bankName || bData.bankName),
         
         // Pass the raw XML string for the modified placeholders
         BB_BANGGIATHUEXE: tableXml,

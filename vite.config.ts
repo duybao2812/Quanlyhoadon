@@ -7,6 +7,7 @@ export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
   return {
     plugins: [react(), tailwindcss()],
+    base: './',
     define: {
       'process.env.MISTRAL_API_KEY': JSON.stringify(env.MISTRAL_API_KEY),
     },

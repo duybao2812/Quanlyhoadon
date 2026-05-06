@@ -48,7 +48,8 @@ import {
   serverTimestamp,
   getDocs,
   where,
-  orderBy
+  orderBy,
+  writeBatch
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { 
@@ -440,6 +441,35 @@ const ReviewModal = ({
                     className="input-field" 
                   />
                 </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Địa chỉ</label>
+                  <input 
+                    type="text" 
+                    value={edited.seller?.address || ''} 
+                    onChange={(e) => handleChange('seller.address', e.target.value)}
+                    className="input-field" 
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Số tài khoản</label>
+                    <input 
+                      type="text" 
+                      value={edited.seller?.accountNumber || ''} 
+                      onChange={(e) => handleChange('seller.accountNumber', e.target.value)}
+                      className="input-field" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Ngân hàng</label>
+                    <input 
+                      type="text" 
+                      value={edited.seller?.bankName || ''} 
+                      onChange={(e) => handleChange('seller.bankName', e.target.value)}
+                      className="input-field" 
+                    />
+                  </div>
+                </div>
               </div>
             </section>
 
@@ -466,6 +496,35 @@ const ReviewModal = ({
                     onChange={(e) => handleChange('buyer.taxCode', e.target.value)}
                     className="input-field" 
                   />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Địa chỉ</label>
+                  <input 
+                    type="text" 
+                    value={edited.buyer?.address || ''} 
+                    onChange={(e) => handleChange('buyer.address', e.target.value)}
+                    className="input-field" 
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Số tài khoản</label>
+                    <input 
+                      type="text" 
+                      value={edited.buyer?.accountNumber || ''} 
+                      onChange={(e) => handleChange('buyer.accountNumber', e.target.value)}
+                      className="input-field" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Ngân hàng</label>
+                    <input 
+                      type="text" 
+                      value={edited.buyer?.bankName || ''} 
+                      onChange={(e) => handleChange('buyer.bankName', e.target.value)}
+                      className="input-field" 
+                    />
+                  </div>
                 </div>
               </div>
             </section>
@@ -1200,8 +1259,100 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
 };
 
 // --- View: Generated Docs ---
-const DocsView = ({ items, onDelete, invoices, partners }: { items: GeneratedDoc[], onDelete: (id: string) => void, invoices: Invoice[], partners: Partner[] }) => {
+const DocsView = ({ items, onDelete, onBulkDelete, onDeleteAll, invoices, partners }: { items: GeneratedDoc[], onDelete: (id: string) => void, onBulkDelete: (ids: string[]) => void, onDeleteAll: () => void, invoices: Invoice[], partners: Partner[] }) => {
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkDownloading, setIsBulkDownloading] = useState(false);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === items.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(items.map(d => d.id));
+    }
+  };
+
+  const downloadDocZip = async () => {
+    if (selectedIds.length === 0) return;
+    setIsBulkDownloading(true);
+    
+    try {
+      const zip = new JSZip();
+      
+      for (const id of selectedIds) {
+        const genDoc = items.find(d => d.id === id);
+        if (!genDoc) continue;
+
+        const inv = invoices.find(i => i.id === genDoc.invoiceId);
+        if (!inv) continue;
+
+        const pA = partners.find(p => p.taxCode === inv.extractedData?.seller?.taxCode) || {};
+        const pB = partners.find(p => p.taxCode === inv.extractedData?.buyer?.taxCode) || {};
+
+        const res = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            templateType: genDoc.templateType,
+            data: inv.extractedData,
+            partnerA: pA,
+            partnerB: pB,
+            contractNumber: inv.contractNumber,
+            contractDate: inv.contractDate
+          })
+        });
+        
+        if (res.ok) {
+          const blob = await res.blob();
+          zip.file(genDoc.fileName, blob);
+        }
+      }
+      
+      const content = await zip.generateAsync({ type: 'blob' });
+      saveAs(content, `TaiLieu_DaChon_${new Date().getTime()}.zip`);
+    } catch (err: any) {
+      alert("Lỗi khi tải hàng loạt: " + err.message);
+    } finally {
+      setIsBulkDownloading(false);
+    }
+  };
+
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+
+  const handleBulkDelete = () => {
+    if (!isDeletingBulk) {
+      setIsDeletingBulk(true);
+      setTimeout(() => setIsDeletingBulk(false), 3000);
+      return;
+    }
+
+    console.log("handleBulkDelete logic executing with selectedIds:", selectedIds);
+    if (selectedIds.length === 0) return;
+    
+    onBulkDelete(selectedIds);
+    setSelectedIds([]);
+    setIsDeletingBulk(false);
+  };
+
+  const confirmDeleteAll = () => {
+    if (!isDeletingAll) {
+      setIsDeletingAll(true);
+      setTimeout(() => setIsDeletingAll(false), 3000); // Reset sau 3s nếu không bấm
+      return;
+    }
+    
+    console.log("confirmDeleteAll executing...");
+    onDeleteAll();
+    setSelectedIds([]);
+    setIsDeletingAll(false);
+  };
 
   const downloadDoc = async (genDoc: GeneratedDoc) => {
     const inv = invoices.find(i => i.id === genDoc.invoiceId);
@@ -1234,14 +1385,7 @@ const DocsView = ({ items, onDelete, invoices, partners }: { items: GeneratedDoc
       }
 
       const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = genDoc.fileName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      saveAs(blob, genDoc.fileName);
     } catch (err: any) {
       alert("Lỗi khi tải file: " + err.message);
     } finally {
@@ -1249,55 +1393,159 @@ const DocsView = ({ items, onDelete, invoices, partners }: { items: GeneratedDoc
     }
   };
 
+  if (items.length === 0) {
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+          <FileText className="text-slate-300 w-8 h-8" />
+        </div>
+        <h3 className="text-slate-600 font-bold mb-1">Chưa có tài liệu nào</h3>
+        <p className="text-slate-400 text-xs">Vui lòng tạo biên bản từ tab Dashboard</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200">
-         <div className="flex items-center gap-4">
-            <span className="text-sm font-bold text-slate-600">Đã tạo {items.length} tài liệu</span>
-         </div>
+    <div className="space-y-4 pb-20">
+      <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <input 
+              type="checkbox" 
+              checked={selectedIds.length === items.length && items.length > 0}
+              onChange={toggleSelectAll}
+              className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">
+              Chọn tất cả ({items.length})
+            </span>
+          </label>
+        </div>
+        <button 
+          onClick={confirmDeleteAll}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 rounded-xl transition-all text-[10px] font-bold uppercase tracking-widest border",
+            isDeletingAll 
+              ? "bg-red-600 border-red-600 text-white animate-pulse" 
+              : "text-red-500 hover:bg-red-50 border-red-100"
+          )}
+        >
+          <Trash2 size={14} />
+          {isDeletingAll ? "Bấm lại để xác nhận" : "Xóa tất cả"}
+        </button>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {items.map((docItem) => (
-          <div key={docItem.id} className="card p-4 hover:border-blue-300 transition-all group relative">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded flex items-center justify-center shrink-0">
-                <FileText className="w-6 h-6" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-bold text-sm truncate">{docItem.fileName}</div>
-                <div className="text-[10px] text-slate-400 uppercase font-bold tracking-tight">{docItem.templateType}</div>
-              </div>
+          <div 
+            key={docItem.id} 
+            className={cn(
+              "card p-4 transition-all group relative flex gap-4 border-2",
+              selectedIds.includes(docItem.id) ? "border-indigo-400 bg-indigo-50/10 shadow-md ring-1 ring-indigo-100" : "hover:border-blue-300 border-transparent shadow-sm"
+            )}
+            onClick={() => toggleSelect(docItem.id)}
+          >
+            <div 
+              className="pt-1 shrink-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <input 
+                type="checkbox" 
+                checked={selectedIds.includes(docItem.id)}
+                onChange={() => toggleSelect(docItem.id)}
+                className="w-5 h-5 rounded-md border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer shadow-sm"
+              />
             </div>
-            <div className="flex items-center justify-between text-xs pt-3 border-t border-slate-50">
-              <span className="text-slate-500">
-                {docItem.createdAt?.toDate ? new Date(docItem.createdAt.toDate()).toLocaleDateString() : '...'}
-              </span>
-              <div className="flex items-center gap-2">
-                <button 
-                  disabled={isDownloading === docItem.id}
-                  onClick={() => downloadDoc(docItem)}
-                  className="text-blue-600 font-bold hover:underline flex items-center gap-1 bg-blue-50 px-2 py-1 rounded"
-                >
-                  {isDownloading === docItem.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-                  Tải xuống
-                </button>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    onDelete(docItem.id);
-                  }}
-                  className="w-10 h-10 text-red-500 hover:bg-red-50 rounded-lg border border-red-100 transition-all flex items-center justify-center shrink-0 active:scale-95"
-                  title="Xóa tài liệu"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
+
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded flex items-center justify-center shrink-0">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-sm truncate pr-4" title={docItem.fileName}>{docItem.fileName}</div>
+                  <div className="text-[10px] text-slate-400 uppercase font-bold tracking-tight">{docItem.templateType}</div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-xs pt-3 border-t border-slate-100">
+                <span className="text-slate-500 flex items-center gap-1">
+                  <Clock className="w-3 h-3 opacity-40" />
+                  {docItem.createdAt?.toDate ? new Date(docItem.createdAt.toDate()).toLocaleDateString() : '...'}
+                </span>
+                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                  <button 
+                    disabled={isDownloading === docItem.id}
+                    onClick={() => downloadDoc(docItem)}
+                    className="text-white font-bold bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg text-[10px] uppercase tracking-wider shadow-sm transition-all active:scale-95 flex items-center gap-2"
+                  >
+                    {isDownloading === docItem.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                    Tải về
+                  </button>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      onDelete(docItem.id);
+                    }}
+                    className="w-8 h-8 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all flex items-center justify-center shrink-0"
+                    title="Xóa tài liệu"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Floating Action Bar */}
+      <AnimatePresence>
+        {selectedIds.length > 0 && (
+          <motion.div 
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-16 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur-md text-white rounded-2xl shadow-2xl px-6 py-4 flex items-center gap-6 z-50 border border-slate-700 w-fit"
+          >
+            <div className="flex items-center gap-3 border-r border-slate-700 pr-6 mr-1">
+              <div className="w-7 h-7 bg-indigo-500 rounded-full flex items-center justify-center text-[11px] font-black shadow-lg">
+                {selectedIds.length}
+              </div>
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Đã chọn</span>
+            </div>
+
+            <button 
+              onClick={downloadDocZip}
+              disabled={isBulkDownloading}
+              className="flex items-center gap-2 text-indigo-400 hover:text-indigo-300 hover:bg-white/5 px-4 py-2 rounded-xl transition-all text-xs font-bold uppercase tracking-widest disabled:opacity-50"
+            >
+              {isBulkDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download size={18} />}
+              Tải về (.zip)
+            </button>
+
+            <button 
+              onClick={handleBulkDelete}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-xl transition-all text-xs font-bold uppercase tracking-widest",
+                isDeletingBulk 
+                  ? "bg-red-600 text-white animate-pulse" 
+                  : "text-red-400 hover:text-red-300 hover:bg-white/5"
+              )}
+            >
+              <Trash2 size={18} />
+              {isDeletingBulk ? "Bấm lại để xóa" : "Xóa đã chọn"}
+            </button>
+
+            <button 
+              onClick={() => setSelectedIds([])}
+              className="text-[10px] text-slate-500 hover:text-white transition-all uppercase font-bold tracking-widest ml-2"
+            >
+              Hủy bỏ
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -1498,7 +1746,7 @@ const TAB_CONFIG: Record<Tab, { hash: string, label: string }> = {
   upload: { hash: 'tai-len', label: 'Tải lên hóa đơn' },
   partners: { hash: 'doi-tac', label: 'Đối tác & Khách hàng' },
   templates: { hash: 'mau-tai-lieu', label: 'Mẫu tài liệu' },
-  docs: { hash: 'huong-dan', label: 'Hướng dẫn sử dụng' }
+  docs: { hash: 'tai-lieu-da-tao', label: 'Tài liệu đã tạo' }
 };
 
 // --- Main App Component ---
@@ -1525,7 +1773,7 @@ export default function App() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [isSidebarPinned, setIsSidebarPinned] = useState(false);
   const [pendingReview, setPendingReview] = useState<{file: File, docRef: any, data: any} | null>(null);
-  const { toast, clearToasts } = useToast();
+  const { toast, clearToasts, removeToast } = useToast();
 
   // Sync state with Hash on mount
   useEffect(() => {
@@ -1576,8 +1824,32 @@ export default function App() {
 
   const handleInvoiceSelect = (inv: Invoice | null) => {
     if (inv) {
-      // Create a URL friendly slug: filename (without extension) + id
-      const cleanFileName = inv.fileName.replace(/\.[^/.]+$/, "").replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      // Helper to remove Vietnamese diacritics while preserving case
+      const removeTones = (str: string) => {
+        str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+        str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+        str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+        str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+        str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+        str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+        str = str.replace(/đ/g, "d");
+        str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+        str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E");
+        str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
+        str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
+        str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
+        str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
+        str = str.replace(/Đ/g, "D");
+        str = str.replace(/\u0300|\u0301|\u0303|\u0309|\u0323/g, "");
+        str = str.replace(/\u02C6|\u0306|\u031B/g, "");
+        return str;
+      };
+
+      // Get filename without extension
+      const baseName = inv.fileName.replace(/\.[^/.]+$/, "");
+      // Remove tones but preserve case
+      const cleanFileName = removeTones(baseName);
+      
       window.location.hash = `#/${TAB_CONFIG.dashboard.hash}/${cleanFileName}-${inv.id}/`;
       setSelectedInvoice(inv);
     } else {
@@ -1715,14 +1987,61 @@ export default function App() {
   };
 
   const handleDeleteDoc = async (id: string) => {
-    console.log("handleDeleteDoc called with id:", id);
+    console.log("Attempting to delete doc:", id);
     try {
       await deleteDoc(doc(db, 'generated_docs', id));
-      console.log("Document deleted successfully");
-    } catch (error) {
+      toast('Đã xóa 1 tài liệu');
+    } catch (error: any) {
       console.error("Delete doc error:", error);
-      handleFirestoreError(error, OperationType.DELETE, `generated_docs/${id}`);
+      toast(`Lỗi khi xóa tài liệu: ${error.message || 'Không xác định'}`, 'error');
+      try {
+        handleFirestoreError(error, OperationType.DELETE, `generated_docs/${id}`);
+      } catch (err) {
+        // Already handled error
+      }
     }
+  };
+
+  const handleBulkDeleteDocs = async (ids: string[]) => {
+    if (!ids || ids.length === 0) return;
+    console.log("Attempting to bulk delete docs:", ids);
+    try {
+      setIsProcessing(true);
+      // Fallback to individual deletes if batch is tricky, 
+      // but let's keep batch first and see if individual error handling helps
+      const batch = writeBatch(db);
+      ids.forEach(id => {
+        batch.delete(doc(db, 'generated_docs', id));
+      });
+      await batch.commit();
+      toast(`Đã xóa ${ids.length} tài liệu thành công`);
+    } catch (error: any) {
+      console.error('Bulk delete error:', error);
+      toast(`Lỗi khi xóa hàng loạt: ${error.message || 'Không xác định'}`, 'error');
+      
+      // If batch fails, try individual as fallback for debugging
+      console.log("Trying individual deletes as fallback...");
+      let successCount = 0;
+      for (const id of ids) {
+        try {
+          await deleteDoc(doc(db, 'generated_docs', id));
+          successCount++;
+        } catch (e) {
+          console.error(`Failed to delete individual doc ${id}:`, e);
+        }
+      }
+      if (successCount > 0) {
+        toast(`Đã xóa thủ công được ${successCount}/${ids.length} tài liệu`);
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteAllDocs = async () => {
+    if (generatedDocs.length === 0) return;
+    const allIds = generatedDocs.map(d => d.id);
+    await handleBulkDeleteDocs(allIds);
   };
 
   useEffect(() => {
@@ -1803,9 +2122,15 @@ export default function App() {
 
     const newData = { ...data };
     
-    // Fix Seller & Buyer names
-    if (newData.seller) newData.seller.name = fixString(newData.seller.name);
-    if (newData.buyer) newData.buyer.name = fixString(newData.buyer.name);
+    // Fix Seller & Buyer names and addresses
+    if (newData.seller) {
+      newData.seller.name = fixString(newData.seller.name);
+      newData.seller.address = fixString(newData.seller.address);
+    }
+    if (newData.buyer) {
+      newData.buyer.name = fixString(newData.buyer.name);
+      newData.buyer.address = fixString(newData.buyer.address);
+    }
     
     // Fix items description
     if (newData.items && Array.isArray(newData.items)) {
@@ -1905,14 +2230,20 @@ export default function App() {
     setUploadQueue([]); // Clear queue before starting
     setIsProcessing(true);
     
+    let loadingToastId: string | null = null;
+    const updateLoading = (msg: string) => {
+      if (loadingToastId) removeToast(loadingToastId);
+      loadingToastId = toast(msg, 'loading');
+    };
+    
     for (let i = 0; i < filesToProcess.length; i++) {
       let file = filesToProcess[i];
-      toast(`[${i+1}/${filesToProcess.length}] Đang xử lý ${file.name}...`, 'loading');
+      updateLoading(`[${i+1}/${filesToProcess.length}] Đang xử lý ${file.name}...`);
       
       // Image Compression for image files
       if (file.type.startsWith('image/')) {
         try {
-          toast(`[${i+1}/${filesToProcess.length}] Đang nén ảnh để tối ưu tốc độ...`, 'loading');
+          updateLoading(`[${i+1}/${filesToProcess.length}] Đang nén ảnh để tối ưu tốc độ...`);
           const options = {
             maxSizeMB: 1,
             maxWidthOrHeight: 1920,
@@ -1952,7 +2283,7 @@ export default function App() {
           handleFirestoreError(error, OperationType.CREATE, 'invoices');
         }
 
-        toast(`[${i+1}/${filesToProcess.length}] Đang gửi dữ liệu sang Google Script...`, 'loading');
+        updateLoading(`[${i+1}/${filesToProcess.length}] Đang gửi dữ liệu sang Google Script...`);
 
         let extractedData: any;
         if (fileExt === 'xml') {
@@ -1993,7 +2324,7 @@ export default function App() {
             }
           }
         } else {
-          toast(`[${i+1}/${filesToProcess.length}] Đang chờ Mistral AI phản hồi...`, 'loading');
+          updateLoading(`[${i+1}/${filesToProcess.length}] Đang chờ Mistral AI phản hồi...`);
           
           try {
             setRequestCount(prev => prev + 1); // Increment for PDF extraction
@@ -2064,8 +2395,14 @@ export default function App() {
             if (seller) await upsertPartner(seller, isPostMerger);
             if (buyer) await upsertPartner(buyer, isPostMerger);
             
+            // For batch, we remove the loading toast before showing success
+            if (loadingToastId) {
+              removeToast(loadingToastId);
+              loadingToastId = null;
+            }
             toast(`Đã tự động lưu ${file.name}`, "success");
           } else {
+            if (loadingToastId) removeToast(loadingToastId);
             clearToasts(); 
             setPendingReview({ file, docRef, data: extractedData });
             setIsProcessing(false);
@@ -2075,6 +2412,10 @@ export default function App() {
 
       } catch (error: any) {
         console.error("Processing error:", error);
+        if (loadingToastId) {
+          removeToast(loadingToastId);
+          loadingToastId = null;
+        }
         toast(`Lỗi khi xử lý tệp ${file.name}: ${error.message}`, "error");
         if (docRef) {
           try {
@@ -2088,6 +2429,7 @@ export default function App() {
         }
       }
     }
+    if (loadingToastId) removeToast(loadingToastId);
     setIsProcessing(false);
     toast("Đã xử lý xong danh sách tệp", "success");
   };
@@ -2126,7 +2468,7 @@ export default function App() {
     // Determine which field to fill based on invoice date
     if (isPostMerger) {
       finalAddressPostMerger = rawAddress;
-      // Auto-convert for post-merger invoices to ensure 2nd level normalization (local smart mapping)
+      // Auto-convert for post-merger invoices to ensure 2nd level normalization
       const converted = smartConvertAddress(rawAddress);
       if (converted.isConverted) {
         finalAddressPostMerger = converted.fullAddress;
@@ -2140,23 +2482,38 @@ export default function App() {
       taxCode: p.taxCode,
       address: finalAddress,
       addressPostMerger: finalAddressPostMerger,
-      position: p.position || "Giám đốc", // Default position as requested
+      accountNumber: p.accountNumber || "",
+      bankName: p.bankName || "",
+      position: p.position || "Giám đốc",
       updatedAt: serverTimestamp(),
-      ownerId: user?.uid || null
+      ownerId: user.uid
     };
 
     if (!existing) {
       await addDoc(collection(db, 'partners'), cleanObject(partnerData));
     } else {
       const current = existing.data();
-      const updates: any = { updatedAt: serverTimestamp() };
+      const updates: any = {};
       
-      // Update fields if they are currently empty or if explicitly provided
-      if (isPostMerger && !current.addressPostMerger && finalAddressPostMerger) updates.addressPostMerger = finalAddressPostMerger;
-      if (!isPostMerger && !current.address && finalAddress) updates.address = finalAddress;
-      if (!current.position) updates.position = "Giám đốc";
+      // Update fields ONLY if they are currently empty or null
+      if (isPostMerger && !current.addressPostMerger && finalAddressPostMerger) {
+        updates.addressPostMerger = finalAddressPostMerger;
+      }
+      if (!isPostMerger && !current.address && finalAddress) {
+        updates.address = finalAddress;
+      }
+      if (!current.accountNumber && p.accountNumber) {
+        updates.accountNumber = p.accountNumber;
+      }
+      if (!current.bankName && p.bankName) {
+        updates.bankName = p.bankName;
+      }
+      if (!current.position) {
+        updates.position = "Giám đốc";
+      }
       
-      if (Object.keys(updates).length > 1) {
+      if (Object.keys(updates).length > 0) {
+        updates.updatedAt = serverTimestamp();
         await updateDoc(existing.ref, cleanObject(updates));
       }
     }
@@ -2684,6 +3041,8 @@ export default function App() {
                 <DocsView 
                   items={generatedDocs} 
                   onDelete={handleDeleteDoc} 
+                  onBulkDelete={handleBulkDeleteDocs}
+                  onDeleteAll={handleDeleteAllDocs}
                   invoices={invoices}
                   partners={partners}
                 />
