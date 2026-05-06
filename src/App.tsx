@@ -63,6 +63,8 @@ import imageCompression from 'browser-image-compression';
 import * as XLSX from 'xlsx';
 import { db, handleFirestoreError, OperationType, auth, storage } from './lib/firebase';
 import { extractFromInvoice } from './lib/mistral';
+import { parseInvoiceXml } from './lib/xmlParser';
+import { generateDocxBlob } from './lib/docxGenerator';
 import { smartConvertAddress } from './lib/addressConverter';
 import { cn, formatVNNumber } from './lib/utils';
 import { useToast } from './components/Notifications';
@@ -1295,22 +1297,20 @@ const DocsView = ({ items, onDelete, onBulkDelete, onDeleteAll, invoices, partne
         const pA = partners.find(p => p.taxCode === inv.extractedData?.seller?.taxCode) || {};
         const pB = partners.find(p => p.taxCode === inv.extractedData?.buyer?.taxCode) || {};
 
-        const res = await fetch('/api/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        try {
+          const templateBuffer = await getTemplateBuffer(genDoc.templateType);
+          const blob = await generateDocxBlob({
+            templateBuffer,
             templateType: genDoc.templateType,
             data: inv.extractedData,
             partnerA: pA,
             partnerB: pB,
             contractNumber: inv.contractNumber,
             contractDate: inv.contractDate
-          })
-        });
-        
-        if (res.ok) {
-          const blob = await res.blob();
+          });
           zip.file(genDoc.fileName, blob);
+        } catch (err) {
+          console.error(`Error generating doc ${genDoc.id}:`, err);
         }
       }
       
@@ -1366,25 +1366,17 @@ const DocsView = ({ items, onDelete, onBulkDelete, onDeleteAll, invoices, partne
       const pA = partners.find(p => p.taxCode === inv.extractedData?.seller?.taxCode) || {};
       const pB = partners.find(p => p.taxCode === inv.extractedData?.buyer?.taxCode) || {};
 
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          templateType: genDoc.templateType,
-          data: inv.extractedData,
-          partnerA: pA,
-          partnerB: pB,
-          contractNumber: inv.contractNumber,
-          contractDate: inv.contractDate
-        })
+      const templateBuffer = await getTemplateBuffer(genDoc.templateType);
+      const blob = await generateDocxBlob({
+        templateBuffer,
+        templateType: genDoc.templateType,
+        data: inv.extractedData,
+        partnerA: pA,
+        partnerB: pB,
+        contractNumber: inv.contractNumber,
+        contractDate: inv.contractDate
       });
       
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to generate.");
-      }
-
-      const blob = await res.blob();
       saveAs(blob, genDoc.fileName);
     } catch (err: any) {
       alert("Lỗi khi tải file: " + err.message);
@@ -1749,6 +1741,27 @@ const TAB_CONFIG: Record<Tab, { hash: string, label: string }> = {
   docs: { hash: 'tai-lieu-da-tao', label: 'Tài liệu đã tạo' }
 };
 
+// Helper to remove Vietnamese diacritics while preserving case
+const removeTones = (str: string) => {
+  str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+  str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+  str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+  str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+  str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+  str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+  str = str.replace(/đ/g, "d");
+  str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+  str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E");
+  str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
+  str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
+  str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
+  str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
+  str = str.replace(/Đ/g, "D");
+  str = str.replace(/\u0300|\u0301|\u0303|\u0309|\u0323/g, "");
+  str = str.replace(/\u02C6|\u0306|\u031B/g, "");
+  return str;
+};
+
 // --- Main App Component ---
 
 export default function App() {
@@ -1802,6 +1815,23 @@ export default function App() {
         } else if (foundTab === 'dashboard' && !slug) {
           setSelectedInvoice(null);
         }
+        
+        // Special handling for partners edit view
+        if (foundTab === 'partners' && slug) {
+          const parts = slug.split('-');
+          const taxCode = parts[0];
+          
+          if (partners.length > 0) {
+            const pIndex = partners.findIndex(p => p.taxCode === taxCode);
+            if (pIndex !== -1) {
+              const p = partners[pIndex];
+              setMultiPartnerEdit(prev => (prev?.isOpen ? { ...prev, currentIndex: pIndex } : prev));
+              setEditingPartner(p);
+            }
+          }
+        } else if (foundTab === 'partners' && !slug) {
+          setEditingPartner(null);
+        }
       } else if (!currentFullHash || currentFullHash === '/') {
         window.location.hash = `#/${TAB_CONFIG.dashboard.hash}/`;
       }
@@ -1813,6 +1843,17 @@ export default function App() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [invoices.length]); // Re-run when invoices are loaded to catch direct links
 
+  // Sync Hash with Multi-Partner Edit
+  useEffect(() => {
+    if (multiPartnerEdit?.isOpen) {
+      const currentPartner = partners[multiPartnerEdit.currentIndex];
+      if (currentPartner) {
+        const cleanName = removeTones(currentPartner.name).replace(/\s+/g, '').toUpperCase();
+        window.location.hash = `#/${TAB_CONFIG.partners.hash}/${currentPartner.taxCode}-${cleanName}/`;
+      }
+    }
+  }, [multiPartnerEdit?.currentIndex, multiPartnerEdit?.isOpen, partners]);
+
   // Update Hash when Tab changes manually
   const handleTabChange = (tab: Tab) => {
     window.location.hash = `#/${TAB_CONFIG[tab].hash}/`;
@@ -1822,29 +1863,30 @@ export default function App() {
     }
   };
 
+  const getTemplateBuffer = async (templateId: string): Promise<ArrayBuffer> => {
+    try {
+      const local = await loadTemplates();
+      const found = local.find(t => t.id === templateId);
+      if (found) {
+        const binaryString = window.atob(found.data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes.buffer;
+      }
+      
+      const res = await fetch(`templates/${templateId}.docx`);
+      if (!res.ok) throw new Error(`Template ${templateId} không tìm thấy trong hệ thống.`);
+      return await res.arrayBuffer();
+    } catch (error: any) {
+      console.error("Error loading template buffer:", error);
+      throw new Error(`Không thể tải mẫu [${templateId}]: ${error.message}`);
+    }
+  };
+
   const handleInvoiceSelect = (inv: Invoice | null) => {
     if (inv) {
-      // Helper to remove Vietnamese diacritics while preserving case
-      const removeTones = (str: string) => {
-        str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
-        str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
-        str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
-        str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
-        str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
-        str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
-        str = str.replace(/đ/g, "d");
-        str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
-        str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E");
-        str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
-        str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
-        str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
-        str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
-        str = str.replace(/Đ/g, "D");
-        str = str.replace(/\u0300|\u0301|\u0303|\u0309|\u0323/g, "");
-        str = str.replace(/\u02C6|\u0306|\u031B/g, "");
-        return str;
-      };
-
       // Get filename without extension
       const baseName = inv.fileName.replace(/\.[^/.]+$/, "");
       // Remove tones but preserve case
@@ -1855,6 +1897,17 @@ export default function App() {
     } else {
       window.location.hash = `#/${TAB_CONFIG.dashboard.hash}/`;
       setSelectedInvoice(null);
+    }
+  };
+
+  const handlePartnerEditSelect = (p: Partner | null) => {
+    if (p) {
+      const cleanName = removeTones(p.name).replace(/\s+/g, '').toUpperCase();
+      window.location.hash = `#/${TAB_CONFIG.partners.hash}/${p.taxCode}-${cleanName}/`;
+      setEditingPartner(p);
+    } else {
+      window.location.hash = `#/${TAB_CONFIG.partners.hash}/`;
+      setEditingPartner(null);
     }
   };
 
@@ -1900,11 +1953,16 @@ export default function App() {
 
   const fetchTemplates = async () => {
     try {
-      const res = await fetch('/api/templates');
-      const data = await res.json();
-      setAvailableTemplates(data.templates || []);
+      const staticTemplates = ['BB_VT', 'BB_CM', 'BB_TC'];
+      const local = await loadTemplates();
+      setLocalTemplates(local);
+      const localIds = local.map(t => t.id);
+      
+      const all = Array.from(new Set([...staticTemplates, ...localIds]));
+      setAvailableTemplates(all);
     } catch (e) {
       console.error("Failed to fetch templates:", e);
+      setAvailableTemplates(['BB_VT', 'BB_CM', 'BB_TC']);
     }
   };
 
@@ -2289,30 +2347,12 @@ export default function App() {
         if (fileExt === 'xml') {
           setRequestCount(prev => prev + 1); // Increment for XML parse
           const text = await file.text();
-          const res = await fetch('/api/parse-xml', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ xmlString: text })
-          });
-          
-          const responseText = await res.text();
-          if (!res.ok) {
-            let errorMsg = "Lỗi phân tích XML";
-            try {
-              const errorData = JSON.parse(responseText);
-              errorMsg = errorData.details || errorData.error || errorMsg;
-            } catch (e) {
-              errorMsg = responseText || errorMsg;
-            }
-            throw new Error(errorMsg);
-          }
-
           try {
-            extractedData = JSON.parse(responseText);
-            // Chuẩn hóa dữ liệu sau khi nhận từ API
+            extractedData = await parseInvoiceXml(text);
             extractedData = normalizeExtractedData(extractedData);
-          } catch (e) {
-            throw new Error("Dữ liệu trả về từ máy chủ không hợp lệ (không phải JSON).");
+          } catch (error: any) {
+            console.error("XML Parse Error:", error);
+            throw new Error(`Lỗi phân tích XML: ${error.message}`);
           }
           
           if (extractedData.items) {
@@ -2430,6 +2470,7 @@ export default function App() {
       }
     }
     if (loadingToastId) removeToast(loadingToastId);
+    clearToasts(); 
     setIsProcessing(false);
     toast("Đã xử lý xong danh sách tệp", "success");
   };
@@ -2812,25 +2853,17 @@ export default function App() {
 
                           setIsProcessing(true);
                           try {
-                            const res = await fetch('/api/generate', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({
-                                templateType: tType,
-                                data: selectedInvoice.extractedData,
-                                partnerA: pA,
-                                partnerB: pB,
-                                contractNumber: selectedInvoice.contractNumber,
-                                contractDate: selectedInvoice.contractDate
-                              })
+                            const templateBuffer = await getTemplateBuffer(tType);
+                            const blob = await generateDocxBlob({
+                              templateBuffer,
+                              templateType: tType,
+                              data: selectedInvoice.extractedData,
+                              partnerA: pA,
+                              partnerB: pB,
+                              contractNumber: selectedInvoice.contractNumber,
+                              contractDate: selectedInvoice.contractDate
                             });
-                            
-                            if (!res.ok) {
-                              const errorData = await res.json().catch(() => ({}));
-                              throw new Error(errorData.error || "Failed to generate. Ensure template is in /templates folder.");
-                            }
 
-                            const blob = await res.blob();
                             const url = window.URL.createObjectURL(blob);
                             const a = document.createElement('a');
                             a.href = url;
@@ -2915,7 +2948,7 @@ export default function App() {
               {activeTab === 'partners' && (
                 <PartnersView 
                   partners={partners} 
-                  onEdit={(p) => setEditingPartner(p)} 
+                  onEdit={(p) => handlePartnerEditSelect(p)} 
                   onBatchEdit={() => {
                     setMultiPartnerEdit({
                       isOpen: true,
@@ -3115,7 +3148,7 @@ export default function App() {
                   </div>
                   <h3 className="font-bold text-slate-900">Chỉnh sửa nhanh</h3>
                 </div>
-                <button onClick={() => setEditingPartner(null)} className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full transition-colors">
+                <button onClick={() => handlePartnerEditSelect(null)} className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -3135,7 +3168,7 @@ export default function App() {
                       accountNumber: formData.get('accountNumber') as string,
                       bankName: formData.get('bankName') as string,
                     });
-                    setEditingPartner(null);
+                    handlePartnerEditSelect(null);
                     toast("Đã cập nhật đối tác", "success");
                   } catch (err) {
                     toast("Lỗi cập nhật", "error");
