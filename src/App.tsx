@@ -1876,7 +1876,20 @@ export default function App() {
         return bytes.buffer;
       }
       
-      const res = await fetch(`templates/${templateId}.docx`);
+      // Determine the best base path for templates
+      let basePath = import.meta.env.BASE_URL || './';
+      if (basePath === './') {
+        // Fallback: try to derive from window.location for GitHub Pages subdirectories
+        const pathSegments = window.location.pathname.split('/');
+        // If pathname is /Quanlyhoadon/index.html or /Quanlyhoadon/, the base is /Quanlyhoadon/
+        basePath = pathSegments.slice(0, -1).join('/') + '/';
+      }
+      
+      if (!basePath.endsWith('/')) basePath += '/';
+      const finalPath = `${basePath}templates/${templateId}.docx`.replace(/\/+/g, '/');
+
+      console.log("Fetching template from:", finalPath);
+      const res = await fetch(finalPath);
       if (!res.ok) throw new Error(`Template ${templateId} không tìm thấy trong hệ thống.`);
       return await res.arrayBuffer();
     } catch (error: any) {
