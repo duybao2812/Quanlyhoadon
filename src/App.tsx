@@ -1733,6 +1733,42 @@ const BulkExportModal = ({
 
 // --- Constants ---
 
+// --- Helpers ---
+const getTemplateBuffer = async (templateId: string): Promise<ArrayBuffer> => {
+  try {
+    const local = await loadTemplates();
+    const found = local.find(t => t.id === templateId);
+    if (found) {
+      const binaryString = window.atob(found.data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes.buffer;
+    }
+    
+    // Determine the best base path for templates
+    let basePath = (import.meta as any).env?.BASE_URL || './';
+    if (basePath === './') {
+      // Fallback: try to derive from window.location for GitHub Pages subdirectories
+      const pathSegments = window.location.pathname.split('/');
+      // If pathname is /Quanlyhoadon/index.html or /Quanlyhoadon/, the base is /Quanlyhoadon/
+      basePath = pathSegments.slice(0, -1).join('/') + '/';
+    }
+    
+    if (!basePath.endsWith('/')) basePath += '/';
+    const finalPath = `${basePath}templates/${templateId}.docx`.replace(/\/+/g, '/');
+
+    console.log("Fetching template from:", finalPath);
+    const res = await fetch(finalPath);
+    if (!res.ok) throw new Error(`Template ${templateId} không tìm thấy trong hệ thống.`);
+    return await res.arrayBuffer();
+  } catch (error: any) {
+    console.error("Error loading template buffer:", error);
+    throw new Error(`Không thể tải mẫu [${templateId}]: ${error.message}`);
+  }
+};
+
 const TAB_CONFIG: Record<Tab, { hash: string, label: string }> = {
   dashboard: { hash: 'tong-quan', label: 'Bảng điều khiển' },
   upload: { hash: 'tai-len', label: 'Tải lên hóa đơn' },
@@ -1860,41 +1896,6 @@ export default function App() {
     setActiveTab(tab);
     if (tab === 'dashboard') {
       setSelectedInvoice(null);
-    }
-  };
-
-  const getTemplateBuffer = async (templateId: string): Promise<ArrayBuffer> => {
-    try {
-      const local = await loadTemplates();
-      const found = local.find(t => t.id === templateId);
-      if (found) {
-        const binaryString = window.atob(found.data);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        return bytes.buffer;
-      }
-      
-      // Determine the best base path for templates
-      let basePath = import.meta.env.BASE_URL || './';
-      if (basePath === './') {
-        // Fallback: try to derive from window.location for GitHub Pages subdirectories
-        const pathSegments = window.location.pathname.split('/');
-        // If pathname is /Quanlyhoadon/index.html or /Quanlyhoadon/, the base is /Quanlyhoadon/
-        basePath = pathSegments.slice(0, -1).join('/') + '/';
-      }
-      
-      if (!basePath.endsWith('/')) basePath += '/';
-      const finalPath = `${basePath}templates/${templateId}.docx`.replace(/\/+/g, '/');
-
-      console.log("Fetching template from:", finalPath);
-      const res = await fetch(finalPath);
-      if (!res.ok) throw new Error(`Template ${templateId} không tìm thấy trong hệ thống.`);
-      return await res.arrayBuffer();
-    } catch (error: any) {
-      console.error("Error loading template buffer:", error);
-      throw new Error(`Không thể tải mẫu [${templateId}]: ${error.message}`);
     }
   };
 
