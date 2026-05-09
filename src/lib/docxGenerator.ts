@@ -81,16 +81,20 @@ export async function generateDocxBlob({
   const vatRateStr = rawVat.toString().includes('%') ? rawVat.toString() : `${rawVat}%`;
   
   const tableRows = (data.items || []).map((item: any, index: number) => {
-    const qty = parseFloat(item.quantity) || 0;
-    const price = parseFloat(item.unitPrice) || 0;
-    const amount = item.amount || item.total || (qty * price);
+    const qty = parseFloat(item.quantity);
+    const price = parseFloat(item.unitPrice);
+    const amount = item.amount || item.total || (!isNaN(qty) && !isNaN(price) ? qty * price : 0);
     
+    // For Unit and Quantity, we strictly follow the user request: if empty, leave empty.
+    const displayUnit = (item.unit && !item.unit.toString().match(/^[. ]+$/)) ? item.unit.toString() : "";
+    const displayQty = (item.quantity !== undefined && item.quantity !== null && item.quantity !== "" && !isNaN(qty) && qty !== 0) ? formatVNNumber(qty) : "";
+
     return {
       STT: (index + 1).toString(),
       NOIDUNG: fallbackDots(item.description || item.name),
-      DVT: fallbackDots(item.unit),
-      SOLUONG: qty > 0 ? formatVNNumber(qty) : fallbackDots(null),
-      DONGIA: price > 0 ? formatVNNumber(price) : fallbackDots(null),
+      DVT: displayUnit,
+      SOLUONG: displayQty,
+      DONGIA: (!isNaN(price) && price > 0) ? formatVNNumber(price) : fallbackDots(null),
       THANHTIEN: amount > 0 ? formatVNNumber(amount) : '0'
     };
   });
@@ -179,7 +183,18 @@ export async function generateDocxBlob({
   const getEffectiveAddress = (partner: any, extractedAddr: string) => (isAfterMerger && partner.addressPostMerger) ? partner.addressPostMerger : (partner.address || extractedAddr);
 
   let pA = partnerA || {}, pB = partnerB || {}, sData = data.seller, bData = data.buyer;
-  if (templateType === 'BB_CM') { [pA, pB] = [pB, pA]; [sData, bData] = [bData, sData]; }
+  if (templateType === 'BB_VT') { 
+    [pA, pB] = [pB, pA]; 
+    [sData, bData] = [bData, sData]; 
+  }
+
+  const formatGender = (gender?: string) => {
+    if (!gender || gender === "....................") return "Ông/Bà";
+    const g = gender.toLowerCase();
+    if (g.includes('nam') || g.includes('ông') || g.includes('ong')) return "Ông";
+    if (g.includes('nữ') || g.includes('nu') || g.includes('bà') || g.includes('ba')) return "Bà";
+    return "Ông/Bà";
+  };
 
   doc.render({
     SO_HOPDONG: contractNumber || "....................",
@@ -193,8 +208,8 @@ export async function generateDocxBlob({
     DAIDIENBENB: fallbackDots(pB.representative),
     CHUCVUBENA: fallbackDots(pA.position),
     CHUCVUBENB: fallbackDots(pB.position),
-    GIOITINHBENA: fallbackDots(pA.gender || "Ông/Bà"),
-    GIOITINHBENB: fallbackDots(pB.gender || "Ông/Bà"),
+    GIOITINHBENA: formatGender(pA.gender),
+    GIOITINHBENB: formatGender(pB.gender),
     DIACHIBENA: fallbackDots(getEffectiveAddress(pA, sData.address)),
     DIACHIBENB: fallbackDots(getEffectiveAddress(pB, bData.address)),
     MSTBENA: fallbackDots(pA.taxCode || sData.taxCode),

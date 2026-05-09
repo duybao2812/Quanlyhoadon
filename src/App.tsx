@@ -386,7 +386,7 @@ const ReviewModal = ({
                 </span>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Số Hóa Đơn</label>
                 <input 
@@ -413,6 +413,18 @@ const ReviewModal = ({
                   onChange={(e) => handleChange('invoice.date', e.target.value)}
                   className="input-field" 
                 />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">% Thuế GTGT</label>
+                <div className="relative">
+                  <input 
+                    type="number" 
+                    value={edited.invoice?.vatRate || 8} 
+                    onChange={(e) => handleChange('invoice.vatRate', parseFloat(e.target.value))}
+                    className="input-field pr-8" 
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
+                </div>
               </div>
             </div>
           </section>
@@ -603,7 +615,7 @@ const ReviewModal = ({
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                  Tiền thuế GTGT {edited.invoice?.vatRate ? `(${edited.invoice.vatRate}%)` : ''}
+                  Tiền thuế GTGT ({edited.invoice?.vatRate !== undefined ? edited.invoice.vatRate : (edited.totals?.subtotal > 0 ? Math.round((Math.abs((edited.totals?.grandTotal || (edited.totals?.subtotal + (edited.totals?.vatAmount || 0))) - edited.totals?.subtotal) / edited.totals?.subtotal) * 100) : 8)}%)
                 </label>
                 <div className="text-lg font-bold text-slate-800">{formatVNNumber(edited.totals?.vatAmount)} đ</div>
               </div>
@@ -1555,14 +1567,34 @@ const BulkExportModal = ({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
+  const [bulkSearch, setBulkSearch] = useState("");
 
   const completedInvoices = invoices.filter(inv => inv.status === 'completed');
 
+  // Filter invoices based on search
+  const filteredInvoices = completedInvoices.filter(inv => {
+    if (!bulkSearch.trim()) return true;
+    const searchLower = bulkSearch.toLowerCase();
+    const fileNameMatch = inv.fileName.toLowerCase().includes(searchLower);
+    const sellerMatch = inv.extractedData?.seller?.name?.toLowerCase().includes(searchLower);
+    const buyerMatch = inv.extractedData?.buyer?.name?.toLowerCase().includes(searchLower);
+    const numberMatch = inv.extractedData?.invoice?.number?.toLowerCase().includes(searchLower);
+    return fileNameMatch || sellerMatch || buyerMatch || numberMatch;
+  });
+
   const handleSelectAll = () => {
-    if (selectedIds.length === completedInvoices.length) {
-      setSelectedIds([]);
+    const allFilteredIds = filteredInvoices.map(inv => inv.id);
+    const areAllFilteredSelected = allFilteredIds.every(id => selectedIds.includes(id));
+
+    if (areAllFilteredSelected) {
+      // Unselect only the filtered ones
+      setSelectedIds(prev => prev.filter(id => !allFilteredIds.includes(id)));
     } else {
-      setSelectedIds(completedInvoices.map(inv => inv.id));
+      // Select all filtered ones (keeping previously selected ones)
+      setSelectedIds(prev => {
+        const newSet = new Set([...prev, ...allFilteredIds]);
+        return Array.from(newSet);
+      });
     }
   };
 
@@ -1577,16 +1609,19 @@ const BulkExportModal = ({
 
     const zip = new JSZip();
     const folder = zip.folder("bien_ban_hang_loat");
+    let successCount = 0;
 
     for (let i = 0; i < selectedIds.length; i++) {
       const invId = selectedIds[i];
       const inv = completedInvoices.find(invoice => invoice.id === invId);
-      if (!inv) continue;
+      if (!inv || !inv.extractedData) {
+        setExportProgress(Math.round(((i + 1) / selectedIds.length) * 100));
+        continue;
+      }
 
       const pA = partners.find(p => p.taxCode === inv.extractedData?.seller?.taxCode) || {};
       const pB = partners.find(p => p.taxCode === inv.extractedData?.buyer?.taxCode) || {};
 
-      // Determine template type based on classification
       let templateType = 'BB_CM';
       if (inv.extractedData?.classification) {
         if (inv.extractedData.classification.includes('VT')) templateType = 'BB_VT';
@@ -1594,32 +1629,35 @@ const BulkExportModal = ({
       }
 
       try {
-        const res = await fetch('/api/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            templateType,
-            data: inv.extractedData,
-            partnerA: pA,
-            partnerB: pB,
-            contractNumber: inv.contractNumber,
-            contractDate: inv.contractDate
-          })
+        // Fetch template buffer once if possible, but for simplicity and robustness we use the helper
+        const templateBuffer = await getTemplateBuffer(templateType);
+        
+        const blob = await generateDocxBlob({
+          templateBuffer,
+          templateType,
+          data: inv.extractedData,
+          partnerA: pA,
+          partnerB: pB,
+          contractNumber: inv.contractNumber || "",
+          contractDate: inv.contractDate || ""
         });
 
-        if (res.ok) {
-          const blob = await res.blob();
-          const fileName = `BienBan_${inv.fileName.split('.')[0]}.docx`;
-          folder?.file(fileName, blob);
-        }
+        const safeFileName = inv.fileName.replace(/[\\/:*?"<>|]/g, '_').split('.')[0];
+        const fileName = `BienBan_${safeFileName}.docx`;
+        folder?.file(fileName, blob);
+        successCount++;
       } catch (err) {
         console.error("Export error for invoice:", inv.fileName, err);
       }
       setExportProgress(Math.round(((i + 1) / selectedIds.length) * 100));
     }
 
-    const content = await zip.generateAsync({ type: "blob" });
-    saveAs(content, `DocuForge_BulkExport_${new Date().getTime()}.zip`);
+    if (successCount === 0) {
+      alert("Không có file nào được tạo thành công. Vui lòng kiểm tra lại mẫu văn bản.");
+    } else {
+      const content = await zip.generateAsync({ type: "blob" });
+      saveAs(content, `DocuForge_BulkExport_${new Date().getTime()}.zip`);
+    }
     
     setIsExporting(false);
     onClose();
@@ -1642,50 +1680,70 @@ const BulkExportModal = ({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="mb-4 flex items-center justify-between px-2">
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-              Danh sách hóa đơn ({completedInvoices.length})
+        <div className="flex-1 overflow-y-auto">
+          {/* Sticky Header for Search & Selection Controls */}
+          <div className="sticky top-0 bg-white z-10 px-4 pt-4 pb-2 border-b border-slate-50 space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Tìm kiếm theo tên file, số hóa đơn, đối tác..."
+                value={bulkSearch}
+                onChange={(e) => setBulkSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+              />
             </div>
-            <button 
-              onClick={handleSelectAll}
-              className="text-xs text-blue-600 font-bold hover:underline"
-            >
-              {selectedIds.length === completedInvoices.length ? "Bỏ chọn tất cả" : "Chọn tất cả"}
-            </button>
+            <div className="flex items-center justify-between px-2">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                Đang hiển thị {filteredInvoices.length}/{completedInvoices.length} (Đã chọn {selectedIds.length})
+              </div>
+              <button 
+                onClick={handleSelectAll}
+                className="text-xs text-blue-600 font-bold hover:underline"
+              >
+                {filteredInvoices.every(inv => selectedIds.includes(inv.id)) && filteredInvoices.length > 0 ? "Bỏ chọn kết quả hiển thị" : "Chọn các kết quả hiển thị"}
+              </button>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            {completedInvoices.map((inv) => (
-              <div 
-                key={inv.id}
-                onClick={() => handleToggleSelect(inv.id)}
-                className={cn(
-                  "p-3 rounded-xl border transition-all cursor-pointer flex items-center gap-3",
-                  selectedIds.includes(inv.id) 
-                    ? "bg-blue-50 border-blue-200 shadow-sm" 
-                    : "border-slate-100 hover:border-slate-200"
-                )}
-              >
-                <div className={cn(
-                  "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
-                  selectedIds.includes(inv.id) ? "bg-blue-600 border-blue-600" : "border-slate-300"
-                )}>
-                  {selectedIds.includes(inv.id) && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-bold text-sm truncate">{inv.fileName}</div>
-                  <div className="text-[10px] text-slate-400 flex gap-2">
-                    <span>{new Date(inv.createdAt?.toDate()).toLocaleDateString()}</span>
-                    <span>•</span>
-                    <span className="uppercase">{inv.extractedData?.classification || 'Ca Máy'}</span>
+          <div className="p-4 space-y-2">
+            {filteredInvoices.length > 0 ? (
+              filteredInvoices.map((inv) => (
+                <div 
+                  key={inv.id}
+                  onClick={() => handleToggleSelect(inv.id)}
+                  className={cn(
+                    "p-3 rounded-xl border transition-all cursor-pointer flex items-center gap-3",
+                    selectedIds.includes(inv.id) 
+                      ? "bg-blue-50 border-blue-200 shadow-sm" 
+                      : "border-slate-50 hover:border-slate-200"
+                  )}
+                >
+                  <div className={cn(
+                    "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
+                    selectedIds.includes(inv.id) ? "bg-blue-600 border-blue-600" : "border-slate-300"
+                  )}>
+                    {selectedIds.includes(inv.id) && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-sm truncate">{inv.fileName}</div>
+                    <div className="text-[10px] text-slate-400 flex gap-2">
+                      <span>{inv.extractedData?.invoice?.number || 'Không số'}</span>
+                      <span>•</span>
+                      <span className="uppercase">{inv.extractedData?.classification || 'Hợp đồng'}</span>
+                    </div>
+                  </div>
+                  <div className="text-xs font-bold text-slate-700">
+                    {formatVNNumber(inv.extractedData?.totals?.grandTotal || 0)} đ
                   </div>
                 </div>
-                <div className="text-xs font-bold text-slate-700">
-                  {formatVNNumber(inv.extractedData?.totals?.grandTotal || 0)} đ
-                </div>
+              ))
+            ) : (
+              <div className="py-12 text-center space-y-2">
+                <Search className="w-8 h-8 text-slate-200 mx-auto" />
+                <p className="text-sm text-slate-400">Không tìm thấy hóa đơn nào phù hợp</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
@@ -1854,19 +1912,28 @@ export default function App() {
         
         // Special handling for partners edit view
         if (foundTab === 'partners' && slug) {
-          const parts = slug.split('-');
-          const taxCode = parts[0];
+          const isBatch = slug.startsWith('batch/');
+          const isEdit = slug.startsWith('edit/');
+          const actualSlug = isBatch ? slug.slice(6) : (isEdit ? slug.slice(5) : slug);
+          const subParts = actualSlug.split('-');
+          const taxCode = subParts[0];
           
           if (partners.length > 0) {
             const pIndex = partners.findIndex(p => p.taxCode === taxCode);
             if (pIndex !== -1) {
               const p = partners[pIndex];
-              setMultiPartnerEdit(prev => (prev?.isOpen ? { ...prev, currentIndex: pIndex } : prev));
-              setEditingPartner(p);
+              if (isBatch) {
+                setMultiPartnerEdit(prev => (prev?.isOpen ? { ...prev, currentIndex: pIndex } : { isOpen: true, currentIndex: pIndex, drafts: {}, showExitConfirm: false }));
+                setEditingPartner(null);
+              } else {
+                setEditingPartner(p);
+                setMultiPartnerEdit(null);
+              }
             }
           }
         } else if (foundTab === 'partners' && !slug) {
           setEditingPartner(null);
+          setMultiPartnerEdit(null);
         }
       } else if (!currentFullHash || currentFullHash === '/') {
         window.location.hash = `#/${TAB_CONFIG.dashboard.hash}/`;
@@ -1877,7 +1944,7 @@ export default function App() {
     handleHashChange(); // Initial check
 
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [invoices.length]); // Re-run when invoices are loaded to catch direct links
+  }, [invoices.length, partners.length]); // Re-run when invoices or partners are loaded to catch direct links
 
   // Sync Hash with Multi-Partner Edit
   useEffect(() => {
@@ -1885,7 +1952,7 @@ export default function App() {
       const currentPartner = partners[multiPartnerEdit.currentIndex];
       if (currentPartner) {
         const cleanName = removeTones(currentPartner.name).replace(/\s+/g, '').toUpperCase();
-        window.location.hash = `#/${TAB_CONFIG.partners.hash}/${currentPartner.taxCode}-${cleanName}/`;
+        window.location.hash = `#/${TAB_CONFIG.partners.hash}/batch/${currentPartner.taxCode}-${cleanName}/`;
       }
     }
   }, [multiPartnerEdit?.currentIndex, multiPartnerEdit?.isOpen, partners]);
@@ -1917,12 +1984,30 @@ export default function App() {
   const handlePartnerEditSelect = (p: Partner | null) => {
     if (p) {
       const cleanName = removeTones(p.name).replace(/\s+/g, '').toUpperCase();
-      window.location.hash = `#/${TAB_CONFIG.partners.hash}/${p.taxCode}-${cleanName}/`;
+      window.location.hash = `#/${TAB_CONFIG.partners.hash}/edit/${p.taxCode}-${cleanName}/`;
       setEditingPartner(p);
+      setMultiPartnerEdit(null);
     } else {
       window.location.hash = `#/${TAB_CONFIG.partners.hash}/`;
       setEditingPartner(null);
     }
+  };
+
+  const handleBatchPartnerEditStart = () => {
+    if (partners.length === 0) {
+      toast("Không có đối tác nào để chỉnh sửa", "info");
+      return;
+    }
+    const firstPartner = partners[0];
+    const cleanName = removeTones(firstPartner.name).replace(/\s+/g, '').toUpperCase();
+    window.location.hash = `#/${TAB_CONFIG.partners.hash}/batch/${firstPartner.taxCode}-${cleanName}/`;
+    setMultiPartnerEdit({
+      isOpen: true,
+      currentIndex: 0,
+      drafts: {},
+      showExitConfirm: false
+    });
+    setEditingPartner(null);
   };
 
   useEffect(() => {
@@ -2183,7 +2268,11 @@ export default function App() {
     
     // Helper to fix string values
     const fixString = (str: any) => {
-      if (typeof str !== 'string') return str;
+      if (typeof str !== 'string' || !str) return str;
+      
+      // Clear values if they are just dots or dashes
+      if (str.match(/^[.\- ]+$/)) return "";
+
       // Fix "Ngọc Thám" to "Ngọc Thắm" (misreading tone mark)
       return str.replace(/NGỌC THÁM/gi, (match) => {
         if (match === match.toUpperCase()) return 'NGỌC THẮM';
@@ -2192,7 +2281,39 @@ export default function App() {
       });
     };
 
+    const fixNumber = (val: any) => {
+      if (val === undefined || val === null || val === "") return null;
+      if (typeof val === 'number') return val;
+      const s = String(val).trim();
+      if (!s || s.match(/^[.\- ]+$/)) return null;
+      const cleanStr = s.replace(/[^0-9.-]/g, '');
+      const num = parseFloat(cleanStr);
+      return isNaN(num) ? null : num;
+    };
+
     const newData = { ...data };
+    
+    // Ensure totals are numbers and calculate vatRate if missing or using default
+    if (newData.totals) {
+      const sub = fixNumber(newData.totals.subtotal || newData.totals.Subtotal || newData.totals.sub_total) || 0;
+      const vat = fixNumber(newData.totals.vatAmount || newData.totals.VatAmount || newData.totals.vat_amount) || 0;
+      const total = fixNumber(newData.totals.grandTotal || newData.totals.GrandTotal || newData.totals.grand_total);
+      
+      // Calculate vatRate: (Total - Subtotal) / Subtotal or Vat / Subtotal
+      if (sub > 0) {
+        const calculatedVat = (total !== null && total !== 0) ? Math.abs(total - sub) : vat;
+        const calculatedRate = Math.round((calculatedVat / sub) * 100);
+        
+        if (!newData.invoice) newData.invoice = {};
+        newData.invoice.vatRate = calculatedRate;
+        
+        // Ensure vatAmount is also consistent if it was 0
+        if (vat === 0 && total !== null) newData.totals.vatAmount = calculatedVat;
+        
+        // If total was missing, use sub + vat
+        if (total === null || total === 0) newData.totals.grandTotal = sub + vat;
+      }
+    }
     
     // Fix Seller & Buyer names and addresses
     if (newData.seller) {
@@ -2204,12 +2325,14 @@ export default function App() {
       newData.buyer.address = fixString(newData.buyer.address);
     }
     
-    // Fix items description
+    // Fix items description, unit, quantity
     if (newData.items && Array.isArray(newData.items)) {
       newData.items = newData.items.map((item: any) => ({
         ...item,
-        name: fixString(item.name),
-        description: fixString(item.description)
+        name: fixString(item.name || item.description),
+        description: fixString(item.description || item.name),
+        unit: fixString(item.unit || item.DVT || item.DVTinh),
+        quantity: fixNumber(item.quantity || item.SL || item.SLuong)
       }));
     }
 
@@ -2766,16 +2889,27 @@ export default function App() {
                       </button>
                     </div>
                     <div className="flex-1 p-4 space-y-6 overflow-y-auto text-sm">
-                      <div>
-                        <label className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Người bán (Bên A)</label>
-                        <div className="font-semibold">{selectedInvoice.extractedData?.seller?.name}</div>
-                        <div className="text-xs text-slate-500 font-mono">MST: {selectedInvoice.extractedData?.seller?.taxCode}</div>
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Người mua (Bên B)</label>
-                        <div className="font-semibold">{selectedInvoice.extractedData?.buyer?.name}</div>
-                        <div className="text-xs text-slate-500 font-mono">MST: {selectedInvoice.extractedData?.buyer?.taxCode}</div>
-                      </div>
+                      {(() => {
+                        const isVT = selectedInvoice.extractedData?.classification?.includes('VT');
+                        return (
+                          <>
+                            <div>
+                              <label className="text-[10px] text-slate-400 font-bold uppercase block mb-1">
+                                {isVT ? "Người bán (Bên B)" : "Người bán (Bên A)"}
+                              </label>
+                              <div className="font-semibold">{selectedInvoice.extractedData?.seller?.name}</div>
+                              <div className="text-xs text-slate-500 font-mono">MST: {selectedInvoice.extractedData?.seller?.taxCode}</div>
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-slate-400 font-bold uppercase block mb-1">
+                                {isVT ? "Người mua (Bên A)" : "Người mua (Bên B)"}
+                              </label>
+                              <div className="font-semibold">{selectedInvoice.extractedData?.buyer?.name}</div>
+                              <div className="text-xs text-slate-500 font-mono">MST: {selectedInvoice.extractedData?.buyer?.taxCode}</div>
+                            </div>
+                          </>
+                        );
+                      })()}
                       
                       <div className="space-y-4 pt-4 border-t border-slate-100">
                         <label className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Thông tin Hợp đồng</label>
@@ -2925,8 +3059,8 @@ export default function App() {
                               <tr key={i}>
                                 <td className="border border-slate-200 p-2 text-center text-slate-400 font-mono">{i + 1}</td>
                                 <td className="border border-slate-200 p-2 font-medium">{item.description || item.name || fallback}</td>
-                                <td className="border border-slate-200 p-2 text-center">{item.unit || fallback}</td>
-                                <td className="border border-slate-200 p-2 text-center">{qty > 0 ? formatVNNumber(qty) : fallback}</td>
+                                <td className="border border-slate-200 p-2 text-center">{item.unit && !item.unit.toString().match(/^[. ]+$/) ? item.unit : ''}</td>
+                                <td className="border border-slate-200 p-2 text-center">{qty > 0 ? formatVNNumber(qty) : ''}</td>
                                 <td className="border border-slate-200 p-2 text-right font-mono">{price > 0 ? formatVNNumber(price) : fallback}</td>
                                 <td className="border border-slate-200 p-2 text-right font-bold text-slate-800 font-mono">{amount > 0 ? formatVNNumber(amount) : '0'}</td>
                               </tr>
@@ -2937,7 +3071,16 @@ export default function App() {
                             <td className="border border-slate-200 p-2 text-right font-mono">{formatVNNumber(selectedInvoice.extractedData?.totals?.subtotal)}</td>
                           </tr>
                           <tr className="font-bold">
-                            <td colSpan={5} className="border border-slate-200 p-2 text-right italic text-[10px]">Thuế GTGT ({selectedInvoice.extractedData?.invoice?.vatRate}%)</td>
+                            <td colSpan={5} className="border border-slate-200 p-2 text-right italic text-[10px]">
+                              Thuế GTGT ({(() => {
+                                const rate = selectedInvoice.extractedData?.invoice?.vatRate;
+                                if (rate !== undefined && rate !== null) return rate;
+                                const sub = selectedInvoice.extractedData?.totals?.subtotal;
+                                const total = selectedInvoice.extractedData?.totals?.grandTotal || selectedInvoice.extractedData?.totals?.grand_total;
+                                if (sub > 0 && total > 0) return Math.round((Math.abs(total - sub) / sub) * 100);
+                                return 8;
+                              })()}%)
+                            </td>
                             <td className="border border-slate-200 p-2 text-right font-mono">{formatVNNumber(selectedInvoice.extractedData?.totals?.vatAmount)}</td>
                           </tr>
                           <tr className="bg-blue-50 text-blue-900 font-bold">
@@ -2963,14 +3106,7 @@ export default function App() {
                 <PartnersView 
                   partners={partners} 
                   onEdit={(p) => handlePartnerEditSelect(p)} 
-                  onBatchEdit={() => {
-                    setMultiPartnerEdit({
-                      isOpen: true,
-                      currentIndex: 0,
-                      drafts: {},
-                      showExitConfirm: false
-                    });
-                  }}
+                  onBatchEdit={handleBatchPartnerEditStart}
                   onDelete={handleDeletePartner} 
                 />
               )}

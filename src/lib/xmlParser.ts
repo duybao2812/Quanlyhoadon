@@ -7,12 +7,21 @@ export async function parseInvoiceXml(xmlString: string): Promise<any> {
   });
   
   // Helper to clean and parse numbers
-  const parseInvoiceNumber = (val: any): number => {
-    if (val === undefined || val === null) return 0;
+  const parseInvoiceNumber = (val: any): number | null => {
+    if (val === undefined || val === null) return null;
     if (typeof val === 'number') return val;
-    const cleanStr = String(val).replace(/[^0-9.-]/g, '');
+    const s = String(val).trim();
+    if (!s || s.match(/^[. ]+$/)) return null;
+    const cleanStr = s.replace(/[^0-9.-]/g, '');
     const num = parseFloat(cleanStr);
-    return isNaN(num) ? 0 : num;
+    return isNaN(num) ? null : num;
+  };
+
+  const cleanseFieldValue = (val: any): string => {
+    if (!val) return "";
+    const s = String(val).trim();
+    if (s.match(/^[. ]+$/)) return "";
+    return s;
   };
 
   // Deep search helper
@@ -76,11 +85,32 @@ export async function parseInvoiceXml(xmlString: string): Promise<any> {
       number: tTChung.SHDon || tTChung.InvoiceNo || "",
       serial: tTChung.KHHDon || tTChung.Series || "",
       date: tTChung.NLap || tTChung.InvoiceDate || "",
-      vatRate: 8 // default
+      vatRate: (() => {
+        // Logic check: calculate rate from subtotal and vat amount
+        const sub = parseInvoiceNumber(tToan.TgTCThue || tToan.subtotal || tToan.Subtotal || tToan.SubTotal) || 0;
+        const vat = parseInvoiceNumber(tToan.TgTThue || tToan.vatAmount || tToan.VatAmount || tToan.VATAmount) || 0;
+        const total = parseInvoiceNumber(tToan.TgTTTBSo || tToan.TgTTToan || tToan.grandTotal || tToan.GrandTotal || tToan.TotalAmountWithVAT) || (sub + vat);
+
+        if (sub > 0) {
+          // Use absolute difference to be safe, then divide by subtotal to get rate
+          const calculatedVat = vat > 0 ? vat : Math.abs(total - sub);
+          const calculatedRate = Math.round((calculatedVat / sub) * 100);
+          return calculatedRate;
+        }
+
+        // Fallback to text search if math fails
+        const vRateNode = findNode(tToan, ['TSuat', 'VATRate', 'ThueSuat', 'vatRate', 'vrate']);
+        if (vRateNode) {
+          const rateStr = String(vRateNode).replace(/[^0-9]/g, '');
+          if (rateStr) return parseInt(rateStr);
+        }
+
+        return 8; // default
+      })()
     },
     items: itemsList.map((item: any) => ({
-      description: item.THHDVu || item.Ten || item.TenHHoa || item.ItemName || "",
-      unit: item.DVTinh || item.Unit || "",
+      description: cleanseFieldValue(item.THHDVu || item.Ten || item.TenHHoa || item.ItemName),
+      unit: cleanseFieldValue(item.DVTinh || item.Unit),
       quantity: parseInvoiceNumber(item.SLuong),
       unitPrice: parseInvoiceNumber(item.DGia),
       amount: parseInvoiceNumber(item.ThTien || item.ThanhTien || item.TotalAmount)
