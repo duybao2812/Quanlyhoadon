@@ -7,6 +7,8 @@ import Docxtemplater from 'docxtemplater';
 import multer from 'multer';
 import { Mistral } from '@mistralai/mistralai';
 import dotenv from 'dotenv';
+import axios from 'axios';
+import OpenAI from 'openai';
 
 dotenv.config();
 
@@ -256,6 +258,110 @@ async function startServer() {
       res.status(500).json({ 
         error: "Mistral AI không thể trích xuất dữ liệu từ máy chủ.",
         details: error.message 
+      });
+    }
+  });
+
+  app.post('/api/ai/chat', async (req, res) => {
+    const { messages, stream = true } = req.body;
+    
+    // Add system message if not present
+    const finalMessages = [...messages];
+    if (!messages.find((m: any) => m.role === 'system')) {
+      finalMessages.unshift({
+        role: 'system',
+        content: 'Bạn là một trợ lý AI thông minh tích hợp trong hệ thống quản lý hóa đơn và hợp đồng. Bạn hỗ trợ tiếng Việt rất tốt. Bạn có thể giúp người dùng phân tích dữ liệu, tóm tắt nội dung, hoặc thực hiện các thao tác trên dashboard. Hãy trả lời ngắn gọn, súc tích và chuyên nghiệp.'
+      });
+    }
+
+    const providers = [
+      {
+        name: 'Cerebras',
+        apiKey: process.env.CEREBRAS_API_KEY,
+        baseURL: 'https://api.cerebras.ai/v1',
+        model: 'llama3.1-8b' 
+      },
+      {
+        name: 'Gemini',
+        apiKey: process.env.GEMINI_API_KEY,
+        baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+        model: 'gemini-1.5-flash'
+      },
+      {
+        name: 'Groq',
+        apiKey: process.env.GROQ_API_KEY,
+        baseURL: 'https://api.groq.com/openai/v1',
+        model: 'llama-3.3-70b-versatile'
+      },
+      {
+        name: 'OpenRouter',
+        apiKey: process.env.OPENROUTER_API_KEY,
+        baseURL: 'https://openrouter.ai/api/v1',
+        model: 'qwen/qwen-2.5-72b-instruct:free'
+      }
+    ];
+
+    const errors = [];
+
+    for (const provider of providers) {
+      if (!provider.apiKey) {
+        const errorMsg = `Provider ${provider.name} skipped: Missing API Key`;
+        console.warn(`[SYSTEM_AI_LOG] ${errorMsg}`);
+        errors.push({ provider: provider.name, error: 'Missing API Key' });
+        continue;
+      }
+      
+      try {
+        console.log(`[SYSTEM_AI_LOG] Attempting: ${provider.name} (${provider.model})`);
+        const client = new OpenAI({
+          apiKey: provider.apiKey,
+          baseURL: provider.baseURL,
+        });
+
+        if (stream) {
+          const aiStream = await client.chat.completions.create({
+            model: provider.model,
+            messages: finalMessages,
+            stream: true,
+          });
+
+          res.setHeader('Content-Type', 'text/event-stream');
+          res.setHeader('Cache-Control', 'no-cache');
+          res.setHeader('Connection', 'keep-alive');
+
+          try {
+            for await (const chunk of aiStream) {
+              const data = JSON.stringify(chunk);
+              res.write(`data: ${data}\n\n`);
+            }
+            res.write('data: [DONE]\n\n');
+            console.log(`[SYSTEM_AI_LOG] Successfully completed with ${provider.name}`);
+            return res.end();
+          } catch (streamError: any) {
+            console.error(`[SYSTEM_AI_ERROR] Streaming error with ${provider.name}:`, streamError.message);
+            errors.push({ provider: provider.name, error: streamError.message, type: 'stream' });
+            if (!res.headersSent) throw streamError;
+            return res.end();
+          }
+        } else {
+          const response = await client.chat.completions.create({
+            model: provider.model,
+            messages: finalMessages,
+          });
+          console.log(`[SYSTEM_AI_LOG] Successfully completed with ${provider.name}`);
+          return res.json(response);
+        }
+      } catch (error: any) {
+        console.error(`[SYSTEM_AI_ERROR] ${provider.name} failed:`, error.message);
+        errors.push({ provider: provider.name, error: error.message });
+        // Continue to next provider
+      }
+    }
+
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        error: 'Tất cả các nhà cung cấp AI đều thất bại hoặc chưa được cấu hình.',
+        systemLogs: errors
       });
     }
   });

@@ -3,12 +3,34 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-mono: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Custom Font Sizes and Line Heights from User Guidelines */
+  --font-size-xs: 12px;
+  --font-size-xs--line-height: 18px;
+
+  --font-size-secondary: 13px;
+  --font-size-secondary--line-height: 20px;
+
+  --font-size-sm: 14px;
+  --font-size-sm--line-height: 22px;
+
+  --font-size-base: 16px;
+  --font-size-base--line-height: 24px;
+
+  --font-size-lg: 18px;
+  --font-size-lg--line-height: 26px;
+
+  --font-size-xl: 20px;
+  --font-size-xl--line-height: 28px;
+
+  --font-size-3xl: 28px;
+  --font-size-3xl--line-height: 36px;
 }
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    @apply bg-slate-50 text-slate-900 antialiased font-sans text-sm font-normal;
   }
 }
 
@@ -25,15 +47,47 @@
      @apply bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden;
   }
 
+  .card-title {
+    @apply text-base font-semibold text-slate-900;
+  }
+
+  .section-title {
+    @apply text-xl font-semibold text-slate-900;
+  }
+
+  .page-title {
+    @apply text-3xl font-bold text-slate-900;
+  }
+
+  .modal-title {
+    @apply text-lg font-semibold text-slate-900;
+  }
+
   .input-field {
-    @apply w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm;
+    @apply w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm font-normal;
   }
   
   .sidebar-link {
-    @apply flex items-center gap-3 px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-all;
+    @apply flex items-center gap-3 px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-all text-sm font-medium;
   }
   
   .sidebar-link-active {
     @apply bg-indigo-600/10 text-indigo-400 font-semibold;
+  }
+
+  .secondary-text {
+    @apply text-[13px] leading-[20px] font-normal text-slate-500;
+  }
+
+  .caption-text {
+    @apply text-[12px] leading-[18px] font-normal text-slate-400;
+  }
+
+  .table-cell {
+    @apply text-[13px] leading-[20px] font-normal;
+  }
+
+  .table-head {
+    @apply text-[12px] leading-[18px] font-semibold uppercase tracking-wider;
   }
 }

@@ -40,6 +40,19 @@
         "downloadUrl": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       }
+    },
+    "Contract": {
+      "title": "Smart Contract",
+      "description": "Represents a contract manually created in the application.",
+      "type": "object",
+      "properties": {
+        "templateId": { "type": "string" },
+        "partyAId": { "type": "string" },
+        "partyBId": { "type": "string" },
+        "formData": { "type": "object" },
+        "fileName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "firestore": {
@@ -54,6 +67,10 @@
     "generated_docs": {
       "schema": "GeneratedDoc",
       "description": "Collection of generated Word documents."
+    },
+    "contracts": {
+      "schema": "Contract",
+      "description": "Collection of professional contracts."
     }
   }
 }

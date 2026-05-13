@@ -60,6 +60,26 @@ function formatCompanyName(name: any) {
   }).join(' ');
 }
 
+export function extractTags(buffer: ArrayBuffer): string[] {
+  const zip = new PizZip(buffer);
+  const docXml = zip.file("word/document.xml")?.asText() || "";
+  // Strip XML tags to get clean content
+  const cleanText = docXml.replace(/<[^>]+>/g, "");
+  
+  // Search for [TAG] in the clean text
+  const regex = /\[([^\]]+)\]/g;
+  const tags = new Set<string>();
+  let match;
+  while ((match = regex.exec(cleanText)) !== null) {
+    const tag = match[1].trim();
+    // Ignore internal tags or empty matches
+    if (tag && !tag.startsWith('@') && !tag.startsWith('#') && !tag.startsWith('/')) {
+      tags.add(tag);
+    }
+  }
+  return Array.from(tags).sort();
+}
+
 export async function generateDocxBlob({
   templateBuffer,
   templateType,
@@ -80,24 +100,34 @@ export async function generateDocxBlob({
   const rawVat = data.invoice.vatRate !== undefined && data.invoice.vatRate !== null && data.invoice.vatRate !== '' ? data.invoice.vatRate : '8';
   const vatRateStr = rawVat.toString().includes('%') ? rawVat.toString() : `${rawVat}%`;
   
-  const tableRows = (data.items || []).map((item: any, index: number) => {
-    const qty = parseFloat(item.quantity);
-    const price = parseFloat(item.unitPrice);
-    const amount = item.amount || item.total || (!isNaN(qty) && !isNaN(price) ? qty * price : 0);
-    
-    // For Unit and Quantity, we strictly follow the user request: if empty, leave empty.
-    const displayUnit = (item.unit && !item.unit.toString().match(/^[. ]+$/)) ? item.unit.toString() : "";
-    const displayQty = (item.quantity !== undefined && item.quantity !== null && item.quantity !== "" && !isNaN(qty) && qty !== 0) ? formatVNNumber(qty) : "";
+  const tableRows = (data.items || [])
+    .filter((item: any) => {
+      const qty = parseFloat(item.quantity) || 0;
+      const price = parseFloat(item.unitPrice) || parseFloat(item.price) || 0;
+      const amount = Number(item.amount || item.total || item.totalAmount || item.lineTotal) || (qty * price);
+      
+      const isZero = qty === 0 && price === 0 && amount === 0;
+      const isEmptyUnit = !item.unit || item.unit.toString().trim() === "" || item.unit.toString().trim() === "-" || item.unit.toString().trim() === ".";
+      
+      return !(isZero && isEmptyUnit);
+    })
+    .map((item: any, index: number) => {
+      const qty = parseFloat(item.quantity);
+      const price = parseFloat(item.unitPrice);
+      const amount = Number(item.amount || item.total || item.totalAmount || item.lineTotal) || (!isNaN(qty) && !isNaN(price) ? qty * price : 0);
+      
+      const displayUnit = (item.unit && !item.unit.toString().match(/^[. -]+$/)) ? item.unit.toString() : "";
+      const displayQty = (item.quantity !== undefined && item.quantity !== null && item.quantity !== "" && !isNaN(qty) && qty !== 0) ? formatVNNumber(qty) : "";
 
-    return {
-      STT: (index + 1).toString(),
-      NOIDUNG: fallbackDots(item.description || item.name),
-      DVT: displayUnit,
-      SOLUONG: displayQty,
-      DONGIA: (!isNaN(price) && price > 0) ? formatVNNumber(price) : fallbackDots(null),
-      THANHTIEN: amount > 0 ? formatVNNumber(amount) : '0'
-    };
-  });
+      return {
+        STT: (index + 1).toString(),
+        NOIDUNG: item.description || item.name || "",
+        DVT: displayUnit,
+        SOLUONG: displayQty,
+        DONGIA: (!isNaN(price) && price > 0) ? formatVNNumber(price) : "",
+        THANHTIEN: amount > 0 ? formatVNNumber(amount) : '0'
+      };
+    });
 
   const generateDocxTable = (items: any[]) => {
     const columns = [
@@ -182,8 +212,9 @@ export async function generateDocxBlob({
 
   const getEffectiveAddress = (partner: any, extractedAddr: string) => (isAfterMerger && partner.addressPostMerger) ? partner.addressPostMerger : (partner.address || extractedAddr);
 
+  const isSwapped = templateType.includes('VT') || templateType.includes('CM') || templateType.includes('TC');
   let pA = partnerA || {}, pB = partnerB || {}, sData = data.seller, bData = data.buyer;
-  if (templateType === 'BB_VT') { 
+  if (isSwapped) { 
     [pA, pB] = [pB, pA]; 
     [sData, bData] = [bData, sData]; 
   }
