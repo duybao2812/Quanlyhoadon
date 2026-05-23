@@ -1,0 +1,61 @@
+Created At: 2026-05-20T11:36:53Z
+Completed At: 2026-05-20T11:36:53Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8264
+Total Bytes: 401878
+Showing lines 1646 to 1700
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1646:                 "size-12 rounded-2xl flex items-center justify-center transition-all duration-500",
+1647:                 isProcessing ? "bg-primary/20 text-primary animate-pulse" : "bg-white/5 text-text-dim"
+1648:               )}>
+1649:                 {isProcessing ? <Loader2 className="size-6 animate-spin" /> : <List className="size-6" />}
+1650:               </div>
+1651:               <div>
+1652:                 <div className="flex items-center gap-3">
+1653:                   <span className="text-sm font-black uppercase tracking-[0.2em] text-white">Hàng chờ hệ thống</span>
+1654:                   <div className="px-3 py-0.5 bg-primary/20 text-primary rounded-full text-[10px] font-black tracking-widest border border-primary/30">
+1655:                     {queue.length} TỆP SẴN SÀNG
+1656:                   </div>
+1657:                 </div>
+1658:                 {isProcessing && processingStatus ? (
+1659:                   <div className="flex items-center gap-2 mt-1.5">
+1660:                     <div className="size-1.5 rounded-full bg-primary animate-ping" />
+1661:                     <span className="text-[10px] text-primary font-black uppercase tracking-widest">{processingStatus}</span>
+1662:                   </div>
+1663:                 ) : (
+1664:                   <p className="text-[10px] text-text-dim font-bold uppercase tracking-widest mt-1 opacity-60">Các tệp sẽ được bóc tách bằng AI Mistral Premium</p>
+1665:                 )}
+1666:               </div>
+1667:             </div>
+1668:             
+1669:             <but
+<truncated 298 bytes>
+ex items-center gap-3 shadow-2xl",
+1674:                 isProcessing 
+1675:                   ? "bg-white/5 text-text-dim cursor-not-allowed" 
+1676:                   : "bg-primary text-white hover:translate-y-[-4px] active:scale-95 shadow-primary/20"
+1677:               )}
+1678:             >
+1679:               {isProcessing ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4 fill-current" />}
+1680:               {isProcessing ? "Đang xử lý dữ liệu..." : "BẮT ĐẦU TRÍCH XUẤT NGAY"}
+1681:             </button>
+1682:           </div>
+1683:           
+1684:           <div className="grid grid-cols-1 lg:grid-cols-2 divide-x divide-border-dark min-h-[400px]">
+1685:             {/* Column 1: Ready to Process */}
+1686:             <div className="p-8 space-y-6">
+1687:               <div className="flex items-center justify-between px-2">
+1688:                 <div className="flex items-center gap-3 text-xs font-black text-emerald-500 uppercase tracking-[0.2em]">
+1689:                   <div className="size-2.5 rounded-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]"></div>
+1690:                   Danh sách tệp hợp lệ
+1691:                 </div>
+1692:               </div>
+1693:               
+1694:               <div className="space-y-4 max-h-[500px] overflow-y-auto pr-4 custom-scrollbar">
+1695:                 {queue.length === 0 && (
+1696:                   <div className="py-24 text-center border-2 border-dashed border-border-dark rounded-3xl opacity-30">
+1697:                     <FileQuestion className="size-12 mx-auto mb-4 text-text-dim" />
+1698:                     <p className="text-[10px] text-text-dim italic font-black uppercase tracking-widest">Không có tệp nào trong hàng đợi</p>
+1699:                   </div>
+1700:                 )}
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

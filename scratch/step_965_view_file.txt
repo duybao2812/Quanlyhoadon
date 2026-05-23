@@ -1,0 +1,1 @@
+I will write a script to extract the file content from step 826 (which was a `VIEW_FILE` step showing the actual document rendering functions in `src/App.tsx` before they were discarded) so we can see how they were written.

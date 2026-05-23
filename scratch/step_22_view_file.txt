@@ -1,0 +1,80 @@
+Created At: 2026-05-20T11:15:42Z
+Completed At: 2026-05-20T11:15:42Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8256
+Total Bytes: 401487
+Showing lines 800 to 1000
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+800:               </div>
+801:             </div>
+802:           </section>
+803:         </div>
+804: 
+805:         <div className="p-8 border-t border-border-dark bg-white/5 flex justify-end gap-4">
+806:           <button onClick={onClose} className="btn-secondary px-8">
+807:             HỦY BỎ
+808:           </button>
+809:           <button 
+810:             onClick={() => onSave(edited)} 
+811:             className="btn-primary min-w-[200px]"
+812:           >
+813:             <Check className="size-4" />
+814:             LƯU VÀO HỆ THỐNG
+815:           </button>
+816:         </div>
+817:       </motion.div>
+818:     </div>
+819:   );
+820: };
+821: 
+822: const InvoiceItem: React.FC<InvoiceItemProps & { ref?: React.Ref<HTMLDivElement> }> = ({ inv, onSelectInvoice, onDeleteInvoice, displayName, displayDate, ref }) => (
+823:   <div 
+824:     ref={ref}
+825:     onClick={() => onSelectInvoice(inv)}
+826:     onContextMenu={(e) => {
+827:       e.preventDefault();
+828:       onDeleteInvoice(inv.id);
+829:     }}
+830:     className="flex items-center justify-between p-4 rounded-2xl border border-border-dark bg-card-dark hover:bg-white/5 transition-all cursor-pointer group shadow-lg"
+831:   >
+832:     <div className="flex items-center gap-4">
+833:       <div className={cn(
+834:         "size-12 rounded-xl flex items-center justify-center transition-all duration-500 group-hover:scale-110",
+835:         inv.fileType === 'xml' ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"
+836:       )}>
+837
+<truncated 5920 bytes>
+w-auto">
+969:           {selectedIds.length > 0 && (
+970:             <button 
+971:               onClick={() => {
+972:                 if (isDeletingBulk) {
+973:                   onBulkDelete(selectedIds);
+974:                   setSelectedIds([]);
+975:                   setIsDeletingBulk(false);
+976:                 } else {
+977:                   setIsDeletingBulk(true);
+978:                   setTimeout(() => setIsDeletingBulk(false), 3000);
+979:                 }
+980:               }}
+981:               className={cn(
+982:                 "flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] border transition-all shadow-lg",
+983:                 isDeletingBulk ? "bg-red-500 text-white border-red-500 animate-pulse shadow-red-500/20" : "bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20"
+984:               )}
+985:             >
+986:               <Trash2 className="size-4" />
+987:               {isDeletingBulk ? "Xác nhận xóa ngay" : `Xóa ${selectedIds.length} hợp đồng`}
+988:             </button>
+989:           )}
+990:           <button 
+991:             onClick={toggleSelectAll}
+992:             className="flex-1 md:flex-none px-6 py-3 bg-white/5 border border-border-dark text-text-dim rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white transition-all whitespace-nowrap shadow-sm"
+993:           >
+994:             {selectedIds.length === filteredContracts.length ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+995:           </button>
+996:         </div>
+997:       </div>
+998: 
+999:       <div className="bg-card-dark rounded-[32px] border border-border-dark overflow-hidden shadow-2xl">
+1000:         <div className="overflow-x-auto custom-scrollbar">
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

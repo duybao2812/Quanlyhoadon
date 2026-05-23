@@ -1,0 +1,1 @@
+"          )}\n        </div>\n      </div>\n    </div>\n  );\n};\n\nconst PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: { "

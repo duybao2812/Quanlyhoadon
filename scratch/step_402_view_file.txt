@@ -1,0 +1,52 @@
+Created At: 2026-05-20T11:41:53Z
+Completed At: 2026-05-20T11:41:53Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8264
+Total Bytes: 402388
+Showing lines 7000 to 7050
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+7000:                         }}
+7001:                         className="btn-primary"
+7002:                       >
+7003:                         {isProcessing ? 'Đang tạo...' : 'Tạo docx'}
+7004:                       </button>
+7005:                     </div>
+7006:                     <div className="flex-1 overflow-auto p-4">
+7007:                       <table className="w-full border-collapse border border-border-dark text-[11px]">
+7008:                         <thead>
+7009:                           <tr className="bg-sidebar-dark font-bold text-text-dim">
+7010:                             <th className="border border-border-dark p-2 w-8">Stt</th>
+7011:                             <th className="border border-border-dark p-2 text-left">Nội dung hàng hóa/dịch vụ</th>
+7012:                             <th className="border border-border-dark p-2">ĐVT</th>
+7013:                             <th className="border border-border-dark p-2">SL</th>
+7014:                             <th className="border border-border-dark p-2">Đơn giá</th>
+7015:                             <th className="border border-border-dark p-2 text-right">Thành tiền</th>
+7016:                           </tr>
+7017:                         </thead>
+7018:                         <tbody>
+7019:                           {selectedInvoice.extractedData?.items?.map((item: any, i: number) => {
+7020:                             const qty = parseFloat(item.quantity) || 0;
+7021:                             const price = parseFloat(item.unitPrice) || 0;
+7022:                             const 
+<truncated 952 bytes>
+                       <td className="border border-border-dark p-2 text-right table-cell text-white">{price > 0 ? formatVNNumber(price) : ''}</td>
+7032:                                 <td className="border border-border-dark p-2 text-right font-bold text-white table-cell">{amount > 0 ? formatVNNumber(amount) : '0'}</td>
+7033:                               </tr>
+7034:                             );
+7035:                           })}
+7036:                           <tr className="bg-white/5 font-bold">
+7037:                             <td colSpan={5} className="border border-border-dark p-2 text-right uppercase text-[10px] tracking-wider text-white">Tổng cộng</td>
+7038:                             <td className="border border-border-dark p-2 text-right text-white">{formatVNNumber(selectedInvoice.extractedData?.totals?.subtotal)}</td>
+7039:                           </tr>
+7040:                           <tr className="font-bold text-white">
+7041:                             <td colSpan={5} className="border border-border-dark p-2 text-right italic text-[10px]">
+7042:                               Thuế GTGT ({(() => {
+7043:                                 const rate = selectedInvoice.extractedData?.invoice?.vatRate;
+7044:                                 if (rate !== undefined && rate !== null) return rate;
+7045:                                 const sub = selectedInvoice.extractedData?.totals?.subtotal;
+7046:                                 const total = selectedInvoice.extractedData?.totals?.grandTotal || selectedInvoice.extractedData?.totals?.grand_total;
+7047:                                 if (sub > 0 && total > 0) return Math.round((Math.abs(total - sub) / sub) * 100);
+7048:                                 return 8;
+7049:                               })()}%)
+7050:                             </td>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

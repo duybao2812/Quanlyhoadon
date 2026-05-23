@@ -1,0 +1,59 @@
+Created At: 2026-05-22T05:11:28Z
+Completed At: 2026-05-22T05:11:29Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8117
+Total Bytes: 396877
+Showing lines 3055 to 3105
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3055:       });
+3056: 
+3057:       
+3058:       setSelectedPartyAId('');
+3059:       setSelectedPartyBId('');
+3060:     } catch (error) {
+3061:       console.error(error);
+3062:       toast('Lỗi khi đọc template: ' + (error instanceof Error ? error.message : String(error)), 'error');
+3063:     }
+3064:   };
+3065: 
+3066:   const getMappingForPartner = (partner: Partner, prefix: 'A' | 'B') => {
+3067:     const isA = prefix === 'A';
+3068:     const abbrName = abbreviateCompanyName(partner.name);
+3069:     const effectiveAddress = getEffectiveAddressByCurrentDate(partner);
+3070:     
+3071:     return {
+3072:       [`${prefix}_TEN`]: partner.name,
+3073:       [`${prefix}_TEN_VT`]: abbrName,
+3074:       [`BEN_${prefix}`]: partner.name,
+3075:       [`BEN${prefix}`]: partner.name,
+3076:       [`TEN_CTY_${prefix}`]: partner.name,
+3077:       [`TEN_CTY_${prefix}_VT`]: abbrName,
+3078:       [`DIA_CHI_${prefix}`]: effectiveAddress,
+3079:       [`DIACHI_${prefix}`]: effectiveAddress,
+3080:       [`DIA_CHI_${isA ? 'A' : 'B'}`]: effectiveAddress,
+3081:       [`DIACHI_${isA ? 'A' : 'B'}`]: effectiveAddress,
+3082:       [`MST_${prefix}`]: partner.taxCode,
+3083:       [`MST${prefix}`]: partner.taxCode,
+3084:       [`DAI_DIEN_${prefix}`]: partner.representative,
+3085:       [`DAIDIEN_${prefix}`]: partner.representative,
+3086:       [`CHUC_VU_${prefix}`]: partner.position,
+3087:       [`CHUCVU_${prefix}`]: partner.position,
+3088:       [`GIOI_TINH_${prefix}`]: partner.gender,
+3089:       [`STK_${prefix}`]: partner.accountNumber,
+3090:       [`NH_${prefix}`]: partner.bankName,
+3091:       // Common variations
+3092:       [`${isA ? 'BENA' : 'BENB'}`]: partner.name,
+3093:       [`${isA ? 'BENA' : 'BENB'}_VT`]: abbrName,
+3094:       [`DIA_CHI_${isA ? 'BEN_A' : 'BEN_B'}`]: effectiveAddress,
+3095:       [`DIACHI_${isA ? 'BEN_A' : 'BEN_B'}`]: effectiveAddress,
+3096:       [`MST_${isA ? 'BEN_A' : 'BEN_B'}`]: partner.taxCode,
+3097:       [`DAI_DIEN_${isA ? 'BEN_A' : 'BEN_B'}`]: partner.representative,
+3098:       [`CHUC_VU_${isA ? 'BEN_A' : 'BEN_B'}`]: partner.position,
+3099:     };
+3100:   };
+3101: 
+3102:   const handlePartyChange = (partnerId: string, type: 'A' | 'B') => {
+3103:     if (type === 'A') setSelectedPartyAId(partnerId);
+3104:     else setSelectedPartyBId(partnerId);
+3105: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

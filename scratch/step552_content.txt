@@ -1,0 +1,1 @@
+I will replace the old `TagInput` and `TagRenderItem` components (lines 2382 to 2659) in `src/App.tsx` with the new global helpers and `InlineField` / `GDNTableInputWordLike` components. This is the first half of our Word-document-like redesign.

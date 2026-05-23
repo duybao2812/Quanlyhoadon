@@ -48,38 +48,32 @@ import {
   UserSquare2,
   Sparkles,
   FileCode,
-  FileQuestion
+  FileQuestion,
+  CreditCard,
+  UserCheck,
+  Hash,
+  History,
+  User as UserIcon,
+  Edit3,
+  Fingerprint,
+  Building,
+  Save
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
-import * as HoverCard from '@radix-ui/react-hover-card';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { 
-  collection, 
-  query, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  deleteDoc, 
-  serverTimestamp,
-  getDocs,
-  where,
-  orderBy,
-  writeBatch
-} from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { 
   signInWithPopup, 
   GoogleAuthProvider, 
   signOut, 
-  onAuthStateChanged,
-  User
+  onAuthStateChanged
 } from 'firebase/auth';
+import type { User } from 'firebase/auth';
 import imageCompression from 'browser-image-compression';
 import * as XLSX from 'xlsx';
-import { db, handleFirestoreError, OperationType, auth, storage } from './lib/firebase';
+import { handleFirestoreError, OperationType, auth } from './lib/firebase';
+import { supabase } from './services/supabaseClient';
 import { extractFromInvoice } from './lib/mistral';
 import { parseInvoiceXml } from './lib/xmlParser';
 import { generateDocxBlob, extractTags } from './lib/docxGenerator';
@@ -91,6 +85,7 @@ import { useToast } from './components/Notifications';
 import { loadTemplates, saveTemplate, deleteStoredTemplate, StoredTemplate } from './lib/storage';
 import { AIChatBox } from './components/AIChatBox';
 import { InvoiceItemComp } from './components/Invoice/InvoiceItemComp';
+import { InvoiceResponsiveCard } from './components/Invoice/InvoiceResponsiveCard';
 import { InvoiceItem as MappedInvoiceItem } from './types/invoiceData';
 
 // --- Types ---
@@ -194,12 +189,19 @@ const Sidebar = ({
     { id: 'docs', icon: Files, label: 'Tài liệu đã tạo' },
   ];
 
+  const { toast } = useToast();
+
   const handleLogin = async () => {
     const provider = new GoogleAuthProvider();
+    // Force standard login flow
+    provider.setCustomParameters({ prompt: 'select_account' });
+    
     try {
+      console.log("Starting Google login...");
       await signInWithPopup(auth, provider);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login failed:", error);
+      toast(`Lỗi đăng nhập: ${error.message}`, "error");
     }
   };
 
@@ -218,26 +220,29 @@ const Sidebar = ({
       transition={{ duration: 0.15, ease: "easeOut" }}
       onMouseEnter={() => !isPinned && setIsHovered(true)}
       onMouseLeave={() => !isPinned && setIsHovered(false)}
-      className="bg-slate-900 text-slate-300 flex flex-col h-full shrink-0 relative z-50 shadow-2xl transition-width duration-150"
+      className="bg-sidebar-dark text-text-dim flex flex-col h-full shrink-0 relative z-50 shadow-2xl transition-width duration-150 border-r border-border-dark"
     >
       <button 
         onClick={(e) => {
           e.stopPropagation();
           setIsPinned(!isPinned);
         }}
-        className="absolute -right-3 top-20 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg z-10 hover:bg-blue-700 transition-colors"
+        className="absolute -right-3 top-20 size-6 bg-primary text-white rounded-full flex items-center justify-center shadow-lg z-10 hover:bg-primary-hover transition-colors"
       >
-        {isPinned ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        {isPinned ? <ChevronLeft className="size-4" /> : <ChevronRight className="size-4" />}
       </button>
 
-      <div className={cn("p-6 border-b border-slate-800 flex items-center", !isExpanded ? "justify-center" : "justify-between")}>
-        <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center font-bold text-white shadow-lg shrink-0">AX</div>
+      <div className={cn(
+        "border-b border-border-dark flex items-center transition-all duration-300", 
+        !isExpanded ? "p-4 justify-center" : "p-6 justify-between"
+      )}>
+        <div className="flex items-center gap-3 overflow-hidden shrink-0">
+          <div className="size-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center font-black text-xl shadow-inner border border-primary/20 shrink-0 aspect-square">AX</div>
           {isExpanded && (
             <motion.span 
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              className="font-semibold text-white tracking-tight text-lg whitespace-nowrap"
+              className="font-black text-white tracking-tighter text-xl whitespace-nowrap"
             >
               DocuForge AI
             </motion.span>
@@ -256,7 +261,7 @@ const Sidebar = ({
                 activeTab === item.id && "sidebar-link-active"
               )}
             >
-              <item.icon className={cn("w-5 h-5 shrink-0 transition-transform", activeTab === item.id && "scale-110")} />
+              <item.icon className={cn("size-5 shrink-0 transition-transform", activeTab === item.id && "scale-110")} />
               {isExpanded && (
                 <motion.span 
                   initial={{ opacity: 0, x: -5 }}
@@ -270,29 +275,35 @@ const Sidebar = ({
             
             {/* Tooltip when collapsed */}
             {!isExpanded && (
-              <div className="absolute left-full ml-4 px-3 py-2 bg-slate-800 text-white text-xs font-bold rounded-lg shadow-xl opacity-0 group-hover/item:opacity-100 pointer-events-none transition-all duration-200 translate-x-2 group-hover/item:translate-x-0 z-[100] whitespace-nowrap border border-slate-700">
+              <div className="absolute left-full ml-4 px-3 py-2 bg-card-dark text-white text-xs font-black rounded-xl shadow-2xl opacity-0 group-hover/item:opacity-100 pointer-events-none transition-all duration-200 translate-x-2 group-hover/item:translate-x-0 z-[100] whitespace-nowrap border border-border-dark uppercase tracking-widest">
                 {item.label}
-                <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-slate-800 rotate-45 border-l border-b border-slate-700" />
+                <div className="absolute top-1/2 -left-1 -translate-y-1/2 size-2 bg-card-dark rotate-45 border-l border-b border-border-dark" />
               </div>
             )}
           </div>
         ))}
       </nav>
       
-      <div className={cn("p-4 border-t border-slate-800", !isExpanded && "flex flex-col items-center")}>
+      <div className={cn(
+        "border-t border-border-dark transition-all duration-300", 
+        !isExpanded ? "p-2 flex flex-col items-center" : "p-4"
+      )}>
         {user ? (
-          <div className={cn("flex items-center gap-3 mb-4 transition-all duration-300", !isExpanded ? "flex-col" : "flex-row")}>
+          <div className={cn(
+            "flex items-center gap-3 mb-4 rounded-2xl bg-white/5 transition-all duration-300", 
+            !isExpanded ? "flex-col p-1" : "flex-row p-2"
+          )}>
             <div className="relative group/avatar">
               <img 
                 src={user.photoURL || ''} 
                 alt="" 
-                className="w-10 h-10 rounded-full border-2 border-slate-700 hover:border-blue-500 transition-all cursor-pointer shadow-lg" 
+                className="size-10 rounded-xl border border-border-dark hover:border-primary transition-all cursor-pointer shadow-lg shrink-0 object-cover aspect-square" 
                 referrerPolicy="no-referrer"
               />
               {!isExpanded && (
-                <div className="absolute left-full ml-4 px-3 py-2 bg-slate-800 text-white text-xs font-bold rounded-lg shadow-xl opacity-0 group-hover/avatar:opacity-100 pointer-events-none transition-all duration-200 translate-x-2 group-hover/avatar:translate-x-0 z-[100] whitespace-nowrap border border-slate-700">
+                <div className="absolute left-full ml-4 px-3 py-2 bg-sidebar-dark text-white text-xs font-bold rounded-lg shadow-xl opacity-0 group-hover/avatar:opacity-100 pointer-events-none transition-all duration-200 translate-x-2 group-hover/avatar:translate-x-0 z-[100] whitespace-nowrap border border-border-dark">
                   {user.displayName}
-                  <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-slate-800 rotate-45 border-l border-b border-slate-700" />
+                  <div className="absolute top-1/2 -left-1 -translate-y-1/2 size-2 bg-sidebar-dark rotate-45 border-l border-b border-border-dark" />
                 </div>
               )}
             </div>
@@ -303,12 +314,12 @@ const Sidebar = ({
                 className="flex-1 min-w-0"
               >
                 <div className="text-xs font-bold text-white truncate">{user.displayName}</div>
-                <button onClick={handleLogout} className="text-[10px] text-slate-500 hover:text-red-400 font-bold uppercase transition-colors">Đăng xuất</button>
+                <button onClick={handleLogout} className="text-[10px] text-text-dim hover:text-red-400 font-bold uppercase transition-colors">Đăng xuất</button>
               </motion.div>
             )}
             {!isExpanded && (
-               <button onClick={handleLogout} className="p-2 hover:text-red-400 text-slate-500 transition-colors" title="Đăng xuất">
-                 <X className="w-4 h-4" />
+               <button onClick={handleLogout} className="p-2 hover:text-red-400 text-text-dim transition-colors" title="Đăng xuất">
+                 <X className="size-4" />
                </button>
             )}
           </div>
@@ -317,17 +328,17 @@ const Sidebar = ({
             <button 
               onClick={handleLogin}
               className={cn(
-                "w-full bg-white text-slate-900 rounded-xl text-xs font-bold hover:bg-slate-100 transition-all mb-4 flex items-center justify-center shadow-lg active:scale-95",
+                "w-full bg-white/10 text-white rounded-xl text-xs font-bold hover:bg-white/20 transition-all mb-4 flex items-center justify-center shadow-lg active:scale-95",
                 !isExpanded ? "p-3" : "py-3 px-4"
               )}
             >
-              <Users className="w-5 h-5 shrink-0" />
+              <Users className="size-5 shrink-0" />
               {isExpanded && <span className="ml-2">Đăng nhập</span>}
             </button>
             {!isExpanded && (
-              <div className="absolute left-full ml-4 px-3 py-2 bg-slate-800 text-white text-xs font-bold rounded-lg shadow-xl opacity-0 group-hover/login:opacity-100 pointer-events-none transition-all duration-200 translate-x-2 group-hover/login:translate-x-0 z-[100] whitespace-nowrap border border-slate-700">
+              <div className="absolute left-full ml-4 px-3 py-2 bg-sidebar-dark text-white text-xs font-bold rounded-lg shadow-xl opacity-0 group-hover/login:opacity-100 pointer-events-none transition-all duration-200 translate-x-2 group-hover/login:translate-x-0 z-[100] whitespace-nowrap border border-border-dark">
                 Đăng nhập Google
-                <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-slate-800 rotate-45 border-l border-b border-slate-700" />
+                <div className="absolute top-1/2 -left-1 -translate-y-1/2 size-2 bg-sidebar-dark rotate-45 border-l border-b border-border-dark" />
               </div>
             )}
           </div>
@@ -339,9 +350,9 @@ const Sidebar = ({
             animate={{ opacity: 1 }}
             className="mt-2"
           >
-            <div className="text-[10px] text-slate-500 uppercase font-bold mb-2 tracking-widest px-1">Hệ thống</div>
-            <div className="flex items-center gap-2 text-xs bg-slate-800/50 p-2 rounded-lg border border-slate-700/50">
-              <div className={cn("w-2 h-2 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.5)]", user ? "bg-green-500" : "bg-yellow-500")}></div>
+            <div className="text-[10px] text-text-dim uppercase font-bold mb-2 tracking-widest px-1">Hệ thống</div>
+            <div className="flex items-center gap-2 text-xs text-white bg-sidebar-dark p-2 rounded-lg border border-border-dark">
+              <div className={cn("size-2 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.5)]", user ? "bg-green-500" : "bg-yellow-500")}></div>
               <span>{user ? "AI: Sẵn sàng" : "Đang chờ user"}</span>
             </div>
           </motion.div>
@@ -425,6 +436,7 @@ const parseInvoiceDate = (dateStr: string) => {
 const getEnrichedInvoice = (inv: any, rankMap: Map<string, number>) => {
   const rank = rankMap.get(inv.id);
   let invoiceNumber = inv.extractedData?.invoice?.number || inv.extractedData?.soHoaDon || '';
+  let invoiceSymbol = inv.extractedData?.invoice?.serial || inv.extractedData?.kyHieuHoaDon || '';
 
   if (!invoiceNumber) {
     const match = inv.fileName?.match(/(\d+)(?=\.(pdf|xml)$)/i);
@@ -433,25 +445,27 @@ const getEnrichedInvoice = (inv: any, rankMap: Map<string, number>) => {
     }
   }
   const displayInvoiceNumber = invoiceNumber ? (invoiceNumber.toString().replace(/^0+/, '') || invoiceNumber.toString()) : '';
+  const displaySymbol = invoiceSymbol ? `${invoiceSymbol}-` : '';
   
   let displayName = inv.fileName || '';
   if (rank && displayInvoiceNumber) {
-    displayName = `${rank}. Hóa đơn số: ${displayInvoiceNumber}`;
+    displayName = `${rank}. Hóa đơn số: ${displaySymbol}${displayInvoiceNumber}`;
   } else if (displayInvoiceNumber) {
-    displayName = `Hóa đơn số: ${displayInvoiceNumber}`;
+    displayName = `Hóa đơn số: ${displaySymbol}${displayInvoiceNumber}`;
   }
 
   return {
     ...inv,
     computedRank: rank,
     computedInvoiceNumber: displayInvoiceNumber,
+    computedInvoiceSymbol: invoiceSymbol,
     computedDisplayName: displayName
   };
 };
 
 // --- Helper Components ---
 const Skeleton = (props: React.HTMLAttributes<HTMLDivElement>) => (
-  <div {...props} className={cn("animate-pulse bg-slate-200 rounded", props.className)} />
+  <div {...props} className={cn("animate-pulse bg-white/5 rounded-xl", props.className)} />
 );
 
 const ReviewModal = ({ 
@@ -485,33 +499,33 @@ const ReviewModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-bg-dark/80 backdrop-blur-md p-4">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
+        className="bg-card-dark rounded-[32px] border border-border-dark shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden"
       >
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+        <div className="p-8 border-b border-border-dark flex justify-between items-center bg-white/5">
           <div>
-            <h2 className="modal-title">Kiểm tra kết quả bóc tách</h2>
-            <p className="secondary-text mt-1">Vui lòng rà soát lại thông tin trước khi lưu vào hệ thống</p>
+            <h2 className="text-2xl font-black text-white tracking-tighter uppercase">Kiểm tra kết quả bóc tách</h2>
+            <p className="text-text-dim text-xs font-bold uppercase tracking-widest mt-1">Vui lòng rà soát lại thông tin trước khi lưu vào hệ thống</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-            <X className="w-6 h-6 text-slate-500" />
+          <button onClick={onClose} className="size-12 flex items-center justify-center bg-white/5 hover:bg-red-500/20 text-white rounded-2xl transition-all group">
+            <X className="size-6 group-hover:text-red-500" />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-8 space-y-10">
           {/* Thông tin hóa đơn */}
-          <section className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 text-indigo-600">
-                <FileText className="w-6 h-6" />
-                <h3 className="text-base font-semibold uppercase tracking-widest">Thông tin Hóa đơn</h3>
+          <section className="space-y-8">
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-border-dark">
+              <div className="flex items-center gap-3 text-primary">
+                <FileText className="size-6" />
+                <h3 className="text-base font-black uppercase tracking-[0.2em]">Thông tin Hóa đơn</h3>
               </div>
-              <div className="flex items-center gap-3 bg-indigo-50 px-4 py-2 rounded-full border border-indigo-100 shadow-sm">
-                <Box className="w-4 h-4 text-indigo-500" />
-                <span className="text-xs font-black text-indigo-600 uppercase tracking-wider">
+              <div className="flex items-center gap-3 bg-primary/10 px-6 py-2.5 rounded-2xl border border-primary/20 shadow-lg shadow-primary/5">
+                <Box className="size-4 text-primary" />
+                <span className="text-xs font-black text-primary uppercase tracking-widest">
                   Phân loại: {(() => {
                     const raw = edited.classification;
                     const type = typeof raw === 'object' ? raw.type : (raw || 'BB_VT');
@@ -527,42 +541,42 @@ const ReviewModal = ({
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div>
-                <label className="block text-xs font-normal text-slate-400 uppercase tracking-widest mb-2 px-1">Số Hóa Đơn</label>
+                <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2 px-1">Số Hóa Đơn</label>
                 <input 
                   type="text" 
                   value={edited.invoice?.number || ''} 
                   onChange={(e) => handleChange('invoice.number', e.target.value)}
-                  className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-base font-bold outline-none focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all" 
+                  className="input-field" 
                 />
               </div>
               <div>
-                <label className="block text-xs font-normal text-slate-400 uppercase tracking-widest mb-2 px-1">Ký hiệu</label>
+                <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2 px-1">Ký hiệu</label>
                 <input 
                   type="text" 
                   value={edited.invoice?.serial || ''} 
                   onChange={(e) => handleChange('invoice.serial', e.target.value)}
-                  className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-base font-bold outline-none focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all" 
+                  className="input-field" 
                 />
               </div>
               <div>
-                <label className="block text-xs font-normal text-slate-400 uppercase tracking-widest mb-2 px-1">Ngày lập</label>
+                <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2 px-1">Ngày lập</label>
                 <input 
                   type="text" 
                   value={edited.invoice?.date || ''} 
                   onChange={(e) => handleChange('invoice.date', e.target.value)}
-                  className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-base font-bold outline-none focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all" 
+                  className="input-field" 
                 />
               </div>
               <div>
-                <label className="block text-xs font-normal text-slate-400 uppercase tracking-widest mb-2 px-1">% Thuế GTGT</label>
+                <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2 px-1">% Thuế GTGT</label>
                 <div className="relative">
                   <input 
                     type="number" 
                     value={edited.invoice?.vatRate || 8} 
                     onChange={(e) => handleChange('invoice.vatRate', parseFloat(e.target.value))}
-                    className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-base font-bold outline-none focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all pr-10" 
+                    className="input-field pr-10" 
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-black">%</span>
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-primary font-black">%</span>
                 </div>
               </div>
             </div>
@@ -572,54 +586,54 @@ const ReviewModal = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
             <section className="space-y-6">
               <div className="flex items-center gap-3 text-indigo-600">
-                <Layout className="w-6 h-6" />
+                <Layout className="size-6" />
                 <h3 className="font-black text-base uppercase tracking-widest">Đơn vị bán hàng</h3>
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Tên đơn vị</label>
+                  <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2 px-1">Tên đơn vị</label>
                   <input 
                     type="text" 
                     value={edited.seller?.name || ''} 
                     onChange={(e) => handleChange('seller.name', e.target.value)}
-                    className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-base font-bold outline-none focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all" 
+                    className="input-field" 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Mã số thuế</label>
+                  <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2 px-1">Mã số thuế</label>
                   <input 
                     type="text" 
                     value={edited.seller?.taxCode || ''} 
                     onChange={(e) => handleChange('seller.taxCode', e.target.value)}
-                    className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-base font-bold outline-none focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all" 
+                    className="input-field" 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Địa chỉ</label>
+                  <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2 px-1">Địa chỉ</label>
                   <input 
                     type="text" 
                     value={edited.seller?.address || ''} 
                     onChange={(e) => handleChange('seller.address', e.target.value)}
-                    className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-base font-bold outline-none focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all" 
+                    className="input-field" 
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Số tài khoản</label>
+                    <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2 px-1">Số tài khoản</label>
                     <input 
                       type="text" 
                       value={edited.seller?.accountNumber || ''} 
                       onChange={(e) => handleChange('seller.accountNumber', e.target.value)}
-                      className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-base font-bold outline-none focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all" 
+                      className="input-field" 
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Ngân hàng</label>
+                    <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2 px-1">Ngân hàng</label>
                     <input 
                       type="text" 
                       value={edited.seller?.bankName || ''} 
                       onChange={(e) => handleChange('seller.bankName', e.target.value)}
-                      className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-base font-bold outline-none focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all" 
+                      className="input-field" 
                     />
                   </div>
                 </div>
@@ -627,55 +641,55 @@ const ReviewModal = ({
             </section>
 
             <section className="space-y-6">
-              <div className="flex items-center gap-3 text-indigo-600">
-                <Users className="w-6 h-6" />
-                <h3 className="text-base font-semibold uppercase tracking-widest">Khách hàng</h3>
+              <div className="flex items-center gap-3 text-emerald-500">
+                <Users className="size-6" />
+                <h3 className="text-base font-black uppercase tracking-[0.2em]">Khách hàng</h3>
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Tên đơn vị</label>
+                  <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2 px-1">Tên đơn vị</label>
                   <input 
                     type="text" 
                     value={edited.buyer?.name || ''} 
                     onChange={(e) => handleChange('buyer.name', e.target.value)}
-                    className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-base font-bold outline-none focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all" 
+                    className="input-field" 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Mã số thuế</label>
+                  <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2 px-1">Mã số thuế</label>
                   <input 
                     type="text" 
                     value={edited.buyer?.taxCode || ''} 
                     onChange={(e) => handleChange('buyer.taxCode', e.target.value)}
-                    className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-base font-bold outline-none focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all" 
+                    className="input-field" 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Địa chỉ</label>
+                  <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2 px-1">Địa chỉ</label>
                   <input 
                     type="text" 
                     value={edited.buyer?.address || ''} 
                     onChange={(e) => handleChange('buyer.address', e.target.value)}
-                    className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-base font-bold outline-none focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all" 
+                    className="input-field" 
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Số tài khoản</label>
+                    <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2 px-1">Số tài khoản</label>
                     <input 
                       type="text" 
                       value={edited.buyer?.accountNumber || ''} 
                       onChange={(e) => handleChange('buyer.accountNumber', e.target.value)}
-                      className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-base font-bold outline-none focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all" 
+                      className="input-field" 
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Ngân hàng</label>
+                    <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2 px-1">Ngân hàng</label>
                     <input 
                       type="text" 
                       value={edited.buyer?.bankName || ''} 
                       onChange={(e) => handleChange('buyer.bankName', e.target.value)}
-                      className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-base font-bold outline-none focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all" 
+                      className="input-field" 
                     />
                   </div>
                 </div>
@@ -686,14 +700,14 @@ const ReviewModal = ({
           {/* Danh sách hàng hóa */}
           <section className="space-y-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-indigo-600 mb-2">
-                <Package className="w-5 h-5" />
-                <h3 className="font-bold text-sm uppercase tracking-wider">Chi tiết hàng hóa / dịch vụ</h3>
+              <div className="flex items-center gap-3 text-primary mb-2">
+                <Package className="size-6" />
+                <h3 className="font-black text-base uppercase tracking-[0.2em]">Chi tiết hàng hóa / dịch vụ</h3>
               </div>
-              <div className="flex items-center gap-2 bg-indigo-50 px-3 py-1.5 rounded-full border border-indigo-100">
-                <Box className="w-3.5 h-3.5 text-indigo-500" />
-                <span className="text-[10px] font-bold text-indigo-600 uppercase">
-                  Phân loại: {(() => {
+              <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-xl border border-border-dark">
+                <Box className="size-4 text-primary" />
+                <span className="text-[10px] font-black text-text-dim uppercase tracking-widest">
+                  Phân loại: <span className="text-primary ml-1">{(() => {
                     const raw = edited.classification;
                     const type = typeof raw === 'object' ? raw.type : (raw || 'BB_VT');
                     switch(type) {
@@ -702,37 +716,37 @@ const ReviewModal = ({
                       case 'BB_TC': return 'Thi công';
                       default: return type;
                     }
-                  })()}
+                  })()}</span>
                 </span>
               </div>
             </div>
-            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+            <div className="border border-border-dark rounded-[24px] overflow-hidden shadow-2xl bg-sidebar-dark">
               <table className="w-full text-base">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-black uppercase tracking-wider">
-                    <th className="p-3 text-center w-12 text-xs">Stt</th>
-                    <th className="p-3 text-left">Nội dung</th>
-                    <th className="p-3 w-20 text-center text-xs">ĐVT</th>
-                    <th className="p-3 w-20 text-center text-xs">SL</th>
-                    <th className="p-3 w-28 text-right text-xs">Đơn giá</th>
-                    <th className="p-3 w-32 text-right text-xs">Thành tiền</th>
+                <thead className="bg-white/5 border-b border-border-dark">
+                  <tr className="text-text-dim font-black uppercase tracking-[0.15em]">
+                    <th className="p-4 text-center w-12 text-[10px]">Stt</th>
+                    <th className="p-4 text-left text-[10px]">Nội dung hàng hóa / dịch vụ</th>
+                    <th className="p-4 w-24 text-center text-[10px]">ĐVT</th>
+                    <th className="p-4 w-24 text-center text-[10px]">SL</th>
+                    <th className="p-4 w-32 text-right text-[10px]">Đơn giá</th>
+                    <th className="p-4 w-40 text-right text-[10px]">Thành tiền</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-border-dark">
                   {(edited.items || []).map((item: any, idx: number) => (
-                    <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                      <td className="p-3 text-center text-slate-400 font-bold">{idx + 1}</td>
-                      <td className="p-3 whitespace-normal break-words text-slate-800 leading-relaxed min-w-[200px] font-bold">
+                    <tr key={item.id || `item-${idx}-${item.description || ''}`} className="hover:bg-white/5 transition-colors group">
+                      <td className="p-4 text-center text-text-dim font-black opacity-40">{idx + 1}</td>
+                      <td className="p-4 whitespace-normal break-words text-white leading-relaxed min-w-[250px] font-bold">
                         {item.description || item.name || ''}
                       </td>
-                      <td className="p-3 text-center text-slate-600 font-medium">{item.unit || '-'}</td>
-                      <td className="p-3 text-center text-slate-600 font-medium italic">
+                      <td className="p-4 text-center text-text-dim font-bold">{item.unit || '-'}</td>
+                      <td className="p-4 text-center text-text-dim font-black italic">
                         {item.quantity && item.quantity !== 0 ? formatVNNumber(item.quantity) : ''}
                       </td>
-                      <td className="p-3 text-right text-slate-600 font-medium">
+                      <td className="p-4 text-right text-text-dim font-bold">
                         {item.unitPrice && item.unitPrice !== 0 ? formatVNNumber(item.unitPrice) : ''}
                       </td>
-                      <td className="p-3 text-right font-black text-slate-900 bg-slate-50/20">
+                      <td className="p-4 text-right font-black text-primary bg-primary/5">
                         {formatVNNumber(item.amount || item.total)}
                       </td>
                     </tr>
@@ -742,40 +756,41 @@ const ReviewModal = ({
             </div>
 
            </section>
-          <section className="space-y-6 pt-6 border-t-2 border-slate-100 shadow-inner rounded-2xl p-6 bg-slate-50/50">
-            <div className="flex items-center gap-3 text-indigo-600 mb-4">
-              <PlusSquare className="w-6 h-6" />
-              <h3 className="font-black text-base uppercase tracking-widest">Tổng cộng quyết toán</h3>
+          <section className="space-y-6 pt-8 border-t border-border-dark">
+            <div className="flex items-center gap-3 text-primary mb-2">
+              <PlusSquare className="size-7" />
+              <h3 className="font-black text-lg uppercase tracking-[0.2em]">Tổng cộng quyết toán</h3>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 p-6 bg-white rounded-2xl border border-slate-200 shadow-md">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 p-8 bg-sidebar-dark rounded-[32px] border border-border-dark shadow-inner relative overflow-hidden">
+              <div className="absolute top-0 right-0 size-40 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
               <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Tổng cộng tiền hàng</label>
-                <div className="text-xl font-bold text-slate-800">{formatVNNumber(edited.totals?.subtotal)} đ</div>
+                <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2">Tổng cộng tiền hàng</label>
+                <div className="text-2xl font-black text-white">{formatVNNumber(edited.totals?.subtotal)} đ</div>
               </div>
               <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
+                <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2">
                   Tiền thuế GTGT ({edited.invoice?.vatRate !== undefined ? edited.invoice.vatRate : (edited.totals?.subtotal > 0 ? Math.round((Math.abs((edited.totals?.grandTotal || (edited.totals?.subtotal + (edited.totals?.vatAmount || 0))) - edited.totals?.subtotal) / edited.totals?.subtotal) * 100) : 8)}%)
                 </label>
-                <div className="text-xl font-bold text-slate-800">{formatVNNumber(edited.totals?.vatAmount)} đ</div>
+                <div className="text-2xl font-black text-white">{formatVNNumber(edited.totals?.vatAmount)} đ</div>
               </div>
               <div>
-                <label className="block text-xs font-black text-amber-600 uppercase tracking-widest mb-2 px-1 border-l-4 border-amber-500">Tổng tiền thanh toán</label>
-                <div className="text-3xl font-black text-indigo-600 tracking-tighter">{formatVNNumber(edited.totals?.grandTotal)} đ</div>
+                <label className="block text-[10px] font-black text-primary uppercase tracking-widest mb-2 px-3 border-l-2 border-primary">Tổng tiền thanh toán</label>
+                <div className="text-4xl font-black text-primary tracking-tighter drop-shadow-2xl">{formatVNNumber(edited.totals?.grandTotal)} đ</div>
               </div>
             </div>
           </section>
         </div>
 
-        <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-          <button onClick={onClose} className="btn-secondary">
-            Hủy bỏ
+        <div className="p-8 border-t border-border-dark bg-white/5 flex justify-end gap-4">
+          <button onClick={onClose} className="btn-secondary px-8">
+            HỦY BỎ
           </button>
           <button 
             onClick={() => onSave(edited)} 
-            className="btn-primary min-w-[120px]"
+            className="btn-primary min-w-[200px]"
           >
-            <Check className="w-4 h-4" />
-            Lưu vào hệ thống
+            <Check className="size-4" />
+            LƯU VÀO HỆ THỐNG
           </button>
         </div>
       </motion.div>
@@ -783,7 +798,7 @@ const ReviewModal = ({
   );
 };
 
-const InvoiceItem = React.forwardRef<HTMLDivElement, InvoiceItemProps>(({ inv, onSelectInvoice, onDeleteInvoice, displayName, displayDate }, ref) => (
+const InvoiceItem: React.FC<InvoiceItemProps & { ref?: React.Ref<HTMLDivElement> }> = ({ inv, onSelectInvoice, onDeleteInvoice, displayName, displayDate, ref }) => (
   <div 
     ref={ref}
     onClick={() => onSelectInvoice(inv)}
@@ -791,45 +806,47 @@ const InvoiceItem = React.forwardRef<HTMLDivElement, InvoiceItemProps>(({ inv, o
       e.preventDefault();
       onDeleteInvoice(inv.id);
     }}
-    className="flex items-center justify-between p-3 rounded-lg border border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer group"
+    className="flex items-center justify-between p-4 rounded-2xl border border-border-dark bg-card-dark hover:bg-white/5 transition-all cursor-pointer group shadow-lg"
   >
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-4">
       <div className={cn(
-        "w-10 h-10 rounded flex items-center justify-center transition-transform group-hover:scale-110",
-        inv.fileType === 'xml' ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"
+        "size-12 rounded-xl flex items-center justify-center transition-all duration-500 group-hover:scale-110",
+        inv.fileType === 'xml' ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"
       )}>
-        <FileText className="w-5 h-5" />
+        <FileText className="size-6" />
       </div>
       <div className="min-w-0">
-        <div className="font-bold text-base group-hover:text-blue-600 transition-colors truncate max-w-[120px] md:max-w-none">{displayName || inv.fileName}</div>
-        <div className="text-xs text-slate-500">{displayDate ? displayDate : (inv.createdAt?.toDate ? new Date(inv.createdAt?.toDate()).toLocaleString() : '')}</div>
+        <div className="font-black text-sm text-white group-hover:text-primary transition-colors truncate max-w-[150px] md:max-w-none tracking-tight">{displayName || inv.fileName}</div>
+        <div className="text-[10px] font-bold text-text-dim uppercase tracking-widest mt-1 opacity-60" suppressHydrationWarning>
+          {displayDate ? displayDate : (inv.createdAt?.toDate ? new Date(inv.createdAt?.toDate()).toLocaleString() : '')}
+        </div>
       </div>
     </div>
-    <div className="flex items-center gap-2">
-      <span className={cn(
-        "px-2.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider",
-        inv.status === 'completed' ? "bg-green-100 text-green-700" : 
-        inv.status === 'processing' ? "bg-blue-100 text-blue-700" : 
-        "bg-slate-100 text-slate-700"
+    <div className="flex items-center gap-3">
+      <div className={cn(
+        "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border shadow-sm",
+        inv.status === 'completed' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : 
+        inv.status === 'processing' ? "bg-primary/10 text-primary border-primary/20 animate-pulse" : 
+        "bg-white/5 text-text-dim border-border-dark"
       )}>
         {inv.status === 'completed' ? 'Đã xong' : 
-         inv.status === 'processing' ? 'Đang xử lý' : 
+         inv.status === 'processing' ? 'Xử lý...' : 
          inv.status === 'pending' ? 'Chờ' : 'Lỗi'}
-      </span>
+      </div>
       <button 
         onClick={(e) => {
           e.stopPropagation();
           e.preventDefault();
           onDeleteInvoice(inv.id);
         }}
-        className="w-8 h-8 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-all flex items-center justify-center shrink-0 active:scale-95"
+        className="size-10 text-text-dim hover:text-red-500 hover:bg-red-500/10 rounded-xl border border-transparent hover:border-red-500/20 transition-all flex items-center justify-center shrink-0 active:scale-95"
         title="Xóa hóa đơn"
       >
-        <Trash2 className="w-4 h-4" />
+        <Trash2 className="size-5" />
       </button>
     </div>
   </div>
-));
+);
 
 // --- View: Contract Management ---
 const ContractManagementView = ({ 
@@ -873,22 +890,33 @@ const ContractManagementView = ({
   };
 
   const getContractValue = (data: Record<string, string>) => {
+    if (!data) return '';
     const keys = ['GIA_TRI', 'GIA_TRI_HD', 'PHI', 'TONG_PHI', 'SO_TIEN', 'GIATRI', 'SOTIEN'];
+    const uppercaseData: Record<string, string> = {};
+    for (const [key, val] of Object.entries(data)) {
+      uppercaseData[key.toUpperCase()] = val;
+    }
     for (const k of keys) {
-      const val = data[k] || Object.entries(data).find(([key]) => key.toUpperCase() === k)?.[1];
+      const val = data[k] || uppercaseData[k];
       if (val && val.trim()) return val;
     }
     return '';
   };
 
   const getContractSignDate = (data: Record<string, string>) => {
+    if (!data) return '';
     const dKeys = ['NGAY', 'NGAY_KY', 'NGAY_HD'];
     const mKeys = ['THANG', 'THANG_KY', 'THANG_HD'];
     const yKeys = ['NAM', 'NAM_KY', 'NAM_HD'];
 
+    const uppercaseData: Record<string, string> = {};
+    for (const [key, val] of Object.entries(data)) {
+      uppercaseData[key.toUpperCase()] = val;
+    }
+
     const findVal = (list: string[]) => {
       for (const k of list) {
-        const val = data[k] || Object.entries(data).find(([key]) => key.toUpperCase() === k)?.[1];
+        const val = data[k] || uppercaseData[k];
         if (val && val.trim()) return val;
       }
       return '';
@@ -905,15 +933,15 @@ const ContractManagementView = ({
   return (
     <div className="space-y-6">
       {/* Search and Actions */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-center">
+      <div className="bg-card-dark p-6 rounded-[24px] border border-border-dark shadow-2xl flex flex-col md:flex-row gap-4 items-center">
         <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-indigo-400" />
+          <Search className="size-5 absolute left-4 top-1/2 -translate-y-1/2 text-text-dim" />
           <input 
             type="text"
             placeholder="Tìm kiếm theo tên hợp đồng, loại mẫu..."
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all font-medium placeholder:text-slate-400"
+            className="w-full pl-12 pr-4 py-3 bg-sidebar-dark border border-border-dark rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all font-bold text-white placeholder:text-text-dim"
           />
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
@@ -930,54 +958,54 @@ const ContractManagementView = ({
                 }
               }}
               className={cn(
-                "flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest border transition-all shadow-sm",
-                isDeletingBulk ? "bg-red-600 border-red-600 text-white animate-pulse" : "bg-red-50 text-red-600 border-red-100 hover:bg-red-100"
+                "flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] border transition-all shadow-lg",
+                isDeletingBulk ? "bg-red-500 text-white border-red-500 animate-pulse shadow-red-500/20" : "bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20"
               )}
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="size-4" />
               {isDeletingBulk ? "Xác nhận xóa ngay" : `Xóa ${selectedIds.length} hợp đồng`}
             </button>
           )}
           <button 
             onClick={toggleSelectAll}
-            className="flex-1 md:flex-none px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-50 transition-all whitespace-nowrap shadow-sm"
+            className="flex-1 md:flex-none px-6 py-3 bg-white/5 border border-border-dark text-text-dim rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white transition-all whitespace-nowrap shadow-sm"
           >
             {selectedIds.length === filteredContracts.length ? "Bỏ chọn tất cả" : "Chọn tất cả"}
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-md">
-        <div className="overflow-x-auto">
+      <div className="bg-card-dark rounded-[32px] border border-border-dark overflow-hidden shadow-2xl">
+        <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left border-collapse min-w-[1000px]">
             <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200/60">
-                <th className="p-5 w-14">
+              <tr className="bg-white/5 border-b border-border-dark">
+                <th className="p-6 w-14">
                   <div className="flex justify-center">
                     <input 
                       type="checkbox" 
                       checked={filteredContracts.length > 0 && selectedIds.length === filteredContracts.length}
                       onChange={toggleSelectAll}
-                      className="w-4.5 h-4.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      className="size-5 rounded bg-sidebar-dark border-border-dark text-primary focus:ring-primary cursor-pointer accent-primary"
                     />
                   </div>
                 </th>
-                <th className="p-5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Hợp đồng</th>
-                <th className="p-5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Đối tác liên quan</th>
-                <th className="p-5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Thông tin chi tiết</th>
-                <th className="p-5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Ngày khởi tạo</th>
-                <th className="p-5 text-right text-[11px] font-bold text-slate-500 uppercase tracking-wider">Thao tác</th>
+                <th className="p-6 text-[10px] font-black text-text-dim uppercase tracking-[0.2em]">Hợp đồng</th>
+                <th className="p-6 text-[10px] font-black text-text-dim uppercase tracking-[0.2em]">Đối tác liên quan</th>
+                <th className="p-6 text-[10px] font-black text-text-dim uppercase tracking-[0.2em]">Thông tin chi tiết</th>
+                <th className="p-6 text-[10px] font-black text-text-dim uppercase tracking-[0.2em]">Ngày khởi tạo</th>
+                <th className="py-6 pl-6 pr-[100px] text-right text-[10px] font-black text-text-dim uppercase tracking-[0.2em]">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-border-dark">
               {filteredContracts.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-24 text-center">
-                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-5 border border-slate-100">
-                      <Briefcase className="w-10 h-10 text-slate-300" />
+                  <td colSpan={6} className="p-32 text-center">
+                    <div className="size-24 bg-white/5 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-border-dark shadow-2xl">
+                      <Briefcase className="size-10 text-text-dim" />
                     </div>
-                    <h3 className="text-slate-700 font-bold mb-1 uppercase text-sm tracking-widest">Không có dữ liệu</h3>
-                    <p className="text-slate-400 text-xs font-medium italic">Tạo hợp đồng mới trong tab "Tạo hợp đồng" để bắt đầu lưu trữ.</p>
+                    <h3 className="text-white font-black mb-2 uppercase text-base tracking-widest">Không có dữ liệu</h3>
+                    <p className="text-text-dim text-xs font-bold italic">Tạo hợp đồng mới trong tab "Tạo hợp đồng" để bắt đầu lưu trữ.</p>
                   </td>
                 </tr>
               ) : (
@@ -990,101 +1018,101 @@ const ContractManagementView = ({
                     <tr 
                       key={contract.id} 
                       className={cn(
-                        "group hover:bg-indigo-50/20 transition-all cursor-pointer",
-                        isSelected ? "bg-indigo-50/40" : ""
+                        "group hover:bg-white/5 transition-all cursor-pointer",
+                        isSelected ? "bg-primary/5" : ""
                       )}
                       onClick={() => toggleSelect(contract.id)}
                     >
-                      <td className="p-5" onClick={e => e.stopPropagation()}>
+                      <td className="p-6" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-center">
                           <input 
                             type="checkbox" 
                             checked={isSelected}
                             onChange={() => toggleSelect(contract.id)}
-                            className="w-4.5 h-4.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                            className="size-5 rounded bg-sidebar-dark border-border-dark text-primary focus:ring-primary cursor-pointer accent-primary"
                           />
                         </div>
                       </td>
-                      <td className="p-5 max-w-[300px]">
+                      <td className="p-6 max-w-[300px]">
                         <div className="flex items-start gap-4">
                           <div className={cn(
-                            "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm",
-                            contract.templateId === 'HDNT' ? "bg-amber-100 text-amber-600" :
-                            contract.templateId === 'HDTC' ? "bg-blue-100 text-blue-600" : "bg-emerald-100 text-emerald-600"
+                            "size-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg border",
+                            contract.templateId === 'HDNT' ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
+                            contract.templateId === 'HDTC' ? "bg-blue-500/10 text-blue-500 border-blue-500/20" : "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
                           )}>
-                            <FileText className="w-6 h-6" />
+                            <FileText className="size-6" />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className="text-sm font-bold text-slate-800 leading-tight mb-1 break-words">{contract.fileName}</div>
+                            <div className="text-sm font-black text-white leading-tight mb-2 break-words group-hover:text-primary transition-colors">{contract.fileName}</div>
                             <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded uppercase tracking-tighter">
+                              <span className="text-[9px] font-black bg-white/5 border border-border-dark text-text-dim px-2 py-1 rounded-lg uppercase tracking-[0.2em]">
                                 {contract.templateId}
                               </span>
-                              <span className="text-[10px] text-slate-400">ID: {contract.id.slice(-6).toUpperCase()}</span>
+                              <span className="text-[10px] text-text-dim font-bold">ID: {contract.id.slice(-6).toUpperCase()}</span>
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="p-5">
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-2">
-                            <div className="w-5 h-5 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center text-[9px] font-bold italic">A</div>
-                            <div className="text-[12px] font-bold text-slate-700 whitespace-normal line-clamp-1" title={getPartyName(contract.partyAId)}>
+                      <td className="p-6">
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3">
+                            <div className="size-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-[10px] font-black border border-primary/20 shadow-sm shadow-primary/5">A</div>
+                            <div className="text-xs font-bold text-white whitespace-normal line-clamp-1" title={getPartyName(contract.partyAId)}>
                               {getPartyName(contract.partyAId)}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <div className="w-5 h-5 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center text-[9px] font-bold italic">B</div>
-                            <div className="text-[12px] font-bold text-slate-700 whitespace-normal line-clamp-1" title={getPartyName(contract.partyBId)}>
+                          <div className="flex items-center gap-3">
+                            <div className="size-6 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center text-[10px] font-black border border-emerald-500/20 shadow-sm shadow-emerald-500/5">B</div>
+                            <div className="text-xs font-bold text-white whitespace-normal line-clamp-1" title={getPartyName(contract.partyBId)}>
                               {getPartyName(contract.partyBId)}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="p-5">
-                        <div className="space-y-2">
+                      <td className="p-6">
+                        <div className="space-y-3">
                           {contractValue && (
-                            <div className="flex items-center gap-2">
-                              <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
-                              <div className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                            <div className="flex items-center gap-3">
+                              <DollarSign className="size-4 text-emerald-500" />
+                              <div className="text-[11px] font-black text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-lg">
                                 {contractValue}
                               </div>
                             </div>
                           )}
                           {signDate && (
-                            <div className="flex items-center gap-2">
-                              <PenTool className="w-3.5 h-3.5 text-indigo-500" />
-                              <div className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
+                            <div className="flex items-center gap-3">
+                              <PenTool className="size-4 text-primary" />
+                              <div className="text-[11px] font-black text-primary bg-primary/10 border border-primary/20 px-3 py-1 rounded-lg">
                                 Ký: {signDate}
                               </div>
                             </div>
                           )}
                           {!contractValue && !signDate && (
-                            <span className="text-[11px] text-slate-400 italic">Không có metadata</span>
+                            <span className="text-[11px] text-text-dim font-bold italic uppercase tracking-widest opacity-50">Không có dữ liệu</span>
                           )}
                         </div>
                       </td>
-                      <td className="p-5 text-xs text-slate-500 font-medium">
+                      <td className="p-6 text-xs text-text-dim font-bold">
                         <div className="flex items-center gap-2">
-                          <Calendar className="w-3.5 h-3.5 opacity-40" />
+                          <Calendar className="size-4 opacity-40" />
                           {contract.createdAt?.toDate ? contract.createdAt.toDate().toLocaleDateString('vi-VN') : '---'}
                         </div>
                       </td>
-                      <td className="p-5 text-right" onClick={e => e.stopPropagation()}>
+                      <td className="py-6 pl-6 pr-[100px] text-right" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
                           <button 
                             onClick={() => onDownload(contract)}
-                            className="p-2.5 text-slate-500 hover:text-indigo-600 hover:bg-white rounded-xl border border-transparent hover:border-indigo-100 shadow-sm transition-all"
+                            className="p-3 text-text-dim hover:text-white hover:bg-white/10 rounded-xl border border-transparent hover:border-border-dark transition-all shadow-sm"
                             title="Tải về máy"
                           >
-                            <Download className="w-4.5 h-4.5" />
+                            <Download className="size-5" />
                           </button>
                           <button 
                             onClick={() => onDelete(contract.id)}
-                            className="p-2.5 text-slate-500 hover:text-red-600 hover:bg-white rounded-xl border border-transparent hover:border-red-100 shadow-sm transition-all"
+                            className="p-3 text-text-dim hover:text-red-500 hover:bg-red-500/10 rounded-xl border border-transparent hover:border-red-500/20 transition-all shadow-sm"
                             title="Xóa vĩnh viễn"
                           >
-                            <Trash2 className="w-4.5 h-4.5" />
+                            <Trash2 className="size-5" />
                           </button>
                         </div>
                       </td>
@@ -1098,6 +1126,53 @@ const ContractManagementView = ({
       </div>
     </div>
   );
+};
+
+// --- Supabase Data Mapping Helpers ---
+const mapInvoiceToSupabase = (updates: any) => {
+  const extData = updates.extractedData;
+  const mapped: any = {};
+  if (updates.status !== undefined) mapped.status = updates.status;
+  if (updates.fileName !== undefined) mapped.file_name = updates.fileName;
+  if (updates.fileType !== undefined) mapped.file_type = updates.fileType;
+  
+  if (updates.fileURL !== undefined || updates.storagePath !== undefined) {
+    // Store URLs inside extractedData
+    const nextExtData = extData || {};
+    if (updates.fileURL !== undefined) nextExtData.fileURL = updates.fileURL;
+    if (updates.storagePath !== undefined) nextExtData.storagePath = updates.storagePath;
+    mapped.extracted_data = nextExtData;
+  }
+  
+  if (extData) {
+    mapped.extracted_data = extData;
+    mapped.line_items = extData.items || null;
+    mapped.contract_number = extData.invoice?.contractNumber || extData.contractNumber || updates.contractNumber || null;
+    mapped.contract_date = extData.invoice?.contractDate || extData.contractDate || updates.contractDate || null;
+    mapped.seller_name = extData.seller?.name || updates.sellerName || null;
+    mapped.buyer_name = extData.buyer?.name || updates.buyerName || null;
+    mapped.seller_tax_code = extData.seller?.taxCode || updates.sellerTaxCode || null;
+    mapped.buyer_tax_code = extData.buyer?.taxCode || updates.buyerTaxCode || null;
+    mapped.category = extData.classification || updates.category || null;
+    mapped.type = extData.invoice?.type || updates.type || null;
+    
+    let totalAmt = extData.totals?.total || extData.totals?.subtotal || updates.totalAmount || null;
+    if (typeof totalAmt === 'string') {
+      totalAmt = parseFloat(totalAmt.replace(/[^0-9.-]/g, '')) || null;
+    }
+    mapped.total_amount = totalAmt;
+  } else {
+    if (updates.contractNumber !== undefined) mapped.contract_number = updates.contractNumber;
+    if (updates.contractDate !== undefined) mapped.contract_date = updates.contractDate;
+    if (updates.sellerName !== undefined) mapped.seller_name = updates.sellerName;
+    if (updates.buyerName !== undefined) mapped.buyer_name = updates.buyerName;
+    if (updates.sellerTaxCode !== undefined) mapped.seller_tax_code = updates.sellerTaxCode;
+    if (updates.buyerTaxCode !== undefined) mapped.buyer_tax_code = updates.buyerTaxCode;
+    if (updates.category !== undefined) mapped.category = updates.category;
+    if (updates.type !== undefined) mapped.type = updates.type;
+    if (updates.totalAmount !== undefined) mapped.total_amount = updates.totalAmount;
+  }
+  return mapped;
 };
 
 // --- View: Dashboard ---
@@ -1123,7 +1198,9 @@ const DashboardView = ({
   onDeleteContract,
   onBulkDeleteContracts,
   onDownloadContract,
-  rankMap
+  rankMap,
+  fetchInvoices,
+  fetchGeneratedDocs
 }: { 
   stats: any, 
   user: any,
@@ -1146,7 +1223,9 @@ const DashboardView = ({
   onDeleteContract: (id: string) => void,
   onBulkDeleteContracts: (ids: string[]) => void,
   onDownloadContract: (contract: SmartContract) => void,
-  rankMap: Map<string, number>
+  rankMap: Map<string, number>,
+  fetchInvoices: (uid: string) => Promise<void>,
+  fetchGeneratedDocs: (uid: string) => Promise<void>
 }) => {
   const [fileSearchTerm, setFileSearchTerm] = useState('');
   const [docSearchTerm, setDocSearchTerm] = useState('');
@@ -1209,7 +1288,18 @@ const DashboardView = ({
     return false;
   });
 
-  const handleGenerateDoc = useCallback(async (inv: any) => {
+  const handleUpdateInvoice = useCallback(async (id: string, data: any) => {
+    try {
+        const mapped = mapInvoiceToSupabase(data);
+        const { error } = await supabase.from('invoices').update(mapped).eq('id', id);
+        if (error) throw error;
+        if (user) fetchInvoices(user.uid);
+    } catch (error) {
+        console.error('Update error:', error);
+    }
+  }, [user]);
+
+  const handleGenerateDoc = useCallback(async (inv: any, overrides?: { contractNumber?: string, contractDate?: string }) => {
     if (!user) {
         alert("Bạn cần đăng nhập để tạo biên bản.");
         return;
@@ -1221,6 +1311,19 @@ const DashboardView = ({
     const pA = partners.find(p => p.taxCode === inv.extractedData?.seller?.taxCode) || {};
     const pB = partners.find(p => p.taxCode === inv.extractedData?.buyer?.taxCode) || {};
 
+    // Auto-extract contract info for Construction (BB_TC) if not already present
+    let finalContractNum = overrides?.contractNumber || inv.contractNumber;
+    let finalContractDate = overrides?.contractDate || inv.contractDate;
+
+    if (tType === 'BB_TC' && (!finalContractNum || !finalContractDate)) {
+        const fullText = (inv.extractedData?.items || []).map((item: any) => item.description).join(' ');
+        const numMatch = fullText.match(/Hợp đồng Số:\s*([^\s,;]+)/i);
+        const dateMatch = fullText.match(/ngày\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/i);
+        
+        if (!finalContractNum && numMatch) finalContractNum = numMatch[1];
+        if (!finalContractDate && dateMatch) finalContractDate = dateMatch[1];
+    }
+
     try {
         const templateBuffer = await getTemplateBuffer(tType);
         const blob = await generateDocxBlob({
@@ -1229,8 +1332,8 @@ const DashboardView = ({
             data: inv.extractedData,
             partnerA: pA,
             partnerB: pB,
-            contractNumber: inv.contractNumber,
-            contractDate: inv.contractDate
+            contractNumber: finalContractNum,
+            contractDate: finalContractDate
         });
 
         const url = window.URL.createObjectURL(blob);
@@ -1239,32 +1342,37 @@ const DashboardView = ({
         a.download = `${tType}_${inv.fileName.split('.')[0]}.docx`;
         a.click();
 
-        await addDoc(collection(db, 'generated_docs'), {
-            invoiceId: inv.id,
-            templateType: tType,
-            fileName: `${tType}_${inv.fileName.split('.')[0]}.docx`,
-            ownerId: user.uid,
-            createdAt: serverTimestamp()
-        }).catch(error => handleFirestoreError(error, OperationType.CREATE, 'generated_docs'));
+        const { error: genDocError } = await supabase.from('generated_docs').insert({
+            invoice_id: inv.id,
+            template_type: tType,
+            file_name: `${tType}_${inv.fileName.split('.')[0]}.docx`,
+            owner_id: user.uid,
+            created_at: new Date().toISOString()
+        });
+        if (genDocError) throw genDocError;
+        fetchGeneratedDocs(user.uid);
     } catch (err: any) {
         alert(err.message || "Generation failed.");
     }
   }, [user, partners]);
 
-  const renderInvoiceList = (items: any[]) => {
+  const renderInvoiceList = (items: any[], placement: 'left' | 'right' = 'right') => {
     const sortedItems = [...items].sort((a, b) => {
-        const dateA = a.contractDate || a.extractedData?.invoice?.date || a.extractedData?.date || '';
-        const dateB = b.contractDate || b.extractedData?.invoice?.date || b.extractedData?.date || '';
+        const dateA = a.extractedData?.invoice?.date || a.extractedData?.date || '';
+        const dateB = b.extractedData?.invoice?.date || b.extractedData?.date || '';
         const tA = parseInvoiceDate(dateA);
         const tB = parseInvoiceDate(dateB);
         return tA - tB; // chronological oldest -> newest
     });
 
-    return sortedItems.map((inv: any) => {
+    return sortedItems.map((inv: any, index: number) => {
       const displayInvoiceNumber = inv.computedInvoiceNumber || '';
-      const displayName = inv.computedDisplayName || inv.fileName;
+      const displaySymbol = inv.computedInvoiceSymbol || inv.extractedData?.invoice?.serial || '';
+      const localRank = index + 1;
+      const displayFullNumber = displaySymbol ? `${displaySymbol}-${displayInvoiceNumber}` : displayInvoiceNumber;
+      const displayName = `${localRank}. Hóa đơn số: ${displayFullNumber || '---'}`;
       
-      const rawDate = inv.contractDate || inv.extractedData?.invoice?.date || inv.extractedData?.date || '';
+      const rawDate = inv.extractedData?.invoice?.date || inv.extractedData?.date || '';
       const displayDate = rawDate ? formatDisplayDate(rawDate) : (inv.createdAt?.toDate ? new Date(inv.createdAt.toDate()).toLocaleDateString() : '');
 
       const seller = inv.extractedData?.seller;
@@ -1275,16 +1383,20 @@ const DashboardView = ({
         <InvoiceItemComp 
           key={inv.id}
           displayName={displayName}
+          placement={placement}
           invoice={{
             id: inv.id,
             invoiceNumber: displayInvoiceNumber || '---',
+            invoiceSymbol: displaySymbol || undefined,
             companyName: inv.extractedData?.seller?.name || '---',
             taxCode: inv.extractedData?.seller?.taxCode || '---',
             buyerName: inv.extractedData?.buyer?.name || '---',
             buyerTaxCode: inv.extractedData?.buyer?.taxCode || '---',
             classification: typeof inv.extractedData?.classification === 'object' ? inv.extractedData.classification.type : (inv.extractedData?.classification || 'BB_VT'),
             address: inv.extractedData?.buyer?.address || '---',
-            date: inv.contractDate || inv.extractedData?.invoice?.date || inv.extractedData?.date || '',
+            date: inv.extractedData?.invoice?.date || inv.extractedData?.date || '',
+            contractNumber: inv.contractNumber || '',
+            contractDate: inv.contractDate || '',
             status: (inv.status === 'completed' || inv.status === 'processing') ? 'paid' : 'pending',
             type: inv.fileType === 'pdf' ? 'PDF' : 'XML',
             total: Number(inv.extractedData?.totals?.grandTotal) || 0,
@@ -1294,7 +1406,7 @@ const DashboardView = ({
                 const p = Number(item.unitPrice || item.price) || 0;
                 const t = Number(item.amount || item.total || item.totalAmount || item.lineTotal) || (q * p);
                 return {
-                    id: item.id || Math.random().toString(),
+                    id: item.id || `${item.description || ''}-${item.quantity || 0}-${item.price || 0}`,
                     description: item.description || item.name || '---',
                     unit: item.unit || '-',
                     quantity: q,
@@ -1303,7 +1415,8 @@ const DashboardView = ({
                 };
             })
           }}
-          onGenerateDoc={() => handleGenerateDoc(inv)}
+          onGenerateDoc={(invoice) => { handleGenerateDoc(inv); }}
+          onUpdate={(data) => handleUpdateInvoice(inv.id, data)}
           onDelete={onDeleteInvoice}
         />
       );
@@ -1313,58 +1426,55 @@ const DashboardView = ({
   return (
     <div className="space-y-6 overflow-y-auto h-full p-1 scroll-smooth">
       {/* Overview Stats Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: 'Hợp đồng cần xử lý', value: stats.pending, color: 'border-l-yellow-500', icon: Clock },
-          { label: 'Đối tác liên kết', value: stats.partners, color: 'border-l-blue-500', icon: Users },
-          { label: 'Hóa đơn hệ thống', value: stats.invoices, color: 'border-l-green-500', icon: FileText },
-          { label: 'Hồ sơ đã hoàn tất', value: generatedDocs.length, color: 'border-l-indigo-500', icon: ShieldCheck },
+          { label: 'Hợp đồng cần xử lý', value: stats.pending, color: 'text-orange-500', icon: Clock },
+          { label: 'Đối tác liên kết', value: stats.partners, color: 'text-blue-500', icon: Users },
+          { label: 'Hóa đơn hệ thống', value: stats.invoices, color: 'text-emerald-500', icon: FileText },
+          { label: 'Hồ sơ đã hoàn tất', value: generatedDocs.length, color: 'text-indigo-500', icon: ShieldCheck },
         ].map((stat, i) => (
           <motion.div
-            key={i}
+            key={stat.label}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className={cn(
-              "bg-white p-5 rounded-2xl border border-slate-200 shadow-sm border-l-4 group hover:shadow-md transition-all relative overflow-hidden", 
-              stat.color
-            )}
+            className="stat-card group"
           >
             <div className="relative z-10">
-              <div className="text-sm text-slate-400 font-medium uppercase tracking-widest mb-3">{stat.label}</div>
+              <div className="stat-label">{stat.label}</div>
               <div className="flex items-end gap-3">
-                <div className="text-5xl font-black text-slate-900 leading-none tracking-tighter">
+                <div className="stat-value">
                   {isLoadingData ? <Skeleton className="h-12 w-24" /> : stat.value}
                 </div>
-                <span className="text-xs font-black text-slate-400 mb-1.5 uppercase">Mục dữ liệu</span>
+                <span className="text-[10px] font-black text-text-dim mb-1.5 uppercase tracking-wider">Mục dữ liệu</span>
               </div>
             </div>
-            <stat.icon className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 text-slate-50 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity" />
+            <stat.icon className={cn("absolute right-4 top-1/2 -translate-y-1/2 size-16 opacity-[0.05] group-hover:opacity-[0.15] transition-all duration-500", stat.color)} />
           </motion.div>
         ))}
       </div>
 
       {/* Modern Dashboard Navigation */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border-b border-slate-200 pb-2">
-        <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 w-full md:w-auto">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border-b border-border-dark pb-4">
+        <div className="flex bg-sidebar-dark p-1.5 rounded-[20px] border border-border-dark w-full md:w-auto">
           <button 
             onClick={() => onSubTabChange('invoices')}
             className={cn(
-              "flex-1 md:flex-none flex items-center justify-center gap-3 px-10 py-4 rounded-xl font-medium text-sm transition-all duration-300",
-              subTab === 'invoices' ? "bg-white text-slate-900 shadow-lg ring-1 ring-slate-200" : "text-slate-500 hover:bg-white/50"
+              "flex-1 md:flex-none flex items-center justify-center gap-3 px-8 py-3.5 rounded-[16px] font-bold text-xs uppercase tracking-widest transition-all duration-300",
+              subTab === 'invoices' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-text-dim hover:text-white"
             )}
           >
-            <Library className={cn("w-5 h-5", subTab === 'invoices' ? "text-blue-500" : "text-slate-400")} />
+            <Library className="size-4" />
             Quản lý hóa đơn
           </button>
           <button 
             onClick={() => onSubTabChange('contracts')}
             className={cn(
-              "flex-1 md:flex-none flex items-center justify-center gap-3 px-10 py-4 rounded-xl font-medium text-sm transition-all duration-300",
-              subTab === 'contracts' ? "bg-white text-slate-900 shadow-lg ring-1 ring-slate-200" : "text-slate-500 hover:bg-white/50"
+              "flex-1 md:flex-none flex items-center justify-center gap-3 px-8 py-3.5 rounded-[16px] font-bold text-xs uppercase tracking-widest transition-all duration-300",
+              subTab === 'contracts' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-text-dim hover:text-white"
             )}
           >
-            <Briefcase className={cn("w-5 h-5", subTab === 'contracts' ? "text-indigo-500" : "text-slate-400")} />
+            <Briefcase className="size-4" />
             Quản lý hợp đồng
           </button>
         </div>
@@ -1374,20 +1484,20 @@ const DashboardView = ({
             <>
               <button 
                 onClick={onBulkExport}
-                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl font-medium text-sm hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                className="btn-secondary"
               >
-                <Package className="w-4 h-4" />
+                <Package className="size-4" />
                 HÀNG LOẠT
               </button>
               <button 
                 onClick={onExportExcel}
                 disabled={isExportingExcel || stats.invoices === 0}
                 className={cn(
-                  "flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-3 rounded-2xl font-medium text-sm transition-all shadow-xl active:scale-95 tracking-widest",
-                  isExportingExcel ? "bg-slate-100 text-slate-400" : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200"
+                  "btn-primary",
+                  (isExportingExcel || stats.invoices === 0) && "opacity-50 cursor-not-allowed"
                 )}
               >
-                {isExportingExcel ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                {isExportingExcel ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
                 XUẤT EXCEL
               </button>
             </>
@@ -1408,67 +1518,75 @@ const DashboardView = ({
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
                 {/* Column PDF */}
-                <section className="space-y-4">
+                <section className="space-y-6">
                   <div className="flex items-center justify-between px-2">
                     <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full bg-red-500 shadow-lg shadow-red-200" />
-                      <h3 className="font-black text-sm text-slate-500 uppercase tracking-[0.15em]">DANH SÁCH PDF</h3>
+                      <div className="size-3 rounded-full bg-red-500 shadow-lg shadow-red-500/50 animate-pulse" />
+                      <h3 className="font-black text-xs text-text-dim uppercase tracking-[0.2em]">DANH SÁCH HÓA ĐƠN PDF / ẢNH</h3>
                     </div>
-                    <span className="text-xs font-black text-slate-300 bg-slate-100 px-3 py-1 rounded-full">{pdfFiles.length} TỆP</span>
+                    <span className="text-[10px] font-black text-white bg-white/5 border border-border-dark px-4 py-1.5 rounded-xl uppercase tracking-widest">{pdfFiles.length} TỆP</span>
                   </div>
                   <div className="space-y-3">
                     {/* Search Bar for PDF specifically */}
                     <div className="relative group">
-                      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-red-500 transition-colors" />
+                      <Search className="size-4 absolute left-4 top-1/2 -translate-y-1/2 text-text-dim group-focus-within:text-red-500 transition-colors" />
                       <input 
                         type="text"
                         placeholder="Tìm trong danh sách PDF..."
                         value={fileSearchTerm}
                         onChange={(e) => setFileSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-4 focus:ring-red-500/5 focus:border-red-300 transition-all font-medium shadow-sm"
+                        className="w-full pl-12 pr-4 py-3.5 bg-sidebar-dark border border-border-dark rounded-2xl text-xs focus:outline-none focus:border-red-500/40 focus:ring-4 focus:ring-red-500/5 transition-all font-bold text-white placeholder:text-text-dim shadow-2xl"
                       />
                     </div>
                     {isLoadingData ? (
-                      [1,2,3].map(i => <Skeleton key={i} className="h-20 w-full rounded-2xl" />)
+                      <>
+                        <Skeleton className="h-20 w-full rounded-2xl" />
+                        <Skeleton className="h-20 w-full rounded-2xl" />
+                        <Skeleton className="h-20 w-full rounded-2xl" />
+                      </>
                     ) : pdfFiles.length === 0 ? (
-                      <div className="text-center py-20 bg-slate-50/50 rounded-3xl border border-dashed border-slate-200 text-slate-400 text-xs italic font-medium uppercase tracking-widest">
+                      <div className="text-center py-20 bg-sidebar-dark rounded-3xl border border-dashed border-border-dark text-text-dim text-xs italic font-medium uppercase tracking-widest">
                         {fileSearchTerm ? "Không tìm thấy kết quả" : "Trống"}
                       </div>
                     ) : (
-                      renderInvoiceList(pdfFiles)
+                      renderInvoiceList(pdfFiles, "right")
                     )}
                   </div>
                 </section>
 
                 {/* Column XML */}
-                <section className="space-y-4">
+                <section className="space-y-6">
                   <div className="flex items-center justify-between px-2">
                     <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full bg-amber-500 shadow-lg shadow-amber-200" />
-                      <h3 className="font-black text-sm text-slate-500 uppercase tracking-[0.15em]">DANH SÁCH XML</h3>
+                      <div className="size-3 rounded-full bg-amber-500 shadow-lg shadow-amber-500/50" />
+                      <h3 className="font-black text-xs text-text-dim uppercase tracking-[0.2em]">DANH SÁCH HÓA ĐƠN XML</h3>
                     </div>
-                    <span className="text-xs font-black text-slate-300 bg-slate-100 px-3 py-1 rounded-full">{xmlFiles.length} TỆP</span>
+                    <span className="text-[10px] font-black text-white bg-white/5 border border-border-dark px-4 py-1.5 rounded-xl uppercase tracking-widest">{xmlFiles.length} TỆP</span>
                   </div>
                   <div className="space-y-3">
                     {/* Search Bar for XML specifically */}
                     <div className="relative group">
-                      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-amber-500 transition-colors" />
+                      <Search className="size-4 absolute left-4 top-1/2 -translate-y-1/2 text-text-dim group-focus-within:text-amber-500 transition-colors" />
                       <input 
                         type="text"
                         placeholder="Tìm trong danh sách XML..."
                          value={docSearchTerm}
                          onChange={(e) => setDocSearchTerm(e.target.value)}
-                         className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-4 focus:ring-amber-500/5 focus:border-amber-300 transition-all font-medium shadow-sm"
+                         className="w-full pl-12 pr-4 py-3.5 bg-sidebar-dark border border-border-dark rounded-2xl text-xs focus:outline-none focus:border-amber-500/40 focus:ring-4 focus:ring-amber-500/5 transition-all font-bold text-white placeholder:text-text-dim shadow-2xl"
                        />
                     </div>
                     {isLoadingData ? (
-                      [1,2,3].map(i => <Skeleton key={i} className="h-20 w-full rounded-2xl" />)
+                      <>
+                        <Skeleton className="h-20 w-full rounded-2xl" />
+                        <Skeleton className="h-20 w-full rounded-2xl" />
+                        <Skeleton className="h-20 w-full rounded-2xl" />
+                      </>
                     ) : xmlFiles.length === 0 ? (
-                      <div className="text-center py-20 bg-slate-50/50 rounded-3xl border border-dashed border-slate-200 text-slate-400 text-xs italic font-medium uppercase tracking-widest">
+                      <div className="text-center py-20 bg-white/5 rounded-[32px] border border-dashed border-border-dark text-text-dim text-[10px] italic font-black uppercase tracking-widest">
                         {docSearchTerm ? "Không tìm thấy kết quả" : "Trống"}
                       </div>
                     ) : (
-                      renderInvoiceList(xmlFiles)
+                      renderInvoiceList(xmlFiles, "left")
                     )}
                   </div>
                 </section>
@@ -1495,15 +1613,21 @@ const DashboardView = ({
 const UploadView = ({ 
   onUpload, 
   queue, 
+  rejectedFiles,
   onRemove, 
+  onRemoveRejected,
   onProcess, 
-  isProcessing 
+  isProcessing,
+  processingStatus
 }: { 
-  onUpload: (files: File[]) => void, 
+  onUpload: (accepted: File[], rejected: any[]) => void, 
   queue: File[], 
+  rejectedFiles: {file: File, reason: string}[],
   onRemove: (name: string) => void,
+  onRemoveRejected: (name: string) => void,
   onProcess: () => void,
-  isProcessing: boolean
+  isProcessing: boolean,
+  processingStatus: string
 }) => {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: onUpload,
@@ -1511,6 +1635,8 @@ const UploadView = ({
       'application/pdf': ['.pdf'],
       'application/xml': ['.xml'],
       'text/xml': ['.xml'],
+      'application/octet-stream': ['.xml', '.pdf'],
+      'text/plain': ['.xml'],
       'image/*': ['.png', '.jpg', '.jpeg']
     }
   } as any);
@@ -1521,121 +1647,185 @@ const UploadView = ({
         <div 
           {...getRootProps()} 
           className={cn(
-            "border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-12 transition-all cursor-pointer bg-white group",
-            isDragActive ? "border-indigo-500 bg-indigo-50" : "border-slate-200 hover:border-indigo-400 hover:bg-slate-50"
+            "border-2 border-dashed rounded-[32px] flex flex-col items-center justify-center p-12 transition-all cursor-pointer bg-sidebar-dark group",
+            isDragActive ? "border-primary bg-primary/5" : "border-border-dark hover:border-primary/40 hover:bg-white/5"
           )}
         >
           <input {...getInputProps()} />
-          <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-            <UploadCloud className="w-8 h-8" />
+          <div className="size-20 bg-primary/10 text-primary rounded-[24px] flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-2xl shadow-primary/20">
+            <UploadCloud className="size-10" />
           </div>
-          <h3 className="text-lg font-bold text-slate-900 mb-1">Kéo và thả hóa đơn vào đây</h3>
-          <p className="text-slate-500 text-sm mb-6">Hỗ trợ định dạng PDF, XML và Hình ảnh</p>
+          <h3 className="text-xl font-black text-white mb-2 tracking-tighter uppercase">Kéo và thả hóa đơn vào đây</h3>
+          <p className="text-text-dim text-[10px] mb-8 font-black uppercase tracking-[0.3em] opacity-60">Hỗ trợ định dạng PDF, XML và Hình ảnh (JPG, PNG)</p>
           <div className="flex gap-4">
-            <button className="px-6 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-xs hover:bg-slate-50 transition-all shadow-sm">
-              CHỌN TỆP TIN
+            <button className="px-8 py-3 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:translate-y-[-2px] active:scale-95 transition-all">
+              CHỌN TỆP TIN TỪ MÁY TÍNH
             </button>
           </div>
         </div>
       </div>
 
-      {queue.length > 0 && (
+      {(queue.length > 0 || rejectedFiles.length > 0) && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white/50 backdrop-blur-sm rounded-2xl border border-slate-200 overflow-hidden shadow-sm"
+          className="bg-card-dark rounded-[40px] border border-border-dark overflow-hidden shadow-2xl relative"
         >
-          <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <List className="w-4 h-4 text-slate-500" />
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-600">Hàng chờ xử lý ({queue.length} tệp)</span>
+          {/* Header Status Bar */}
+          <div className="p-8 border-b border-border-dark bg-white/[0.02] flex items-center justify-between relative overflow-hidden">
+            {isProcessing && (
+              <div className="absolute bottom-0 left-0 h-1 bg-primary animate-pulse shadow-[0_0_15px_rgba(249,115,22,0.5)] w-full transition-all" />
+            )}
+            
+            <div className="flex items-center gap-5">
+              <div className={cn(
+                "size-12 rounded-2xl flex items-center justify-center transition-all duration-500",
+                isProcessing ? "bg-primary/20 text-primary animate-pulse" : "bg-white/5 text-text-dim"
+              )}>
+                {isProcessing ? <Loader2 className="size-6 animate-spin" /> : <List className="size-6" />}
+              </div>
+              <div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-black uppercase tracking-[0.2em] text-white">Hàng chờ hệ thống</span>
+                  <div className="px-3 py-0.5 bg-primary/20 text-primary rounded-full text-[10px] font-black tracking-widest border border-primary/30">
+                    {queue.length} TỆP SẴN SÀNG
+                  </div>
+                </div>
+                {isProcessing && processingStatus ? (
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <div className="size-1.5 rounded-full bg-primary animate-ping" />
+                    <span className="text-[10px] text-primary font-black uppercase tracking-widest">{processingStatus}</span>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-text-dim font-bold uppercase tracking-widest mt-1 opacity-60">Các tệp sẽ được bóc tách bằng AI Mistral Premium</p>
+                )}
+              </div>
             </div>
+            
             <button 
               onClick={(e) => { e.stopPropagation(); onProcess(); }}
-              disabled={isProcessing}
-              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-200 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+              disabled={isProcessing || queue.length === 0}
+              className={cn(
+                "px-10 py-4 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-3 shadow-2xl",
+                isProcessing 
+                  ? "bg-white/5 text-text-dim cursor-not-allowed" 
+                  : "bg-primary text-white hover:translate-y-[-4px] active:scale-95 shadow-primary/20"
+              )}
             >
-              {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
-              BẮT ĐẦU BÓC TÁCH
+              {isProcessing ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4 fill-current" />}
+              {isProcessing ? "Đang xử lý dữ liệu..." : "BẮT ĐẦU TRÍCH XUẤT NGAY"}
             </button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 divide-x divide-slate-100">
-            {/* PDF Column */}
-            <div className="p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-black text-red-500 uppercase tracking-[0.2em]">
-                  <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.6)]"></div>
-                  HÓA ĐƠN PDF / ẢNH
+          <div className="grid grid-cols-1 lg:grid-cols-2 divide-x divide-border-dark min-h-[400px]">
+            {/* Column 1: Ready to Process */}
+            <div className="p-8 space-y-6">
+              <div className="flex items-center justify-between px-2">
+                <div className="flex items-center gap-3 text-xs font-black text-emerald-500 uppercase tracking-[0.2em]">
+                  <div className="size-2.5 rounded-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]"></div>
+                  Danh sách tệp hợp lệ
                 </div>
-                <span className="text-xs bg-red-50 text-red-600 px-3 py-1 rounded-full font-black">
-                  {queue.filter(f => !f.name.toLowerCase().endsWith('.xml')).length}
-                </span>
               </div>
-              <div className="space-y-3 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
-                {queue.filter(f => !f.name.toLowerCase().endsWith('.xml')).length === 0 && (
-                  <div className="py-16 text-center">
-                    <p className="text-xs text-slate-300 italic font-black uppercase tracking-widest">Trống</p>
+              
+              <div className="space-y-4 max-h-[500px] overflow-y-auto pr-4 custom-scrollbar">
+                {queue.length === 0 && (
+                  <div className="py-24 text-center border-2 border-dashed border-border-dark rounded-3xl opacity-30">
+                    <FileQuestion className="size-12 mx-auto mb-4 text-text-dim" />
+                    <p className="text-[10px] text-text-dim italic font-black uppercase tracking-widest">Không có tệp nào trong hàng đợi</p>
                   </div>
                 )}
-                {queue.filter(f => !f.name.toLowerCase().endsWith('.xml')).map((file, idx) => (
-                  <div key={idx} className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-100 group hover:border-red-200 hover:bg-red-50/20 transition-all shadow-sm">
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-500 shadow-inner">
-                        <FileText className="w-5 h-5" />
-                      </div>
-                      <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-800 truncate leading-tight">{file.name}</p>
-              <p className="secondary-text mt-0.5">{(file.size / 1024).toFixed(1)} KB</p>
+                
+                {queue.map((file, idx) => {
+                  const isXml = file.name.toLowerCase().endsWith('.xml');
+                  return (
+                    <div key={file.name + '-' + file.size} className="group relative">
+                      <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-[24px]" />
+                      <div className="relative flex items-center justify-between bg-white/[0.03] p-5 rounded-[24px] border border-border-dark group-hover:border-emerald-500/30 transition-all">
+                        <div className="flex items-center gap-5 min-w-0">
+                          <div className={cn(
+                            "size-14 rounded-2xl flex items-center justify-center shadow-2xl transition-transform group-hover:scale-110 duration-500",
+                            isXml ? "bg-amber-500/10 text-amber-500" : "bg-red-500/10 text-red-500"
+                          )}>
+                            {isXml ? <FileCode className="size-7" /> : <FileText className="size-7" />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-black text-white truncate leading-tight uppercase tracking-tighter group-hover:text-emerald-400 transition-colors">{file.name}</p>
+                            <div className="flex items-center gap-3 mt-1.5">
+                              <span className="text-[9px] font-black text-text-dim uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded-md">
+                                {(file.size / 1024).toFixed(1)} KB
+                              </span>
+                              <span className={cn(
+                                "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md",
+                                isXml ? "text-amber-500 bg-amber-500/10" : "text-red-500 bg-red-500/10"
+                              )}>
+                                {isXml ? "XML Data" : "PDF Document"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        {!isProcessing && (
+                          <button 
+                            onClick={() => onRemove(file.name)}
+                            className="size-10 flex items-center justify-center text-text-dim hover:text-white hover:bg-red-500 rounded-xl transition-all shadow-sm active:scale-90"
+                          >
+                            <X className="size-5" />
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <button 
-                      onClick={() => onRemove(file.name)} 
-                      className="p-2 hover:bg-red-500 hover:text-white rounded-xl text-slate-300 transition-all shadow-sm active:scale-90"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
-            {/* XML Column */}
-            <div className="p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-[10px] font-bold text-amber-500 uppercase tracking-widest">
-                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"></div>
-                  HÓA ĐƠN XML
+            {/* Column 2: Rejections & Errors */}
+            <div className="p-8 space-y-6 bg-red-500/[0.01]">
+              <div className="flex items-center justify-between px-2">
+                <div className="flex items-center gap-3 text-xs font-black text-red-500 uppercase tracking-[0.2em]">
+                  <div className="size-2.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.5)]"></div>
+                  Tệp không khả dụng
                 </div>
-                <span className="text-[10px] bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full font-bold">
-                  {queue.filter(f => f.name.toLowerCase().endsWith('.xml')).length}
-                </span>
-              </div>
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-2 custom-scrollbar">
-                {queue.filter(f => f.name.toLowerCase().endsWith('.xml')).length === 0 && (
-                  <div className="py-10 text-center">
-                    <p className="text-[10px] text-slate-300 italic font-medium uppercase tracking-widest">Trống</p>
-                  </div>
+                {rejectedFiles.length > 0 && (
+                  <button 
+                    onClick={() => rejectedFiles.forEach(r => onRemoveRejected(r.file.name))}
+                    className="text-[9px] font-black text-red-500/60 hover:text-red-500 uppercase tracking-widest transition-colors"
+                  >
+                    Dọn sạch danh sách
+                  </button>
                 )}
-                {queue.filter(f => f.name.toLowerCase().endsWith('.xml')).map((file, idx) => (
-                  <div key={idx} className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-100 group hover:border-amber-100 hover:bg-amber-50/10 transition-all">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-500">
-                        <Code className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-              <p className="secondary-text truncate">{file.name}</p>
-              <p className="caption-text uppercase">{(file.size / 1024).toFixed(1)} KB</p>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={() => onRemove(file.name)} 
-                      className="p-1.5 hover:bg-amber-500 hover:text-white rounded-lg text-slate-300 transition-all"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+              </div>
+              
+              <div className="space-y-4 max-h-[500px] overflow-y-auto pr-4 custom-scrollbar">
+                {rejectedFiles.length === 0 ? (
+                  <div className="py-24 text-center border-2 border-dashed border-white/5 rounded-3xl opacity-20">
+                    <CheckCircle2 className="size-12 mx-auto mb-4 text-emerald-500" />
+                    <p className="text-[10px] text-text-dim italic font-black uppercase tracking-widest">Hệ thống không ghi nhận lỗi</p>
                   </div>
-                ))}
+                ) : (
+                  rejectedFiles.map((item, idx) => (
+                    <div key={`rejected-${item.file.name}-${item.file.size}`} className="flex items-center justify-between bg-red-500/[0.03] p-5 rounded-[24px] border border-red-500/10 group hover:border-red-500/30 transition-all shadow-sm">
+                      <div className="flex items-center gap-5 min-w-0">
+                        <div className="size-14 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-500 shadow-inner">
+                          <AlertCircle className="size-7" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-black text-red-400 truncate leading-tight uppercase tracking-tighter">{item.file.name}</p>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <span className="px-2 py-0.5 bg-red-500/10 rounded-md text-[9px] font-black text-red-500 uppercase tracking-widest border border-red-500/20">
+                              Lý do: {item.reason}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => onRemoveRejected(item.file.name)}
+                        className="size-10 flex items-center justify-center text-red-500/40 hover:text-white hover:bg-red-500 rounded-xl transition-all"
+                      >
+                        <X className="size-5" />
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -1743,7 +1933,8 @@ const friendlyLabelMap: Record<string, string> = {
   'TEN_CONGTRINH': 'Tên công trình',
 };
 
-const getFriendlyLabel = (tag: string) => {
+const getFriendlyLabel = (tag: string | undefined | null): string => {
+  if (!tag) return '';
   const upper = tag.toUpperCase();
   if (friendlyLabelMap[upper]) return friendlyLabelMap[upper];
 
@@ -1779,13 +1970,200 @@ const getFriendlyLabel = (tag: string) => {
   if (upper.includes('NAM')) return `Năm ${side}`.trim();
 
   if (upper.includes('BANG')) return `Bảng ${upper.toLowerCase().replace('bang', '').replace(/_/g, ' ')}`.trim();
-  
-  // Default: replace underscores and lowercase
-  return tag.replace(/_/g, ' ').trim().charAt(0).toUpperCase() + tag.replace(/_/g, ' ').trim().slice(1).toLowerCase();
+
+  return tag;
+};
+
+const toVietnameseTitleCase = (str: string): string => {
+  if (!str) return '';
+  return str.toLowerCase().replace(/(^|\s)\S/g, (l) => l.toUpperCase());
+};
+
+interface GdnRow {
+  stt: string;
+  noidung: string;
+  donvi: string;
+  giatri: string;
+}
+
+const generateGdnDocxTable = (rows: GdnRow[]): string => {
+  const makeCell = (text: string, bold = false, align = 'left', shade = '') => {
+    const boldTag = bold ? '<w:b/><w:bCs/>' : '';
+    const shadeTag = shade ? `<w:shd w:val="clear" w:color="auto" w:fill="${shade}"/>` : '';
+    return `<w:tc><w:tcPr>${shadeTag}<w:tcBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/></w:tcBorders></w:tcPr><w:p><w:pPr><w:jc w:val="${align}"/></w:pPr><w:r><w:rPr>${boldTag}<w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve">${text}</w:t></w:r></w:p></w:tc>`;
+  };
+
+  const headerRow = `<w:tr><w:trPr><w:trHeight w:val="400"/></w:trPr>${makeCell('STT', true, 'center', 'D9D9D9')}${makeCell('Nội dung đề nghị', true, 'center', 'D9D9D9')}${makeCell('Đơn vị', true, 'center', 'D9D9D9')}${makeCell('Số tiền', true, 'center', 'D9D9D9')}</w:tr>`;
+
+  const dataRows = rows.map(row => {
+    const amountNum = parseInt(row.giatri, 10) || 0;
+    const amountStr = amountNum > 0 ? amountNum.toLocaleString('vi-VN') : '';
+    return `<w:tr><w:trPr><w:trHeight w:val="350"/></w:trPr>${makeCell(row.stt, false, 'center')}${makeCell(row.noidung, false, 'left')}${makeCell(row.donvi, false, 'center')}${makeCell(amountStr, false, 'right')}</w:tr>`;
+  }).join('');
+
+  const totalVal = rows.reduce((acc, r) => acc + (parseInt(r.giatri, 10) || 0), 0);
+  const totalStr = totalVal > 0 ? totalVal.toLocaleString('vi-VN') : '0';
+  const totalRow = `<w:tr><w:trPr><w:trHeight w:val="400"/></w:trPr>${makeCell('TỔNG CỘNG', true, 'center', 'F2F2F2')}${makeCell('', false, 'left', 'F2F2F2')}${makeCell('Đồng', true, 'center', 'F2F2F2')}${makeCell(totalStr, true, 'right', 'F2F2F2')}</w:tr>`;
+
+  const columns = [{ width: '800' }, { width: '4200' }, { width: '1000' }, { width: '2500' }];
+  return `<w:tbl>
+    <w:tblPr>
+      <w:tblW w:w="8500" w:type="dxa"/>
+      <w:tblBorders>
+        <w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/>
+        <w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/>
+        <w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/>
+        <w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/>
+      </w:tblBorders>
+    </w:tblPr>
+    <w:tblGrid>
+      ${columns.map(c => `<w:gridCol w:w="${c.width}"/>`).join('')}
+    </w:tblGrid>
+    ${headerRow}
+    ${dataRows}
+    ${totalRow}
+  </w:tbl>`;
+};
+
+const GDNTableInputDark: React.FC<{
+  value: string;
+  onChange: (val: string) => void;
+}> = ({ value, onChange }) => {
+  const rows = React.useMemo(() => {
+    try {
+      if (!value) return [{ stt: '1', noidung: '', donvi: 'Đồng', giatri: '' }];
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed;
+      return [{ stt: '1', noidung: '', donvi: 'Đồng', giatri: '' }];
+    } catch {
+      return [{ stt: '1', noidung: '', donvi: 'Đồng', giatri: '' }];
+    }
+  }, [value]);
+
+  const updateRows = (newRows: GdnRow[]) => {
+    onChange(JSON.stringify(newRows));
+  };
+
+  const handleCellChange = (index: number, field: keyof GdnRow, val: string) => {
+    const next = [...rows];
+    next[index] = { ...next[index], [field]: val };
+    updateRows(next);
+  };
+
+  const addRow = () => {
+    const nextStt = (rows.length + 1).toString();
+    const next = [...rows, { stt: nextStt, noidung: '', donvi: 'Đồng', giatri: '' }];
+    updateRows(next);
+  };
+
+  const removeRow = (index: number) => {
+    if (rows.length === 1) {
+      updateRows([{ stt: '1', noidung: '', donvi: 'Đồng', giatri: '' }]);
+      return;
+    }
+    const filtered = rows.filter((_, i) => i !== index);
+    const reindexed = filtered.map((r, i) => ({ ...r, stt: (i + 1).toString() }));
+    updateRows(reindexed);
+  };
+
+  const totalValue = rows.reduce((acc, r) => acc + (parseInt(r.giatri.replace(/\D/g, ''), 10) || 0), 0);
+
+  return (
+    <div className="space-y-3 bg-card-dark p-4 rounded-2xl border border-border-dark shadow-sm">
+      <div className="flex items-center justify-between">
+        <h4 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wide">
+          <div className="w-1.5 h-3 bg-primary rounded-full"></div>
+          BẢNG ĐỀ NGHỊ THANH TOÁN / TẠM ỨNG (BANG_GDN)
+        </h4>
+        <button
+          type="button"
+          onClick={addRow}
+          className="px-3 py-1 bg-primary/10 hover:bg-primary/20 border border-primary/30 hover:border-primary/50 text-primary text-[10px] font-black uppercase tracking-wider rounded-xl transition-all active:scale-95 flex items-center gap-1.5 font-sans"
+        >
+          Thêm dòng
+        </button>
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-border-dark">
+        <table className="w-full text-left border-collapse font-sans">
+          <thead>
+            <tr className="bg-sidebar-dark/50 text-[10px] font-black uppercase tracking-wider text-text-dim border-b border-border-dark">
+              <th className="py-2 px-3 text-center w-12">STT</th>
+              <th className="py-2 px-3">Nội dung</th>
+              <th className="py-2 px-3 w-24 text-center">Đơn vị</th>
+              <th className="py-2 px-3 w-40 text-right">Giá trị</th>
+              <th className="py-2 px-3 w-10"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border-dark text-xs text-white">
+            {rows.map((row, index) => {
+              return (
+                <tr key={index} className="hover:bg-white/[0.01] transition-colors">
+                  <td className="py-2 px-3 text-center font-bold text-text-dim">{row.stt}</td>
+                  <td className="py-1 px-2">
+                    <input
+                      type="text"
+                      value={row.noidung}
+                      onChange={(e) => handleCellChange(index, 'noidung', e.target.value)}
+                      placeholder="Nhập nội dung..."
+                      className="w-full bg-sidebar-dark/40 hover:bg-sidebar-dark/80 focus:bg-sidebar-dark border border-border-dark focus:border-primary rounded-lg px-2.5 py-1.5 text-xs text-white font-medium outline-none transition-all"
+                    />
+                  </td>
+                  <td className="py-1 px-2">
+                    <input
+                      type="text"
+                      value={row.donvi}
+                      onChange={(e) => handleCellChange(index, 'donvi', e.target.value)}
+                      className="w-full text-center bg-sidebar-dark/40 hover:bg-sidebar-dark/80 focus:bg-sidebar-dark border border-border-dark focus:border-primary rounded-lg px-2 py-1.5 text-xs text-white font-medium outline-none transition-all"
+                    />
+                  </td>
+                  <td className="py-1 px-2">
+                    <div className="relative flex items-center">
+                      <input
+                        type="text"
+                        value={row.giatri ? parseInt(row.giatri.replace(/\D/g, ''), 10).toLocaleString('vi-VN') : ''}
+                        onChange={(e) => {
+                          const rawVal = e.target.value.replace(/\D/g, '');
+                          handleCellChange(index, 'giatri', rawVal);
+                        }}
+                        placeholder="0"
+                        className="w-full text-right bg-sidebar-dark/40 hover:bg-sidebar-dark/80 focus:bg-sidebar-dark border border-border-dark focus:border-primary rounded-lg pr-7 pl-2 py-1.5 text-xs text-emerald-400 font-bold outline-none transition-all"
+                      />
+                      <span className="absolute right-2 text-[10px] text-text-dim font-bold">đ</span>
+                    </div>
+                  </td>
+                  <td className="py-1 px-2 text-center">
+                    <button
+                      type="button"
+                      onClick={() => removeRow(index)}
+                      className="p-1.5 text-text-dim hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all active:scale-90"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+            {/* Total Row */}
+            <tr className="bg-sidebar-dark/30 font-bold border-t border-border-dark">
+              <td colSpan={2} className="py-3 px-3 uppercase text-[10px] tracking-wide text-text-dim text-left">
+                TỔNG SỐ TIỀN ĐỀ NGHỊ TẠM ỨNG
+              </td>
+              <td className="py-3 px-3 text-center text-[10px] text-text-dim">Đồng</td>
+              <td className="py-3 px-3 text-right text-emerald-400 font-black text-xs">
+                {totalValue.toLocaleString('vi-VN')} đ
+              </td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 };
 
 interface TagInputProps {
-  tag: string;
+  tag?: string;
   value: string;
   onChange: (val: string) => void;
   onAutoFill?: (partyType: 'A' | 'B') => void;
@@ -1795,7 +2173,7 @@ interface TagInputProps {
 }
 
 const TagInput: React.FC<TagInputProps> = ({ tag, value, onChange, onAutoFill, onOpenSelector, activeParty, hideWrapperStyle }) => {
-  const upper = tag.toUpperCase();
+  const upper = (tag || '').toUpperCase();
   const isTableTag = (upper.includes('BANG') || upper.includes('TABLE')) && 
                     !upper.includes('BANG_CHU') && 
                     !upper.includes('BANGCHU');
@@ -1819,9 +2197,9 @@ const TagInput: React.FC<TagInputProps> = ({ tag, value, onChange, onAutoFill, o
       className={cn(
         "group space-y-2 p-3 transition-all duration-300",
         !hideWrapperStyle && [
-          "bg-white rounded-2xl border",
-          isWords ? "bg-indigo-50/20 border-indigo-100/50" : "border-slate-100",
-          activeParty ? "border-indigo-500 shadow-lg ring-4 ring-indigo-500/5" : "hover:border-indigo-300 hover:shadow-md"
+          "bg-card-dark rounded-2xl border",
+          isWords ? "bg-primary/5 border-primary/20" : "border-border-dark",
+          activeParty ? "border-primary shadow-lg ring-4 ring-primary/10" : "hover:border-primary/50 hover:bg-white/5 hover:shadow-md"
         ],
         isTableTag && "cursor-pointer active:scale-[0.99]"
       )}
@@ -1830,33 +2208,33 @@ const TagInput: React.FC<TagInputProps> = ({ tag, value, onChange, onAutoFill, o
          <div className="flex items-center gap-2">
             {isTableTag ? (
               <div 
-                className="text-[11px] font-black uppercase tracking-widest text-indigo-700 flex items-center gap-1.5 px-3 py-1 bg-indigo-50 rounded-xl group-hover:bg-indigo-100 transition-all border border-indigo-200/50 leading-tight"
+                className="text-[11px] font-black uppercase tracking-widest text-primary flex items-center gap-1.5 px-3 py-1 bg-primary/10 rounded-xl group-hover:bg-primary/20 transition-all border border-primary/20 leading-tight"
               >
-                <Layers className="w-3.5 h-3.5 group-hover:rotate-12 transition-transform" /> {friendlyLabel}
+                <Layers className="size-3.5 group-hover:rotate-12 transition-transform" /> {friendlyLabel}
               </div>
             ) : (
               <label className={cn(
                 "text-xs font-black uppercase tracking-tight transition-colors px-1 leading-tight",
-                activeParty ? "text-indigo-700 border-l-[3px] border-indigo-500 pl-2" : "text-slate-500 group-hover:text-indigo-700 border-l-[3px] border-transparent pl-2"
+                activeParty ? "text-primary border-l-[3px] border-primary pl-2" : "text-text-dim group-hover:text-primary border-l-[3px] border-transparent pl-2"
               )} title={tag}>
                 {friendlyLabel}
               </label>
             )}
             {isWords && (
-               <span className="flex items-center gap-1.5 text-[9px] font-black bg-indigo-600 text-white px-2 py-0.5 rounded-full shadow-md shadow-indigo-100 animate-pulse uppercase tracking-wider">
-                 <PenTool className="w-3 h-3" /> TỰ ĐỘNG
+               <span className="flex items-center gap-1.5 text-[9px] font-black bg-primary/20 text-primary border border-primary/30 px-2 py-0.5 rounded-full animate-pulse uppercase tracking-wider">
+                 <PenTool className="size-3" /> TỰ ĐỘNG
                </span>
             )}
          </div>
          <div className="flex items-center gap-2">
             {isVTTag && (
-              <div className="flex bg-slate-100 rounded-xl p-0.5 gap-0.5 shadow-inner border border-slate-200">
+              <div className="flex bg-sidebar-dark rounded-xl p-0.5 gap-0.5 shadow-inner border border-border-dark">
                 <button 
                   type="button"
                   onClick={(e) => { e.stopPropagation(); onAutoFill?.('A'); }}
                   className={cn(
                     "px-2 py-1 text-[9px] font-black rounded-lg transition-all",
-                    activeParty === 'A' ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-100" : "hover:bg-white/50 hover:text-indigo-600 text-slate-500"
+                    activeParty === 'A' ? "bg-white/10 text-primary shadow-sm ring-1 ring-border-dark" : "hover:bg-white/5 hover:text-primary text-text-dim"
                   )}
                 >
                   BÊN A
@@ -1866,7 +2244,7 @@ const TagInput: React.FC<TagInputProps> = ({ tag, value, onChange, onAutoFill, o
                   onClick={(e) => { e.stopPropagation(); onAutoFill?.('B'); }}
                   className={cn(
                     "px-2 py-1 text-[9px] font-black rounded-lg transition-all",
-                    activeParty === 'B' ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-100" : "hover:bg-white/50 hover:text-indigo-600 text-slate-500"
+                    activeParty === 'B' ? "bg-white/10 text-primary shadow-sm ring-1 ring-border-dark" : "hover:bg-white/5 hover:text-primary text-text-dim"
                   )}
                 >
                   BÊN B
@@ -1875,41 +2253,41 @@ const TagInput: React.FC<TagInputProps> = ({ tag, value, onChange, onAutoFill, o
             )}
             {isDateTag && !isTableTag && (
               <div className={cn(
-                "w-7 h-7 rounded-lg flex items-center justify-center transition-all shadow-sm",
-                activeParty ? "bg-indigo-100 text-indigo-600 border border-indigo-200" : "bg-slate-100 text-slate-400 group-hover:text-amber-600 border border-slate-200"
+                "size-7 rounded-lg flex items-center justify-center transition-all shadow-sm",
+                activeParty ? "bg-primary/20 text-primary border border-primary/30" : "bg-sidebar-dark text-text-dim group-hover:text-amber-500 border border-border-dark"
               )}>
-                <Calendar className="w-3.5 h-3.5" />
+                <Calendar className="size-3.5" />
               </div>
             )}
             {isCurrency && !isWords && (
-              <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200 shadow-sm">
-                <DollarSign className="w-3.5 h-3.5" />
+              <div className="size-7 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center border border-emerald-500/20 shadow-sm">
+                <DollarSign className="size-3.5" />
               </div>
             )}
          </div>
       </div>
       {isTableTag ? (
         <div className={cn(
-          "min-h-[120px] flex flex-col justify-center px-8 bg-slate-50/20 border-2 border-dashed rounded-[24px] transition-all duration-500 overflow-hidden group-hover:bg-indigo-50/10 group-hover:border-indigo-400 group-hover:shadow-xl group-hover:shadow-indigo-100/50",
-          value ? "border-indigo-200 bg-indigo-50/20 shadow-inner" : "border-slate-200"
+          "min-h-[120px] flex flex-col justify-center px-8 bg-sidebar-dark border-2 border-dashed rounded-[24px] transition-all duration-500 overflow-hidden group-hover:bg-primary/5 group-hover:border-primary/50",
+          value ? "border-primary/50 bg-primary/10 shadow-inner" : "border-border-dark"
         )}>
           {value ? (
             <div className="py-4 overflow-x-auto custom-scrollbar -mx-8 px-8">
               <table className="w-full text-sm border-collapse">
                 <thead>
-                  <tr className="bg-slate-900 border-y-2 border-slate-800 shadow-md">
+                  <tr className="bg-black/40 border-y-2 border-border-dark">
                     {value.split('\n')[0]?.split('|').filter(s => s.trim() !== '').map((h, i) => (
-                      <th key={i} className="px-6 py-3 text-left font-black text-white uppercase tracking-widest text-[10px]">
+                      <th key={h.trim()} className="px-6 py-3 text-left font-black text-white uppercase tracking-widest text-[10px]">
                         {h.trim()}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-border-dark">
                   {value.split('\n').slice(2, 8).filter(l => l.trim() !== '').map((line, ri) => (
-                    <tr key={ri} className="hover:bg-indigo-50/50 transition-colors group/row">
+                    <tr key={ri} className="hover:bg-primary/10 transition-colors group/row">
                       {line.split('|').filter((_, i, arr) => i > 0 && i < arr.length - 1).map((cell, ci) => (
-                        <td key={ci} className="px-6 py-3 text-slate-900 font-bold group-hover/row:text-indigo-900 transition-colors border-r border-slate-50 last:border-r-0">
+                        <td key={ci} className="px-6 py-3 text-white font-bold group-hover/row:text-primary transition-colors border-r border-border-dark last:border-r-0">
                           {cell.trim()}
                         </td>
                       ))}
@@ -1918,20 +2296,20 @@ const TagInput: React.FC<TagInputProps> = ({ tag, value, onChange, onAutoFill, o
                 </tbody>
               </table>
               {value.split('\n').slice(2).filter(l => l.trim() !== '').length > 6 && (
-                <div className="mt-4 px-4 pb-1 text-xs text-indigo-600 italic flex items-center gap-3 font-black uppercase tracking-widest bg-white/80 py-3 border-t-2 border-double border-indigo-100 rounded-b-xl">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-md shadow-emerald-200" />
+                <div className="mt-4 px-4 pb-1 text-xs text-primary italic flex items-center gap-3 font-black uppercase tracking-widest bg-sidebar-dark py-3 border-t-2 border-double border-primary/20 rounded-b-xl">
+                  <div className="size-3 rounded-full bg-emerald-500 animate-pulse shadow-md shadow-emerald-500/20" />
                   Hệ thống đã bóc tách {value.split('\n').slice(2).filter(l => l.trim() !== '').length} dòng
                 </div>
               )}
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-4 py-6 text-slate-400" onClick={onOpenSelector}>
-              <div className="p-4 bg-white rounded-2xl shadow-xl shadow-indigo-100 border border-slate-100 group-hover:scale-110 group-hover:text-indigo-600 group-hover:rotate-6 transition-all duration-500">
-                <Layers className="w-8 h-8" />
+            <div className="flex flex-col items-center gap-4 py-6 text-text-dim" onClick={onOpenSelector}>
+              <div className="p-4 bg-white/5 rounded-2xl border border-border-dark group-hover:scale-110 group-hover:text-primary group-hover:rotate-6 transition-all duration-500">
+                <Layers className="size-8" />
               </div>
               <div className="text-sm italic font-bold text-center leading-relaxed px-4">
                 Khu vực hiển thị bảng dữ liệu chi tiết<br/>
-                <span className="text-indigo-600 not-italic font-black text-[10px] uppercase tracking-widest bg-indigo-100 px-4 py-1.5 rounded-full mt-3 inline-block shadow-sm border border-indigo-200 active:scale-95 transition-transform">Lấy bảng từ hóa đơn</span>
+                <span className="text-primary not-italic font-black text-[10px] uppercase tracking-widest bg-primary/10 px-4 py-1.5 rounded-full mt-3 inline-block border border-primary/20 active:scale-95 transition-transform">Lấy bảng từ hóa đơn</span>
               </div>
             </div>
           )}
@@ -1942,12 +2320,11 @@ const TagInput: React.FC<TagInputProps> = ({ tag, value, onChange, onAutoFill, o
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
             className={cn(
-              "w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2 text-sm text-slate-900 outline-none transition-all resize-none min-h-[48px] font-bold placeholder:text-slate-300 shadow-inner leading-relaxed",
-              isCurrency && !isWords ? "text-emerald-800 bg-emerald-50/10 border-emerald-200/50" : "",
-              isWords ? "italic text-indigo-800 leading-normal bg-indigo-50/50 border-indigo-200/50" : "",
-              "focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 focus:shadow-lg"
+              "input-field",
+              isCurrency && !isWords ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" : "",
+              isWords ? "italic text-primary bg-primary/10 border-primary/20" : ""
             )}
-            placeholder={`Nhập ${friendlyLabel.toLowerCase()}...`}
+            placeholder={`Nhập ${(friendlyLabel || '').toLowerCase()}...`}
             rows={value && value.length > 50 ? 3 : (isWords ? 2 : 1)}
             onInput={(e) => {
               const target = e.target as HTMLTextAreaElement;
@@ -2008,6 +2385,473 @@ const TagRenderItem = ({
   />
 );
 
+// Context for sharing contract form state to avoid inline unmounting and losing focus
+const ContractFormContext = React.createContext<{
+  formData: Record<string, any>;
+  handleFieldChange: (tag: string, val: string) => void;
+  setActiveInvoiceTag?: (tag: string | null) => void;
+  setIsInvoiceSelectorOpen?: (open: boolean) => void;
+} | null>(null);
+
+// Helper component for inline dotted editing in simulated A4 layout
+const InlineField = ({ 
+  tag, 
+  placeholder, 
+  width = 'auto', 
+  maxLength, 
+  isNumeric = false 
+}: { 
+  tag: string; 
+  placeholder?: string; 
+  width?: string; 
+  maxLength?: number; 
+  isNumeric?: boolean; 
+}) => {
+  const context = React.useContext(ContractFormContext);
+  if (!context) return null;
+  const { formData, handleFieldChange } = context;
+
+  const val = formData[tag] || '';
+  const displayVal = val !== undefined && val !== null ? String(val) : '';
+  // Dynamic width calculation based on text length
+  const charLen = displayVal ? displayVal.length : (placeholder ? placeholder.length : 12);
+  const dynamicWidth = width === 'auto' ? `${Math.max(50, charLen * 8.5 + 12)}px` : width;
+  
+  return (
+    <span className="inline-block relative group mx-0.5 align-middle">
+      <input
+        type="text"
+        value={displayVal}
+        placeholder={placeholder || '................................'}
+        maxLength={maxLength}
+        onChange={(e) => {
+          let nextVal = e.target.value;
+          if (isNumeric) nextVal = nextVal.replace(/\D/g, '');
+          handleFieldChange(tag, nextVal);
+        }}
+        className={cn(
+          "bg-transparent border-b border-dashed border-stone-400 hover:border-primary focus:border-primary text-stone-900 font-bold focus:outline-none focus:ring-0 px-1 py-0 text-center transition-all inline-block font-sans text-xs",
+          displayVal ? "border-stone-300" : "text-stone-400"
+        )}
+        style={{ width: dynamicWidth }}
+      />
+      <span className="absolute -top-7 left-1/2 -translate-x-1/2 bg-stone-950 text-white text-[9px] font-black px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 shadow-lg uppercase font-sans">
+        {getFriendlyLabel(tag)} ({tag})
+      </span>
+    </span>
+  );
+};
+
+// --- Markdown Table Parser / Serializer for InlineTextArea ---
+interface TableRow {
+  stt: string;
+  description: string;
+  unit: string;
+  quantity: string;
+  price: string;
+  total: string;
+  isSummary?: boolean; // For TỔNG CỘNG rows
+}
+
+const parseMarkdownToRows = (md: string): TableRow[] => {
+  if (!md || !md.trim()) return [];
+  const lines = md.split('\n').filter(l => l.trim().startsWith('|'));
+  if (lines.length < 3) return []; // Need header + separator + at least 1 data row
+  // Skip first 2 lines (header + alignment)
+  const dataLines = lines.slice(2);
+  return dataLines.map(line => {
+    const cells = line.split('|').filter((_, i, arr) => i > 0 && i < arr.length - 1).map(c => c.trim());
+    const isSummary = !cells[0] && (
+      (cells[1] || '').toUpperCase().includes('TỔNG') ||
+      (cells[1] || '').toUpperCase().includes('THUẾ') ||
+      (cells[1] || '').toUpperCase().includes('VAT')
+    );
+    return {
+      stt: cells[0] || '',
+      description: cells[1] || '',
+      unit: cells[2] || '',
+      quantity: cells[3] || '',
+      price: cells[4] || '',
+      total: cells[5] || '',
+      isSummary,
+    };
+  });
+};
+
+const serializeRowsToMarkdown = (rows: TableRow[]): string => {
+  let md = "| STT | Nội dung hàng hóa, dịch vụ | ĐVT | Số lượng | Đơn giá | Thành tiền |\n";
+  md += "|:---:|:---|:---:|---:|---:|---:|\n";
+  rows.forEach(r => {
+    md += `| ${r.stt} | ${r.description} | ${r.unit} | ${r.quantity} | ${r.price} | ${r.total} |\n`;
+  });
+  return md.trimEnd();
+};
+
+const formatNumberInput = (val: string): string => {
+  const num = val.replace(/[^0-9]/g, '');
+  if (!num) return '';
+  return parseInt(num, 10).toLocaleString('vi-VN').replace(/,/g, '.');
+};
+
+const parseFormattedNumber = (val: string): number => {
+  return parseInt(val.replace(/[^0-9]/g, ''), 10) || 0;
+};
+
+// Helper component for spacious lined texts/tables in simulated A4 layout
+const InlineTextArea = ({ 
+  tag, 
+  placeholder,
+  rows = 4
+}: { 
+  tag: string; 
+  placeholder?: string;
+  rows?: number;
+}) => {
+  const context = React.useContext(ContractFormContext);
+  if (!context) return null;
+  const { formData, handleFieldChange, setActiveInvoiceTag, setIsInvoiceSelectorOpen } = context;
+
+  const val = formData[tag] || '';
+  const upper = tag.toUpperCase();
+  const isTableTag = (upper.includes('BANG') || upper.includes('TABLE')) && 
+                     !upper.includes('BANG_CHU') && 
+                     !upper.includes('BANGCHU');
+
+  // --- Visual Table Mode for table tags ---
+  if (isTableTag) {
+    let tableRows = parseMarkdownToRows(val);
+    // Separate data rows from summary rows
+    const dataRows = tableRows.filter(r => !r.isSummary);
+    const summaryRows = tableRows.filter(r => r.isSummary);
+
+    const updateTable = (newDataRows: TableRow[]) => {
+      // Re-calculate grand total from data rows
+      let grandTotal = 0;
+      const updatedData = newDataRows.map((r, i) => {
+        const qty = parseFormattedNumber(r.quantity);
+        const price = parseFormattedNumber(r.price);
+        const rowTotal = qty * price;
+        grandTotal += rowTotal;
+        return { ...r, stt: String(i + 1), total: rowTotal > 0 ? formatNumberInput(String(rowTotal)) : r.total };
+      });
+
+      // Rebuild summary rows with updated totals
+      const newSummary: TableRow[] = [];
+      const hasVAT = summaryRows.some(r => r.description.toUpperCase().includes('THUẾ') || r.description.toUpperCase().includes('VAT') || r.description.toUpperCase().includes('THUÊ'));
+      
+      if (hasVAT) {
+        // Extract the existing VAT percentage from the summary rows if present
+        let vatPercent = 10;
+        let prefixText = 'THUẾ GIÁ TRỊ GIA TĂNG';
+        const vatRow = summaryRows.find(r => r.description.toUpperCase().includes('THUẾ') || r.description.toUpperCase().includes('VAT') || r.description.toUpperCase().includes('THUÊ'));
+        if (vatRow) {
+          const match = vatRow.description.match(/(\d+(?:\.\d+)?)\s*%/);
+          if (match) {
+            vatPercent = parseFloat(match[1]);
+          }
+          // Preserve whatever label the user has (e.g., THUÊ GIÁ TRỊ GIA TĂNG, THUẾ GTGT, VAT, etc.)
+          const labelMatch = vatRow.description.match(/^([^(]+)/);
+          if (labelMatch) {
+            prefixText = labelMatch[1].trim();
+          }
+        }
+
+        const vat = Math.round(grandTotal * (vatPercent / 100));
+        const gTotal = grandTotal + vat;
+        newSummary.push({ stt: '', description: 'TỔNG CỘNG TIỀN HÀNG', unit: '', quantity: '', price: '', total: formatNumberInput(String(grandTotal)), isSummary: true });
+        newSummary.push({ stt: '', description: `${prefixText} (${vatPercent}%)`, unit: '', quantity: '', price: '', total: formatNumberInput(String(vat)), isSummary: true });
+        newSummary.push({ stt: '', description: 'TỔNG CỘNG TIỀN THANH TOÁN', unit: '', quantity: '', price: '', total: formatNumberInput(String(gTotal)), isSummary: true });
+      } else {
+        newSummary.push({ stt: '', description: 'TỔNG CỘNG TIỀN HÀNG', unit: '', quantity: '', price: '', total: formatNumberInput(String(grandTotal)), isSummary: true });
+      }
+
+      const allRows = [...updatedData, ...newSummary];
+      handleFieldChange(tag, serializeRowsToMarkdown(allRows));
+    };
+
+    const handleCellEdit = (index: number, field: keyof TableRow, value: string) => {
+      const next = [...dataRows];
+      next[index] = { ...next[index], [field]: value };
+      updateTable(next);
+    };
+
+    const addRow = () => {
+      const next = [...dataRows, { stt: '', description: '', unit: '', quantity: '', price: '', total: '' }];
+      updateTable(next);
+    };
+
+    const removeRow = (index: number) => {
+      if (dataRows.length <= 1) {
+        updateTable([{ stt: '1', description: '', unit: '', quantity: '', price: '', total: '' }]);
+        return;
+      }
+      const next = dataRows.filter((_, i) => i !== index);
+      updateTable(next);
+    };
+
+    const hasData = dataRows.length > 0;
+
+    return (
+      <div className="w-full relative group my-3 font-sans text-xs">
+        {/* Action bar */}
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">
+            {getFriendlyLabel(tag)}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={addRow}
+              className="px-2 py-0.5 bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-600 text-[9px] font-bold uppercase tracking-wider rounded transition-all active:scale-95 flex items-center gap-1"
+            >
+              <PlusSquare className="size-2.5" /> Thêm dòng
+            </button>
+            <button 
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setActiveInvoiceTag?.(tag);
+                setIsInvoiceSelectorOpen?.(true);
+              }}
+              className="flex items-center gap-1 px-2 py-0.5 bg-stone-900 hover:bg-stone-800 border border-stone-950 text-white rounded text-[9px] font-black uppercase tracking-wider shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer"
+            >
+              <Layers className="size-2.5" /> Lấy từ hóa đơn
+            </button>
+          </div>
+        </div>
+
+        {/* Visual Table */}
+        {hasData ? (
+          <div className="overflow-x-auto rounded border border-stone-300 shadow-sm bg-white">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-stone-100 text-[10px] font-bold uppercase tracking-wider text-stone-600 border-b border-stone-300">
+                  <th className="py-2 px-2 text-center w-10 border-r border-stone-300">STT</th>
+                  <th className="py-2 px-2 border-r border-stone-300">Nội dung hàng hóa, dịch vụ</th>
+                  <th className="py-2 px-2 w-16 text-center border-r border-stone-300">ĐVT</th>
+                  <th className="py-2 px-2 w-20 text-right border-r border-stone-300">Số lượng</th>
+                  <th className="py-2 px-2 w-28 text-right border-r border-stone-300">Đơn giá</th>
+                  <th className="py-2 px-2 w-28 text-right border-r border-stone-300">Thành tiền</th>
+                  <th className="py-2 px-2 w-8 text-center"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-200 text-stone-900 bg-white">
+                {dataRows.map((row, index) => (
+                  <tr key={index} className="hover:bg-stone-50/50 transition-colors">
+                    <td className="py-1.5 px-2 text-center font-bold text-stone-400 border-r border-stone-200 text-[10px]">{index + 1}</td>
+                    <td className="py-1 px-1 border-r border-stone-200">
+                      <input
+                        type="text"
+                        value={row.description}
+                        onChange={(e) => handleCellEdit(index, 'description', e.target.value)}
+                        placeholder="Nhập nội dung..."
+                        className="w-full bg-transparent hover:bg-stone-50 focus:bg-stone-50 border border-transparent focus:border-stone-400 rounded px-1.5 py-0.5 text-xs text-stone-900 outline-none transition-all"
+                      />
+                    </td>
+                    <td className="py-1 px-1 border-r border-stone-200">
+                      <input
+                        type="text"
+                        value={row.unit}
+                        onChange={(e) => handleCellEdit(index, 'unit', e.target.value)}
+                        placeholder="—"
+                        className="w-full text-center bg-transparent hover:bg-stone-50 focus:bg-stone-50 border border-transparent focus:border-stone-400 rounded px-1 py-0.5 text-xs text-stone-900 outline-none transition-all"
+                      />
+                    </td>
+                    <td className="py-1 px-1 border-r border-stone-200">
+                      <input
+                        type="text"
+                        value={row.quantity}
+                        onChange={(e) => handleCellEdit(index, 'quantity', e.target.value)}
+                        placeholder="0"
+                        className="w-full text-right bg-transparent hover:bg-stone-50 focus:bg-stone-50 border border-transparent focus:border-stone-400 rounded px-1 py-0.5 text-xs text-stone-900 outline-none transition-all"
+                      />
+                    </td>
+                    <td className="py-1 px-1 border-r border-stone-200">
+                      <input
+                        type="text"
+                        value={row.price}
+                        onChange={(e) => {
+                          const formatted = formatNumberInput(e.target.value);
+                          handleCellEdit(index, 'price', formatted);
+                        }}
+                        placeholder="0"
+                        className="w-full text-right bg-transparent hover:bg-stone-50 focus:bg-stone-50 border border-transparent focus:border-stone-400 rounded px-1 py-0.5 text-xs text-stone-900 font-medium outline-none transition-all"
+                      />
+                    </td>
+                    <td className="py-1.5 px-2 text-right font-semibold text-stone-900 border-r border-stone-200 text-[11px]">
+                      {row.total || '—'}
+                    </td>
+                    <td className="py-1 px-1 text-center">
+                      <button
+                        type="button"
+                        onClick={() => removeRow(index)}
+                        className="text-stone-300 hover:text-red-500 transition-colors p-0.5"
+                        title="Xóa dòng"
+                      >
+                        <Trash2 className="size-3" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {/* Summary rows */}
+                {summaryRows.map((sr, i) => {
+                  const isGrandTotal = sr.description.toUpperCase().includes('THANH TOÁN') || 
+                                       (sr.description.toUpperCase().includes('TỔNG CỘNG') && !sr.description.toUpperCase().includes('HÀNG') && !sr.description.toUpperCase().includes('THUẾ'));
+                  return (
+                    <tr key={`summary-${i}`} className={cn(
+                      "border-t border-stone-300",
+                      isGrandTotal ? "bg-stone-100 font-bold" : "bg-stone-50"
+                    )}>
+                      <td className="py-1.5 px-2 border-r border-stone-300"></td>
+                      <td colSpan={4} className="py-1.5 px-2 font-bold text-stone-700 text-[10px] uppercase tracking-wide border-r border-stone-300">
+                        {sr.description}
+                      </td>
+                      <td className={cn(
+                        "py-1.5 px-2 text-right border-r border-stone-300",
+                        isGrandTotal ? "text-[12px] font-black text-stone-900" : "text-[11px] font-semibold text-stone-700"
+                      )}>
+                        {sr.total}
+                      </td>
+                      <td className="py-1 px-1"></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          /* Empty state: show a placeholder table with add button */
+          <div className="border border-dashed border-stone-300 rounded bg-stone-50/50 p-6 text-center">
+            <div className="text-stone-400 text-[10px] font-bold uppercase tracking-wider mb-2">
+              Chưa có dữ liệu bảng
+            </div>
+            <p className="text-stone-400 text-[10px] mb-3">
+              Nhấn "Lấy từ hóa đơn" để tự động tạo bảng từ hóa đơn, hoặc "Thêm dòng" để nhập thủ công.
+            </p>
+            <button
+              type="button"
+              onClick={addRow}
+              className="px-3 py-1 bg-stone-200 hover:bg-stone-300 border border-stone-300 text-stone-700 text-[9px] font-bold uppercase tracking-wider rounded transition-all active:scale-95 inline-flex items-center gap-1"
+            >
+              <PlusSquare className="size-3" /> Tạo bảng mới
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // --- Fallback: Regular textarea for non-table tags ---
+  return (
+    <div className="w-full relative group my-2 font-sans text-xs">
+      <textarea
+        value={val}
+        rows={rows}
+        placeholder={placeholder || 'Nhập chi tiết bảng giá trị/nội dung tại đây...'}
+        onChange={(e) => handleFieldChange(tag, e.target.value)}
+        className="w-full bg-stone-50 hover:bg-stone-100/50 focus:bg-white border border-stone-200 hover:border-stone-400 focus:border-stone-600 rounded p-3 text-stone-900 font-mono text-xs focus:outline-none focus:ring-0 transition-all resize-y"
+      />
+      <span className="absolute -top-7 left-3 bg-stone-950 text-white text-[9px] font-black px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg uppercase font-sans">
+        {getFriendlyLabel(tag)} ({tag})
+      </span>
+    </div>
+  );
+};
+
+const escapeXml = (unsafe: string): string => {
+  if (!unsafe) return '';
+  return unsafe.replace(/[<>&'"]/g, (c) => {
+    switch (c) {
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '&': return '&amp;';
+      case '\'': return '&apos;';
+      case '"': return '&quot;';
+      default: return c;
+    }
+  });
+};
+
+const generateContractDocxTable = (md: string): string => {
+  if (!md || !md.trim()) return '';
+  
+  // Parse the markdown into rows
+  const rows = parseMarkdownToRows(md);
+  if (rows.length === 0) return '';
+
+  const makeCell = (text: string, bold = false, align = 'left', shade = '') => {
+    const boldTag = bold ? '<w:b/><w:bCs/>' : '';
+    const shadeTag = shade ? `<w:shd w:val="clear" w:color="auto" w:fill="${shade}"/>` : '';
+    const escapedText = escapeXml(text);
+    return `<w:tc><w:tcPr>${shadeTag}<w:tcBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/></w:tcBorders></w:tcPr><w:p><w:pPr><w:jc w:val="${align}"/></w:pPr><w:r><w:rPr>${boldTag}<w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve">${escapedText}</w:t></w:r></w:p></w:tc>`;
+  };
+
+  // Header Row
+  const headerRow = `<w:tr><w:trPr><w:trHeight w:val="400"/></w:trPr>` + 
+    makeCell('STT', true, 'center', 'D9D9D9') +
+    makeCell('Nội dung hàng hóa, dịch vụ', true, 'center', 'D9D9D9') +
+    makeCell('ĐVT', true, 'center', 'D9D9D9') +
+    makeCell('Số lượng', true, 'center', 'D9D9D9') +
+    makeCell('Đơn giá', true, 'center', 'D9D9D9') +
+    makeCell('Thành tiền', true, 'center', 'D9D9D9') +
+    `</w:tr>`;
+
+  // Data / Summary rows
+  const xmlRows = rows.map(r => {
+    const isSum = r.isSummary;
+    const height = isSum ? '400' : '350';
+    const bgShade = isSum ? 'F2F2F2' : '';
+    
+    if (isSum) {
+      return `<w:tr><w:trPr><w:trHeight w:val="${height}"/></w:trPr>` +
+        makeCell('', false, 'center', bgShade) +
+        makeCell(r.description, true, 'left', bgShade) +
+        makeCell('', false, 'center', bgShade) +
+        makeCell('', false, 'right', bgShade) +
+        makeCell('', false, 'right', bgShade) +
+        makeCell(r.total, true, 'right', bgShade) +
+        `</w:tr>`;
+    } else {
+      return `<w:tr><w:trPr><w:trHeight w:val="${height}"/></w:trPr>` +
+        makeCell(r.stt, false, 'center') +
+        makeCell(r.description, false, 'left') +
+        makeCell(r.unit, false, 'center') +
+        makeCell(r.quantity, false, 'right') +
+        makeCell(r.price, false, 'right') +
+        makeCell(r.total, false, 'right') +
+        `</w:tr>`;
+    }
+  }).join('');
+
+  // Column width definitions (6 columns)
+  const columns = [
+    { width: '600' },
+    { width: '3400' },
+    { width: '600' },
+    { width: '800' },
+    { width: '1300' },
+    { width: '1800' }
+  ];
+
+  return `<w:tbl>
+    <w:tblPr>
+      <w:tblW w:w="8500" w:type="dxa"/>
+      <w:tblBorders>
+        <w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/>
+        <w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/>
+        <w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/>
+        <w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/>
+      </w:tblBorders>
+    </w:tblPr>
+    <w:tblGrid>
+      ${columns.map(c => `<w:gridCol w:w="${c.width}"/>`).join('')}
+    </w:tblGrid>
+    ${headerRow}
+    ${xmlRows}
+  </w:tbl>`;
+};
+
 const ContractView = ({ 
   partners, 
   user,
@@ -2066,9 +2910,698 @@ const ContractView = ({
   const setSelectedPartyBId = (val: any) => updateContractForm((prev: any) => ({ selectedPartyBId: typeof val === 'function' ? val(prev.selectedPartyBId) : val }));
   const setTemplateBuffer = (val: any) => updateContractForm((prev: any) => ({ templateBuffer: typeof val === 'function' ? val(prev.templateBuffer) : val }));
   const setVtLinks = (val: any) => updateContractForm((prev: any) => ({ vtLinks: typeof val === 'function' ? val(prev.vtLinks) : val }));
-  
-  // MERGER_DATE for address conversion logic
-  const MERGER_DATE = '2025-01-01';
+
+
+
+  // Renders the interactive table in the A4 Giấy đề nghị thanh toán / tạm ứng (GDNTT)
+  const renderGdnTable = () => {
+    const rawValue = formData['BANG_GDN'] || '';
+    let rows: GdnRow[] = [];
+    try {
+      rows = rawValue ? JSON.parse(rawValue) : [{ stt: '1', noidung: '', donvi: 'Đồng', giatri: '' }];
+    } catch (e) {
+      rows = [{ stt: '1', noidung: '', donvi: 'Đồng', giatri: '' }];
+    }
+
+    const updateRows = (newRows: GdnRow[]) => {
+      handleFieldChange('BANG_GDN', JSON.stringify(newRows));
+    };
+
+    const handleCellChange = (index: number, field: keyof GdnRow, val: string) => {
+      const next = [...rows];
+      next[index] = { ...next[index], [field]: val };
+      updateRows(next);
+    };
+
+    const addRow = () => {
+      const nextStt = (rows.length + 1).toString();
+      const next = [...rows, { stt: nextStt, noidung: '', donvi: 'Đồng', giatri: '' }];
+      updateRows(next);
+    };
+
+    const removeRow = (index: number) => {
+      if (rows.length === 1) {
+        updateRows([{ stt: '1', noidung: '', donvi: 'Đồng', giatri: '' }]);
+        return;
+      }
+      const filtered = rows.filter((_, i) => i !== index);
+      const reindexed = filtered.map((r, i) => ({ ...r, stt: (i + 1).toString() }));
+      updateRows(reindexed);
+    };
+
+    const totalValue = rows.reduce((acc, r) => acc + (parseInt(r.giatri.replace(/\D/g, ''), 10) || 0), 0);
+
+    return (
+      <div className="my-4 space-y-2 select-text font-sans">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold text-stone-700 uppercase tracking-wide">
+            Bảng kê chi tiết chi phí:
+          </span>
+          <button
+            type="button"
+            onClick={addRow}
+            className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-700 text-[10px] font-black uppercase tracking-wider rounded transition-all active:scale-95 flex items-center gap-1"
+          >
+            <PlusSquare className="size-3" /> Thêm dòng
+          </button>
+        </div>
+
+        <div className="overflow-x-auto rounded border border-stone-300 shadow-sm">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="bg-stone-50 text-[10px] font-bold uppercase tracking-wider text-stone-600 border-b border-stone-300">
+                <th className="py-2 px-3 text-center w-12 border-r border-stone-300">STT</th>
+                <th className="py-2 px-3 border-r border-stone-300">Nội dung đề nghị</th>
+                <th className="py-2 px-3 w-24 text-center border-r border-stone-300">Đơn vị</th>
+                <th className="py-2 px-3 w-40 text-right border-r border-stone-300">Số tiền</th>
+                <th className="py-2 px-3 w-10 text-center"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-200 text-stone-900 bg-white">
+              {rows.map((row, index) => (
+                <tr key={index} className="hover:bg-stone-50/50 transition-colors">
+                  <td className="py-2 px-3 text-center font-bold text-stone-500 border-r border-stone-200">{row.stt}</td>
+                  <td className="py-1 px-2 border-r border-stone-200">
+                    <input
+                      type="text"
+                      value={row.noidung}
+                      onChange={(e) => handleCellChange(index, 'noidung', e.target.value)}
+                      placeholder="Nhập nội dung..."
+                      className="w-full bg-transparent hover:bg-stone-50 focus:bg-stone-50 border border-transparent focus:border-stone-400 rounded px-2 py-1 text-xs text-stone-900 outline-none transition-all"
+                    />
+                  </td>
+                  <td className="py-1 px-2 border-r border-stone-200">
+                    <input
+                      type="text"
+                      value={row.donvi}
+                      onChange={(e) => handleCellChange(index, 'donvi', e.target.value)}
+                      className="w-full text-center bg-transparent hover:bg-stone-50 focus:bg-stone-50 border border-transparent focus:border-stone-400 rounded px-2 py-1 text-xs text-stone-900 outline-none transition-all"
+                    />
+                  </td>
+                  <td className="py-1 px-2 border-r border-stone-200">
+                    <div className="relative flex items-center">
+                      <input
+                        type="text"
+                        value={row.giatri ? parseInt(row.giatri.replace(/\D/g, ''), 10).toLocaleString('vi-VN') : ''}
+                        onChange={(e) => {
+                          const rawVal = e.target.value.replace(/\D/g, '');
+                          handleCellChange(index, 'giatri', rawVal);
+                        }}
+                        placeholder="0"
+                        className="w-full text-right bg-transparent hover:bg-stone-50 focus:bg-stone-50 border border-transparent focus:border-stone-400 rounded pr-6 pl-2 py-1 text-xs text-stone-900 font-bold outline-none transition-all"
+                      />
+                      <span className="absolute right-2 text-[10px] text-stone-500 font-bold">đ</span>
+                    </div>
+                  </td>
+                  <td className="py-1 px-2 text-center">
+                    <button
+                      type="button"
+                      onClick={() => removeRow(index)}
+                      className="p-1 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded transition-all active:scale-90"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {/* Total Row */}
+              <tr className="bg-stone-50 font-bold border-t border-stone-300">
+                <td colSpan={2} className="py-2.5 px-3 uppercase text-[10px] tracking-wide text-stone-600 text-left border-r border-stone-200">
+                  TỔNG SỐ TIỀN ĐỀ NGHỊ
+                </td>
+                <td className="py-2.5 px-3 text-center text-[10px] text-stone-500 border-r border-stone-200">Đồng</td>
+                <td className="py-2.5 px-3 text-right text-stone-900 font-bold text-xs border-r border-stone-200">
+                  {totalValue.toLocaleString('vi-VN')} đ
+                </td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  // GDNTT Document A4 Layout
+  const renderGdnDocument = () => {
+    return (
+      <div className="space-y-6 text-stone-900 leading-relaxed text-[13px]">
+        <div className="flex justify-between items-start">
+          <div className="flex flex-col text-left">
+            <InlineField tag="TEN_CTY_VIET_TAT" placeholder="[TÊN CÔNG TY VIẾT TẮT]" width="200px" />
+            <div className="text-xs text-stone-600 mt-1 pl-1">
+              Số: <InlineField tag="SO_GDN" placeholder="..........." width="100px" />
+            </div>
+            <div className="text-xs italic pl-1 mt-1 text-stone-500">
+              (V/v: Đề nghị <InlineField tag="TAMUNG-THANHTOAN" placeholder="tạm ứng / thanh toán" width="160px" />)
+            </div>
+          </div>
+          <div className="text-center font-bold">
+            <div className="uppercase">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+            <div className="text-xs tracking-wider mt-0.5">Độc lập – Tự do – Hạnh phúc</div>
+            <div className="text-[10px] text-stone-400 font-sans mt-0.5 font-normal">-------------------------</div>
+          </div>
+        </div>
+
+        <div className="text-right italic mt-4">
+          TP. Hồ Chí Minh, <InlineField tag="NGAY_GDN" placeholder="ngày .... tháng .... năm ...." width="220px" />
+        </div>
+
+        <div className="text-center mt-6">
+          <h1 className="text-lg font-bold uppercase tracking-wide">
+            GIẤY ĐỀ NGHỊ <InlineField tag="TAMUNG-THANHTOAN_TITLE" placeholder="TẠM ỨNG / THANH TOÁN" width="220px" />
+          </h1>
+        </div>
+
+        <div className="pl-1 mt-4 font-bold">
+          Kính gửi: <InlineField tag="BEN_DUOC_DE_NGHI_TITLE" placeholder="Ban Giám đốc Công ty ..." width="380px" />
+        </div>
+
+        <div className="space-y-3 mt-4 text-justify">
+          <p>
+            - Căn cứ Hợp đồng số: <InlineField tag="SO_HOPDONG" placeholder="[Số hợp đồng]" width="140px" /> được ký vào ngày <InlineField tag="NGAY_KY_HOP_DONG" placeholder="[Ngày ký hợp đồng]" width="140px" /> về việc <InlineField tag="NOI_DUNG_HOP_DONG" placeholder="[Nội dung hợp đồng]" width="280px" /> giữa <InlineField tag="BEN_DUOC_DE_NGHI" placeholder="[Bên được đề nghị]" width="180px" /> và <InlineField tag="BEN_DE_NGHI" placeholder="[Bên đề nghị]" width="180px" />.
+          </p>
+          <p>
+            Hôm nay, <InlineField tag="BEN_DE_NGHI" placeholder="[Bên đề nghị]" width="180px" /> kính đề nghị <InlineField tag="BEN_DUOC_DE_NGHI" placeholder="[Bên được đề nghị]" width="180px" /> <InlineField tag="TAMUNG-THANHTOAN" placeholder="tạm ứng / thanh toán" width="160px" /> giá trị với nội dung cụ thể như sau:
+          </p>
+
+          {renderGdnTable()}
+
+          <p className="mt-2 font-bold">
+            (Bằng chữ: <InlineField tag="SOTIENBANGCHU" placeholder="[Số tiền bằng chữ]" width="480px" />)
+          </p>
+
+          <p className="mt-2">
+            Số tiền đề nghị <InlineField tag="TAMUNG-THANHTOAN" placeholder="tạm ứng / thanh toán" width="160px" /> sẽ được chuyển khoản vào tài khoản của <InlineField tag="BEN_DE_NGHI" placeholder="[Bên đề nghị]" width="180px" />, số tài khoản: <InlineField tag="STK_BEN_DE_NGHI" placeholder="[Số tài khoản]" width="150px" /> tại <InlineField tag="NGAN_HANG_BEN_DE_NGHI" placeholder="[Ngân hàng]" width="200px" />.
+          </p>
+
+          <p>
+            Rất mong được <InlineField tag="BEN_DUOC_DE_NGHI" placeholder="[Bên được đề nghị]" width="180px" /> xem xét, chấp thuận và thực hiện <InlineField tag="TAMUNG-THANHTOAN" placeholder="tạm ứng / thanh toán" width="160px" /> để tạo điều kiện hỗ trợ chi phí cho Công ty.
+          </p>
+          
+          <p className="italic mt-1">Xin chân thành cảm ơn !</p>
+        </div>
+
+        <div className="flex justify-between items-start mt-8 pt-6 border-t border-stone-200">
+          <div className="flex flex-col text-xs text-stone-500 select-none">
+            <span className="font-bold">Nơi nhận:</span>
+            <span>- Như kính gửi;</span>
+            <span>- Lưu PKT.KT.</span>
+          </div>
+          <div className="text-center w-60 flex flex-col items-center">
+            <div className="font-bold uppercase"><InlineField tag="BEN_DE_NGHI_TITLE" placeholder="[Đại diện bên đề nghị]" width="180px" /></div>
+            <div className="text-xs text-stone-500 italic mt-0.5">Giám đốc</div>
+            <div className="h-16" />
+            <div className="font-bold mt-2"><InlineField tag="DAI_DIEN_BEN_DE_NGHI" placeholder="[Họ tên người ký]" width="180px" /></div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // HDNT Document A4 Layout
+  const renderHDNTDocument = () => {
+    return (
+      <div className="space-y-6 text-stone-900 leading-relaxed text-[13px] text-justify">
+        <div className="flex justify-between items-start">
+          <div className="flex flex-col text-left">
+            <InlineField tag="TEN_CTY_VIET_TAT" placeholder="[TÊN CÔNG TY VIẾT TẮT]" width="200px" />
+            <div className="text-xs text-stone-600 mt-1 pl-1">
+              Số: <InlineField tag="SO_HOPDONG" placeholder="..........." width="140px" />
+            </div>
+          </div>
+          <div className="text-center font-bold">
+            <div className="uppercase">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+            <div className="text-xs tracking-wider mt-0.5">Độc lập – Tự do – Hạnh phúc</div>
+            <div className="text-[10px] text-stone-400 font-sans mt-0.5 font-normal">------o0o------</div>
+          </div>
+        </div>
+
+        <div className="text-center mt-6">
+          <h1 className="text-lg font-bold uppercase tracking-wide">HỢP ĐỒNG NGUYÊN TẮC</h1>
+        </div>
+
+        <div className="space-y-1 text-xs italic pl-4 border-l-2 border-stone-200 text-stone-600">
+          <p>- Căn cứ Luật thương mại và luật dân sự hiện hành.</p>
+          <p>- Căn cứ nhu cầu và khả năng của hai bên.</p>
+        </div>
+
+        <p className="mt-4">
+          Hôm nay, ngày <InlineField tag="DAY_HOPDONG" placeholder="ngày" width="45px" maxLength={2} isNumeric /> tháng <InlineField tag="MONTH_HOPDONG" placeholder="tháng" width="45px" maxLength={2} isNumeric /> năm <InlineField tag="YEAR_HOPDONG" placeholder="năm" width="65px" maxLength={4} isNumeric />, tại văn phòng <InlineField tag="BEN_A" placeholder="[Địa điểm/Văn phòng Bên A]" width="280px" />, chúng tôi gồm có:
+        </p>
+
+        <div className="space-y-1.5 mt-3">
+          <div className="font-bold uppercase">BÊN MUA (Gọi tắt là Bên A): <InlineField tag="BEN_A" placeholder="[Tên công ty Bên A]" width="380px" /></div>
+          <div className="pl-4 space-y-1">
+            <div>- Đại diện: <InlineField tag="GIOITINHBENA" placeholder="Ông/Bà" width="60px" /> <InlineField tag="DAIDIENBENA" placeholder="[Họ tên đại diện]" width="180px" /></div>
+            <div>- Chức vụ: <InlineField tag="CHUCVUBENA" placeholder="[Chức vụ]" width="140px" /></div>
+            <div>- Địa chỉ: <InlineField tag="DIACHIBENA" placeholder="[Địa chỉ công ty]" width="480px" /></div>
+            <div>- Mã số thuế: <InlineField tag="MSTBENA" placeholder="[Mã số thuế]" width="140px" /></div>
+            <div>- Tài khoản số: <InlineField tag="STKBENA" placeholder="[Số tài khoản]" width="140px" /> tại ngân hàng: <InlineField tag="NGANHANGBENA" placeholder="[Ngân hàng]" width="200px" /></div>
+          </div>
+        </div>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold uppercase">BÊN BÁN (Gọi tắt là Bên B): <InlineField tag="BEN_B" placeholder="[Tên công ty Bên B]" width="380px" /></div>
+          <div className="pl-4 space-y-1">
+            <div>- Đại diện: <InlineField tag="GIOITINHBENB" placeholder="Ông/Bà" width="60px" /> <InlineField tag="DAIDIENBENB" placeholder="[Họ tên đại diện]" width="180px" /></div>
+            <div>- Chức vụ: <InlineField tag="CHUCVUBENB" placeholder="[Chức vụ]" width="140px" /></div>
+            <div>- Địa chỉ: <InlineField tag="DIACHIBENB" placeholder="[Địa chỉ công ty]" width="480px" /></div>
+            <div>- Mã số thuế: <InlineField tag="MSTBENB" placeholder="[Mã số thuế]" width="140px" /></div>
+            <div>- Tài khoản số: <InlineField tag="STKBENB" placeholder="[Số tài khoản]" width="140px" /> tại ngân hàng: <InlineField tag="NGANHANGBENB" placeholder="[Ngân hàng]" width="200px" /></div>
+          </div>
+        </div>
+
+        <p className="mt-4 font-bold italic">
+          Hai bên cùng nhau bàn bạc, thỏa thuận thống nhất ký kết Hợp đồng nguyên tắc với các điều khoản như sau:
+        </p>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold">Điều 1: Nội dung hợp đồng</div>
+          <p className="pl-4">
+            Bên A cung cấp vật tư xây dựng cho bên B phục vụ cho các công trình như sau:
+          </p>
+          <div className="pl-4">
+            <InlineTextArea tag="BANGGIATRIHOPDONG" placeholder="Nhập bảng vật tư, số lượng, chủng loại..." />
+          </div>
+        </div>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold">Điều 2: Giá trị hợp đồng</div>
+          <div className="pl-4 space-y-1">
+            <p>
+              - Tổng giá trị hợp đồng là: <InlineField tag="GIATRIHOPDONG" placeholder="[Giá trị hợp đồng]" width="160px" /> đ (đã bao gồm thuế GTGT).
+            </p>
+            <p>
+              - Bằng chữ: <InlineField tag="BANGCHUGIATRI" placeholder="[Bằng chữ]" width="420px" />.
+            </p>
+            <p>- Giá trị trên là giá trị tạm tính. Giá trị thực tế tại công trường là giá trị thanh quyết toán.</p>
+          </div>
+        </div>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold">Điều 3: Thời gian thực hiện hợp đồng</div>
+          <p className="pl-4">- Thời gian thực hiện: kể từ ký hợp đồng.</p>
+        </div>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold">Điều 4: Phương thức nghiệm thu khối lượng</div>
+          <p className="pl-4">
+            Căn cứ vào khối lượng bàn giao vật tư thực tế tại công trình, Bên A và Bên B đo đạc, lập Biên bản xác nhận khối lượng vật tư để làm cơ sở thanh toán.
+          </p>
+        </div>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold">Điều 5: Phương thức thanh toán</div>
+          <p className="pl-4">
+            Thanh toán bằng chuyển khoản. Căn cứ vào Biên bản xác nhận khối lượng vật tư, Bên B xuất hóa đơn cho bên A và bên A sẽ thanh toán cho bên B 100% giá trị trong vòng 240 ngày kể từ ngày hai bên đối chiếu và xác nhận công nợ.
+          </p>
+        </div>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold">Điều 6: Trách nhiệm của các bên</div>
+          <div className="pl-4 space-y-2">
+            <div>
+              <div className="font-bold text-xs">6.1. Trách nhiệm của Bên A:</div>
+              <ul className="list-disc pl-4 space-y-0.5 text-xs text-stone-700">
+                <li>Kiểm tra số lượng, chủng loại, chất lượng và bốc xếp hàng hoá từ phương tiện chuyên chở vào cửa hàng;</li>
+                <li>Thanh toán đầy đủ theo đơn giá của bên B và đúng thời gian cho bên B;</li>
+                <li>Xác lập lập Biên bản xác nhận khối lượng vật tư thực tế để làm cơ sở thanh toán.</li>
+                <li>Thanh toán kinh phí cho bên B như Điều 5.</li>
+              </ul>
+            </div>
+            <div>
+              <div className="font-bold text-xs">6.2. Trách nhiệm của Bên B:</div>
+              <ul className="list-disc pl-4 space-y-0.5 text-xs text-stone-700">
+                <li>Bảo đảm cung ứng đầy đủ cho bên A theo đúng đơn giá đã công bố;</li>
+                <li>Thợ vận hành máy phải luôn có mặt tại công trường trong giờ làm việc.</li>
+                <li>Đảm bảo máy luôn vận hành tốt. Nếu do lỗi thiết bị, máy phải ngừng hoạt động trên 30 phút thì bên A có trách nhiệm làm bù giờ cho những giờ máy ngừng hoạt động.</li>
+                <li>Đảm bảo tính hợp pháp của thiết bị khi các cơ quan có trách nhiệm kiểm tra.</li>
+                <li>Vận chuyển hàng hoá bảo đảm, an toàn đến giao tận địa chỉ đã đăng kí của bên A;</li>
+                <li>Cùng bên B lập Biên bản xác nhận khối lượng vật tư thực tế để làm cơ sở thanh toán và thanh lý hợp đồng.</li>
+                <li>Xuất hóa đơn thuế GTGT cho bên A.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold">Điều 7: Điều khoản khác</div>
+          <p className="pl-4">
+            Hai bên cam kết thực hiện đúng các điều khoản đã thống nhất trong hợp đồng. Trong quá trình thực hiện hợp đồng nếu có gì vướng mắc, phát sinh hay thay đổi, hai bên chủ động gặp nhau bàn bạc giải quyết. Trong trường hợp không giải quyết được sẽ đưa ra tòa án Kinh tế có thẩm quyền để phân xử. Quyết định của tòa án là phán quyết cuối cùng.
+          </p>
+          <p className="pl-4">
+            Hợp đồng này có hiệu lực kể từ ngày ký và hết hiệu lực khi các bên đã thực hiện xong các điều khoản của hợp đồng. Sau khi các bên hoàn thành đầy đủ nghĩa vụ của mình theo thỏa thuận trong hợp đồng thì hợp đồng được xem như thanh lý.
+          </p>
+          <p className="pl-4">
+            Hợp đồng được lập thành 4 bản có giá trị như nhau, Bên A giữ 02 bản, bên B giữ 02 bản và có giá trị pháp lý như nhau.
+          </p>
+        </div>
+
+        <div className="flex justify-between items-start mt-8 pt-6 border-t border-stone-200 font-sans">
+          <div className="text-center w-60">
+            <div className="font-bold uppercase">ĐẠI DIỆN BÊN A</div>
+            <div className="h-16" />
+            <div className="font-bold"><InlineField tag="DAIDIENBENA" placeholder="[Họ tên đại diện A]" width="180px" /></div>
+          </div>
+          <div className="text-center w-60">
+            <div className="font-bold uppercase">ĐẠI DIỆN BÊN B</div>
+            <div className="h-16" />
+            <div className="font-bold"><InlineField tag="DAIDIENBENB" placeholder="[Họ tên đại diện B]" width="180px" /></div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // HDTC Document A4 Layout
+  const renderHDTCDocument = () => {
+    return (
+      <div className="space-y-6 text-stone-900 leading-relaxed text-[13px] text-justify">
+        <div className="flex justify-between items-start">
+          <div className="flex flex-col text-left">
+            <InlineField tag="TEN_CTY_VIET_TAT" placeholder="[TÊN CÔNG TY VIẾT TẮT]" width="200px" />
+            <div className="text-xs text-stone-600 mt-1 pl-1">
+              Số: <InlineField tag="SO_HOPDONG" placeholder="..........." width="140px" />
+            </div>
+          </div>
+          <div className="text-center font-bold">
+            <div className="uppercase">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+            <div className="text-xs tracking-wider mt-0.5">Độc lập – Tự do – Hạnh phúc</div>
+            <div className="text-[10px] text-stone-400 font-sans mt-0.5 font-normal">------o0o------</div>
+          </div>
+        </div>
+
+        <div className="text-center mt-6 space-y-1">
+          <h1 className="text-lg font-bold uppercase tracking-wide">HỢP ĐỒNG THI CÔNG XÂY DỰNG</h1>
+          <div className="text-xs italic space-y-1 flex flex-col items-center text-stone-600 mt-2">
+            <div>Gói thầu: <InlineField tag="GOITHAU" placeholder="[Gói thầu]" width="280px" /></div>
+            <div>Tên công trình: <InlineField tag="TENCONGTRINH" placeholder="[Tên công trình]" width="280px" /></div>
+            <div>Địa điểm: <InlineField tag="DIADIEMCONGTRINH" placeholder="[Địa điểm công trình]" width="380px" /></div>
+          </div>
+        </div>
+
+        <div className="space-y-1 text-xs italic pl-4 border-l-2 border-stone-200 text-stone-600">
+          <p>- Căn cứ Luật thương mại và luật dân sự hiện hành.</p>
+          <p>- Căn cứ nhu cầu và khả năng của hai bên.</p>
+        </div>
+
+        <p className="mt-4">
+          Hôm nay, ngày <InlineField tag="DAY_HOPDONG" placeholder="ngày" width="45px" maxLength={2} isNumeric /> tháng <InlineField tag="MONTH_HOPDONG" placeholder="tháng" width="45px" maxLength={2} isNumeric /> năm <InlineField tag="YEAR_HOPDONG" placeholder="năm" width="65px" maxLength={4} isNumeric />, tại văn phòng <InlineField tag="BEN_A" placeholder="[Địa điểm/Văn phòng Bên A]" width="280px" />, chúng tôi gồm có:
+        </p>
+
+        <div className="space-y-1.5 mt-3">
+          <div className="font-bold uppercase">BÊN GIAO THẦU (Gọi tắt là Bên A): <InlineField tag="BEN_A" placeholder="[Tên công ty Bên A]" width="380px" /></div>
+          <div className="pl-4 space-y-1">
+            <div>- Đại diện: <InlineField tag="GIOITINHBENA" placeholder="Ông/Bà" width="60px" /> <InlineField tag="DAIDIENBENA" placeholder="[Họ tên đại diện]" width="180px" /></div>
+            <div>- Chức vụ: <InlineField tag="CHUCVUBENA" placeholder="[Chức vụ]" width="140px" /></div>
+            <div>- Địa chỉ: <InlineField tag="DIACHIBENA" placeholder="[Địa chỉ công ty]" width="480px" /></div>
+            <div>- Mã số thuế: <InlineField tag="MSTBENA" placeholder="[Mã số thuế]" width="140px" /></div>
+            <div>- Tài khoản số: <InlineField tag="STKBENA" placeholder="[Số tài khoản]" width="140px" /> tại ngân hàng: <InlineField tag="NGANHANGBENA" placeholder="[Ngân hàng]" width="200px" /></div>
+          </div>
+        </div>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold uppercase">BÊN NHẬN THẦU (Gọi tắt là Bên B): <InlineField tag="BEN_B" placeholder="[Tên công ty Bên B]" width="380px" /></div>
+          <div className="pl-4 space-y-1">
+            <div>- Đại diện: <InlineField tag="GIOITINHBENB" placeholder="Ông/Bà" width="60px" /> <InlineField tag="DAIDIENBENB" placeholder="[Họ tên đại diện]" width="180px" /></div>
+            <div>- Chức vụ: <InlineField tag="CHUCVUBENB" placeholder="[Chức vụ]" width="140px" /></div>
+            <div>- Địa chỉ: <InlineField tag="DIACHIBENB" placeholder="[Địa chỉ công ty]" width="480px" /></div>
+            <div>- Mã số thuế: <InlineField tag="MSTBENB" placeholder="[Mã số thuế]" width="140px" /></div>
+            <div>- Tài khoản số: <InlineField tag="STKBENB" placeholder="[Số tài khoản]" width="140px" /> tại ngân hàng: <InlineField tag="NGANHANGBENB" placeholder="[Ngân hàng]" width="200px" /></div>
+          </div>
+        </div>
+
+        <p className="mt-4 font-bold italic">
+          Hai bên cùng nhau bàn bạc, thỏa thuận thống nhất ký kết Hợp đồng thi công xây dựng công trình với các điều khoản như sau:
+        </p>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold">Điều 1: Nội dung hợp đồng</div>
+          <p className="pl-4">
+            Bên A đồng ý giao cho bên B thi công công trình <InlineField tag="TENCONGTRINH" placeholder="[Tên công trình]" width="220px" /> tại <InlineField tag="DIADIEMCONGTRINH" placeholder="[Địa điểm công trình]" width="280px" /> theo bản vẽ thiết kế đã được chủ đầu tư chấp thuận.
+          </p>
+        </div>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold">Điều 2: Giá trị hợp đồng</div>
+          <div className="pl-4 space-y-1">
+            <div className="flex flex-wrap items-center gap-1">
+              <span>- Tổng giá trị hợp đồng là:</span>
+              <InlineField tag="GIATRIHOPDONG" placeholder="[Giá trị hợp đồng]" width="160px" />
+              <span>đ (đã bao gồm thuế GTGT 8%).</span>
+              <button 
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setActiveInvoiceTag?.('GIATRIHOPDONG');
+                  setIsInvoiceSelectorOpen?.(true);
+                }}
+                className="inline-flex items-center gap-1 px-2 py-0.5 bg-stone-900 hover:bg-stone-800 border border-stone-950 text-white rounded text-[9px] font-black uppercase tracking-wider shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer ml-1"
+              >
+                <Layers className="size-2.5" /> Lấy từ hóa đơn
+              </button>
+            </div>
+            <p className="mt-1">
+              - Bằng chữ: <InlineField tag="BANGCHUGIATRI" placeholder="[Bằng chữ]" width="420px" />.
+            </p>
+            <p className="mt-1">- Giá trị trên là giá trị tạm tính. Giá trị thực tế tại công trường là giá trị thanh quyết toán.</p>
+          </div>
+        </div>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold">Điều 3: Thời gian thực hiện hợp đồng</div>
+          <p className="pl-4">- Thời gian thực hiện: kể từ ký hợp đồng.</p>
+        </div>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold">Điều 4: Phương thức nghiệm thu khối lượng</div>
+          <p className="pl-4">
+            Căn cứ vào khối lượng thực tế thi công tại công trình, Bên A và Bên B đo đạc, lập biên bản xác nhận khối lượng thi công hoàn thiện để làm cơ sở thanh toán.
+          </p>
+        </div>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold">Điều 5: Phương thức thanh toán</div>
+          <p className="pl-4">
+            Thanh toán bằng chuyển khoản. Căn cứ vào Biên bản xác nhận khối lượng thi công, Bên B xuất hóa đơn cho bên A và bên A sẽ thanh toán cho bên B 100% giá trị trong vòng 240 ngày kể từ ngày hai bên đối chiếu và xác nhận công nợ.
+          </p>
+        </div>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold">Điều 6: Trách nhiệm của các bên</div>
+          <div className="pl-4 space-y-2">
+            <div>
+              <div className="font-bold text-xs">6.1. Trách nhiệm của Bên A:</div>
+              <ul className="list-disc pl-4 space-y-0.5 text-xs text-stone-700">
+                <li>Giám sát công tác kỹ thuật, chất lượng công trình và tiến độ thi công đối với bên B. Đôn đốc bên B thi công và nghiệm thu đúng quy trình quy phạm và bản vẽ thiết kế thi công đã được phê duyệt;</li>
+                <li>Thanh toán đầy đủ theo đơn giá của bên B và đúng thời gian cho bên B;</li>
+                <li>Phối hợp nhận bàn giao mặt bằng công trình đã giải tỏa và bàn giao lại cho bên B;</li>
+                <li>Xác lập lập Biên bản xác nhận khối lượng thi công thực tế để làm cơ sở thanh toán.</li>
+                <li>Thanh toán kinh phí cho bên B như Điều 5.</li>
+              </ul>
+            </div>
+            <div>
+              <div className="font-bold text-xs">6.2. Trách nhiệm của Bên B:</div>
+              <ul className="list-disc pl-4 space-y-0.5 text-xs text-stone-700">
+                <li>Lập tiến độ và phương án tổ chức thi công gửi bên A sau 07 ngày để bên A theo dõi kiểm tra trong thi công;</li>
+                <li>Phối hợp cùng bên A nhận bàn giao mặt bằng thi công, quản lý thống nhất mặt bằng thi công sau khi được bàn giao;</li>
+                <li>Thi công theo đúng Hồ sơ thiết kế, chất lượng đúng quy trình quy phạm hiện hành;</li>
+                <li>Trong quá trình thi công phải đảm bảo vệ sinh môi trường chung, các vật liệu thừa phải thu dọn vận chuyển ngay đi nơi khác theo chỉ dẫn của tư vấn giám sát;</li>
+                <li>Chịu trách nhiệm về an toàn lao động, phòng chống cháy nổ, đảm bảo giao thông, an toàn giao thông trong suốt quá trình thi công tại công trường. Nếu để xảy ra sự cố bên B phải chịu xử lý theo luật định;</li>
+                <li>Cùng bên B lập Biên bản xác nhận khối lượng thi công thực tế để làm cơ sở thanh toán và thanh lý hợp đồng.</li>
+                <li>Xuất hóa đơn thuế GTGT cho bên A.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold">Điều 7: Điều khoản khác</div>
+          <p className="pl-4">
+            Hai bên cam kết thực hiện đúng các điều khoản đã thống nhất trong hợp đồng. Trong quá trình thực hiện hợp đồng nếu có gì vướng mắc, phát sinh hay thay đổi, hai bên chủ động gặp nhau bàn bạc giải quyết. Trong trường hợp không giải quyết được sẽ đưa ra tòa án Kinh tế có thẩm quyền để phân xử. Quyết định của tòa án là phán quyết cuối cùng.
+          </p>
+          <p className="pl-4">
+            Hợp đồng này có hiệu lực kể từ ngày ký và hết hiệu lực khi các bên đã thực hiện xong các điều khoản của hợp đồng. Sau khi các bên hoàn thành đầy đủ nghĩa vụ của mình theo thỏa thuận trong hợp đồng thì hợp đồng được xem như thanh lý.
+          </p>
+          <p className="pl-4">
+            Hợp đồng được lập thành 4 bản có giá trị như nhau, Bên A giữ 02 bản, bên B giữ 02 bản và có giá trị pháp lý như nhau.
+          </p>
+        </div>
+
+        <div className="flex justify-between items-start mt-8 pt-6 border-t border-stone-200 font-sans">
+          <div className="text-center w-60">
+            <div className="font-bold uppercase">ĐẠI DIỆN BÊN A</div>
+            <div className="h-16" />
+            <div className="font-bold"><InlineField tag="DAIDIENBENA" placeholder="[Họ tên đại diện A]" width="180px" /></div>
+          </div>
+          <div className="text-center w-60">
+            <div className="font-bold uppercase">ĐẠI DIỆN BÊN B</div>
+            <div className="h-16" />
+            <div className="font-bold"><InlineField tag="DAIDIENBENB" placeholder="[Họ tên đại diện B]" width="180px" /></div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // HDCM Document A4 Layout
+  const renderHDCMDocument = () => {
+    return (
+      <div className="space-y-6 text-stone-900 leading-relaxed text-[13px] text-justify">
+        <div className="flex justify-between items-start">
+          <div className="flex flex-col text-left">
+            <InlineField tag="TEN_CTY_VIET_TAT" placeholder="[TÊN CÔNG TY VIẾT TẮT]" width="200px" />
+            <div className="text-xs text-stone-600 mt-1 pl-1">
+              Số: <InlineField tag="SO_HOPDONG" placeholder="..........." width="140px" />
+            </div>
+          </div>
+          <div className="text-center font-bold">
+            <div className="uppercase">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+            <div className="text-xs tracking-wider mt-0.5">Độc lập – Tự do – Hạnh phúc</div>
+            <div className="text-[10px] text-stone-400 font-sans mt-0.5 font-normal">------o0o------</div>
+          </div>
+        </div>
+
+        <div className="text-center mt-6">
+          <h1 className="text-lg font-bold uppercase tracking-wide">HỢP ĐỒNG THUÊ XE MÁY</h1>
+        </div>
+
+        <div className="space-y-1 text-xs italic pl-4 border-l-2 border-stone-200 text-stone-600">
+          <p>- Căn cứ Luật thương mại và luật dân sự hiện hành.</p>
+          <p>- Căn cứ nhu cầu và khả năng của hai bên.</p>
+        </div>
+
+        <p className="mt-4">
+          Hôm nay, ngày <InlineField tag="DAY_HOPDONG" placeholder="ngày" width="45px" maxLength={2} isNumeric /> tháng <InlineField tag="MONTH_HOPDONG" placeholder="tháng" width="45px" maxLength={2} isNumeric /> năm <InlineField tag="YEAR_HOPDONG" placeholder="năm" width="65px" maxLength={4} isNumeric />, tại văn phòng <InlineField tag="BEN_A" placeholder="[Địa điểm/Văn phòng Bên A]" width="280px" />, chúng tôi gồm có:
+        </p>
+
+        <div className="space-y-1.5 mt-3">
+          <div className="font-bold uppercase">BÊN THUÊ (Gọi tắt là Bên A): <InlineField tag="BEN_A" placeholder="[Tên công ty Bên A]" width="380px" /></div>
+          <div className="pl-4 space-y-1">
+            <div>- Đại diện: <InlineField tag="GIOITINHBENA" placeholder="Ông/Bà" width="60px" /> <InlineField tag="DAIDIENBENA" placeholder="[Họ tên đại diện]" width="180px" /></div>
+            <div>- Chức vụ: <InlineField tag="CHUCVUBENA" placeholder="[Chức vụ]" width="140px" /></div>
+            <div>- Địa chỉ: <InlineField tag="DIACHIBENA" placeholder="[Địa chỉ công ty]" width="480px" /></div>
+            <div>- Mã số thuế: <InlineField tag="MSTBENA" placeholder="[Mã số thuế]" width="140px" /></div>
+            <div>- Tài khoản số: <InlineField tag="STKBENA" placeholder="[Số tài khoản]" width="140px" /> tại ngân hàng: <InlineField tag="NGANHANGBENA" placeholder="[Ngân hàng]" width="200px" /></div>
+          </div>
+        </div>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold uppercase">BÊN CHO THUÊ (Gọi tắt là Bên B): <InlineField tag="BEN_B" placeholder="[Tên công ty Bên B]" width="380px" /></div>
+          <div className="pl-4 space-y-1">
+            <div>- Đại diện: <InlineField tag="GIOITINHBENB" placeholder="Ông/Bà" width="60px" /> <InlineField tag="DAIDIENBENB" placeholder="[Họ tên đại diện]" width="180px" /></div>
+            <div>- Chức vụ: <InlineField tag="CHUCVUBENB" placeholder="[Chức vụ]" width="140px" /></div>
+            <div>- Địa chỉ: <InlineField tag="DIACHIBENB" placeholder="[Địa chỉ công ty]" width="480px" /></div>
+            <div>- Mã số thuế: <InlineField tag="MSTBENB" placeholder="[Mã số thuế]" width="140px" /></div>
+            <div>- Tài khoản số: <InlineField tag="STKBENB" placeholder="[Số tài khoản]" width="140px" /> tại ngân hàng: <InlineField tag="NGANHANGBENB" placeholder="[Ngân hàng]" width="200px" /></div>
+          </div>
+        </div>
+
+        <p className="mt-4 font-bold italic">
+          Hai bên cùng nhau bàn bạc, thỏa thuận thống nhất ký kết Hợp đồng thuê xe máy với các điều khoản như sau:
+        </p>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold">Điều 1: Nội dung hợp đồng</div>
+          <p className="pl-4">
+            Bên A cung cấp xe máy thi công cho bên B thi công gói công trình: <InlineField tag="TENCONGTRINH" placeholder="[Tên gói công trình]" width="280px" /> như sau:
+          </p>
+          <div className="pl-4">
+            <InlineTextArea tag="BANGGIATRITHUEXE" placeholder="Nhập bảng giá trị thuê xe, danh sách xe, đơn giá ca máy..." />
+          </div>
+        </div>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold">Điều 2: Giá trị hợp đồng</div>
+          <div className="pl-4 space-y-1">
+            <p>
+              - Tổng giá trị hợp đồng là: <InlineField tag="GIATRIHOPDONG" placeholder="[Giá trị hợp đồng]" width="160px" /> đ (đã bao gồm thuế GTGT 8%).
+            </p>
+            <p>
+              - Bằng chữ: <InlineField tag="BANGCHUGIATRI" placeholder="[Bằng chữ]" width="420px" />.
+            </p>
+            <p>- Giá trị trên là giá trị tạm tính. Giá trị thực tế tại công trường là giá trị thanh quyết toán.</p>
+          </div>
+        </div>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold">Điều 3: Thời gian thực hiện hợp đồng</div>
+          <p className="pl-4">- Thời gian thực hiện: kể từ ký hợp đồng.</p>
+        </div>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold">Điều 4: Phương thức nghiệm thu khối lượng</div>
+          <p className="pl-4">
+            Căn cứ vào khối lượng thực tế thi công tại công trình, Bên A và Bên B đo đạc, lập Biên bản xác nhận ca máy để làm cơ sở thanh toán.
+          </p>
+        </div>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold">Điều 5: Phương thức thanh toán</div>
+          <p className="pl-4">
+            Thanh toán bằng chuyển khoản. Căn cứ vào Biên bản xác nhận ca máy, Bên B xuất hóa đơn cho bên A và bên A sẽ thanh toán cho bên B 100% giá trị trong vòng 240 ngày kể từ ngày hai bên đối chiếu và xác nhận công nợ.
+          </p>
+        </div>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold">Điều 6: Trách nhiệm của các bên</div>
+          <div className="pl-4 space-y-2">
+            <div>
+              <div className="font-bold text-xs">6.1. Trách nhiệm của Bên A:</div>
+              <ul className="list-disc pl-4 space-y-0.5 text-xs text-stone-700">
+                <li>Bố trí mặt bằng, địa hình tốt để máy hoạt động đảm bảo an toàn.</li>
+                <li>Sắp xếp lịch làm việc hợp lý để đảm bảo sức khỏe thợ lái máy.</li>
+                <li>Thanh toán tiền thuê máy đúng hạn và tuân thủ các điều khoản của hợp đồng.</li>
+                <li>Xác lập lập Biên bản xác nhận ca máy thực tế để làm cơ sở thanh toán.</li>
+                <li>Cam kết sử dụng máy đúng mục đích thuê.</li>
+                <li>Thanh toán kinh phí cho bên B như Điều 5.</li>
+              </ul>
+            </div>
+            <div>
+              <div className="font-bold text-xs">6.2. Trách nhiệm của Bên B:</div>
+              <ul className="list-disc pl-4 space-y-0.5 text-xs text-stone-700">
+                <li>Thiết bị đưa tới công trường phải trong điều kiện hoạt động bình thường tại mọi chế độ.</li>
+                <li>Thợ vận hành máy phải luôn có mặt tại công trường trong giờ làm việc.</li>
+                <li>Đảm bảo máy luôn vận hành tốt. Nếu do lỗi thiết bị, máy phải ngừng hoạt động trên 30 phút thì bên A có trách nhiệm làm bù giờ cho những giờ máy ngừng hoạt động.</li>
+                <li>Đảm bảo tính hợp pháp của thiết bị khi các cơ quan có trách nhiệm kiểm tra.</li>
+                <li>Tuyệt đối tuân thủ và tự chịu trách nhiệm về an toàn lao động trong quá trình vận hành máy tại công trường.</li>
+                <li>Cùng bên B lập Biên bản xác nhận ca máy thực tế để làm cơ sở thanh toán và thanh lý hợp đồng.</li>
+                <li>Xuất hóa đơn thuế GTGT cho bên A.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-1.5 mt-4">
+          <div className="font-bold">Điều 7: Điều khoản khác</div>
+          <p className="pl-4">
+            Hai bên cam kết thực hiện đúng các điều khoản đã thống nhất trong hợp đồng. Trong quá trình thực hiện hợp đồng nếu có gì vướng mắc, phát sinh hay thay đổi, hai bên chủ động gặp nhau bàn bạc giải quyết. Trong trường hợp không giải quyết được sẽ đưa ra tòa án Kinh tế có thẩm quyền để phân xử. Quyết định của tòa án là phán quyết cuối cùng.
+          </p>
+          <p className="pl-4">
+            Hợp đồng này có hiệu lực kể từ ngày ký và hết hiệu lực khi các bên đã thực hiện xong các điều khoản của hợp đồng. Sau khi các bên hoàn thành đầy đủ nghĩa vụ của mình theo thỏa thuận trong hợp đồng thì hợp đồng được xem như thanh lý.
+          </p>
+          <p className="pl-4">
+            Hợp đồng được lập thành 4 bản có giá trị như nhau, Bên A giữ 02 bản, bên B giữ 02 bản và có giá trị pháp lý như nhau.
+          </p>
+        </div>
+
+        <div className="flex justify-between items-start mt-8 pt-6 border-t border-stone-200 font-sans">
+          <div className="text-center w-60">
+            <div className="font-bold uppercase">ĐẠI DIỆN BÊN A</div>
+            <div className="h-16" />
+            <div className="font-bold"><InlineField tag="DAIDIENBENA" placeholder="[Họ tên đại diện A]" width="180px" /></div>
+          </div>
+          <div className="text-center w-60">
+            <div className="font-bold uppercase">ĐẠI DIỆN BÊN B</div>
+            <div className="h-16" />
+            <div className="font-bold"><InlineField tag="DAIDIENBENB" placeholder="[Họ tên đại diện B]" width="180px" /></div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // Tự động cập nhật địa chỉ khi ngày/tháng/năm ký thay đổi
   // Categorize tags for better UI
@@ -2132,25 +3665,35 @@ const ContractView = ({
     // Filter out grouped date tags from main categories to avoid duplication
     const filterGrouped = (list: string[]) => list.filter(t => !dateTags.has(t));
 
-    // Safety for HDTC: ensure DIADIEM is present in categories if template is HDTC
+    // Safety for HDTC: ensure DIADIEM and BANGGIATRIHOPDONG are present in categories if template is HDTC
     const currentTags = [...tags];
-    if (selectedTemplate === 'HDTC' && !currentTags.some(t => {
-      const u = t.toUpperCase();
-      return u === 'DIA_DIEM' || u === 'DIADIEM' || u === 'DIA DIEM';
-    })) {
-      currentTags.push('DIADIEM');
+    if (selectedTemplate === 'HDTC') {
+      if (!currentTags.some(t => {
+        const u = t.toUpperCase();
+        return u === 'DIA_DIEM' || u === 'DIADIEM' || u === 'DIA DIEM';
+      })) {
+        currentTags.push('DIADIEM');
+      }
+      if (!currentTags.some(t => t.toUpperCase() === 'BANGGIATRIHOPDONG')) {
+        currentTags.push('BANGGIATRIHOPDONG');
+      }
     }
 
     const finalPartyA = filterGrouped(categories.partyA);
     const finalPartyB = filterGrouped(categories.partyB);
     const finalGeneral = filterGrouped(categories.general);
     
-    // Supplement general if DIADIEM was missing in original tags but added via safety
-    if (selectedTemplate === 'HDTC' && !finalGeneral.some(t => {
-      const u = t.toUpperCase();
-      return u === 'DIA_DIEM' || u === 'DIADIEM' || u === 'DIA DIEM';
-    }) && currentTags.includes('DIADIEM')) {
-      finalGeneral.push('DIADIEM');
+    // Supplement general if DIADIEM / BANGGIATRIHOPDONG was missing in original tags but added via safety
+    if (selectedTemplate === 'HDTC') {
+      if (!finalGeneral.some(t => {
+        const u = t.toUpperCase();
+        return u === 'DIA_DIEM' || u === 'DIADIEM' || u === 'DIA DIEM';
+      }) && currentTags.includes('DIADIEM')) {
+        finalGeneral.push('DIADIEM');
+      }
+      if (!finalGeneral.some(t => t.toUpperCase() === 'BANGGIATRIHOPDONG') && currentTags.includes('BANGGIATRIHOPDONG')) {
+        finalGeneral.push('BANGGIATRIHOPDONG');
+      }
     }
 
     // Identify tags to move to the left column (specifically "Tên công ty viết tắt")
@@ -2184,7 +3727,7 @@ const ContractView = ({
       });
     } else if (selectedTemplate === 'HDTC') {
       // Order: Số HD -> Địa điểm -> Gói thầu -> Tên công trình -> Giá trị -> Bằng chữ
-      const order = [CONTRACT_NUMBER_VARIANTS, 'DIADIEM', 'DIA_DIEM', 'GOITHAU', 'GOI_THAU', 'TENCONGTRINH', 'TEN_CONGTRINH', 'GIATRIHOPDONG', 'BANGCHUGIATRI'];
+      const order = [CONTRACT_NUMBER_VARIANTS, 'DIADIEM', 'DIA_DIEM', 'GOITHAU', 'GOI_THAU', 'TENCONGTRINH', 'TEN_CONGTRINH', 'GIATRIHOPDONG', 'BANGGIATRIHOPDONG', 'BANGCHUGIATRI'];
       sortedGeneral.sort((a, b) => {
         const uA = a.toUpperCase();
         const uB = b.toUpperCase();
@@ -2226,6 +3769,7 @@ const ContractView = ({
   }, [tags, selectedTemplate]);
 
   const getEffectiveAddressWithData = (partner: Partner, data: Record<string, string>) => {
+    if (!data) return partner?.address || '';
     // Ưu tiên tìm nhóm ngày là "Ngày ký hợp đồng" hoặc nhóm đầu tiên
     const contractGroup = dateGroups.find(g => g.label === 'Ngày ký hợp đồng') || dateGroups[0];
     
@@ -2239,15 +3783,18 @@ const ContractView = ({
 
     // Nếu không tìm thấy qua group, thử tìm thủ công qua các key phổ biến (fallback)
     if (!day || !month || !year) {
+      const uppercaseData: Record<string, string> = {};
+      for (const [k, val] of Object.entries(data)) {
+        uppercaseData[k.toUpperCase()] = val;
+      }
       const getKeys = (prefix: string) => {
         const variants = [
           `${prefix}_HD`, `${prefix}_KY`, `${prefix}_HOPDONG`, `${prefix}_HOP_DONG`,
           `${prefix}KYHOPDONG`, `${prefix}_KY_HOP_DONG`, prefix
         ];
         for (const v of variants) {
-          if (data[v]) return data[v];
-          const foundKey = Object.keys(data).find(k => k.toUpperCase() === v.toUpperCase());
-          if (foundKey && data[foundKey]) return data[foundKey];
+          const upperV = v.toUpperCase();
+          if (uppercaseData[upperV]) return uppercaseData[upperV];
         }
         return '';
       };
@@ -2303,9 +3850,10 @@ const ContractView = ({
   const [isGenerating, setIsGenerating] = useState(false);
 
   const CONTRACT_TEMPLATES = [
-    { id: 'HDNT', name: 'Hợp đồng Nguyên Tắc', file: 'Template_HDNT.docx' },
-    { id: 'HDTC', name: 'Hợp đồng Thi Công', file: 'Template_HDTC.docx' },
-    { id: 'HDCM', name: 'Hợp đồng Ca Máy', file: 'Template_HDCM.docx' }
+    { id: 'HDNT', name: 'Hợp đồng Nguyên Tắc', file: 'Template_HDNT.docx', folder: 'templatesHopDong' },
+    { id: 'HDTC', name: 'Hợp đồng Thi Công', file: 'Template_HDTC.docx', folder: 'templatesHopDong' },
+    { id: 'HDCM', name: 'Hợp đồng Ca Máy', file: 'Template_HDCM.docx', folder: 'templatesHopDong' },
+    { id: 'GDNTT', name: 'Giấy đề nghị thanh toán / tạm ứng', file: 'Template GDN TT.docx', folder: 'templates_muc_phu' }
   ];
 
   const handleTemplateChange = async (templateId: string) => {
@@ -2321,22 +3869,43 @@ const ContractView = ({
       }
       if (!basePath.endsWith('/')) basePath += '/';
       
-      const finalPath = `${basePath}templatesHopDong/${template.file}`.replace(/\/+/g, '/');
+      const folderName = (template as any).folder || 'templatesHopDong';
+      const finalPath = `${basePath}${folderName}/${template.file}`.replace(/\/+/g, '/');
       const response = await fetch(finalPath);
-      if (!response.ok) throw new Error('Không thể tải template');
+      if (!response.ok) throw new Error('Không thể tải template: ' + finalPath);
       const buffer = await response.arrayBuffer();
       setTemplateBuffer(buffer);
       const extractedTags = extractTags(buffer);
       setTags(extractedTags);
       
       let finalTags = [...extractedTags];
+
+      // For GDNTT: consolidate BEN_DUOC_DE_NGHI_TITLE / BEN_DE_NGHI_TITLE → base versions
+      if (templateId === 'GDNTT') {
+        const gdnFiltered: string[] = [];
+        let hasBenDuoc = false, hasBenDeNghi = false;
+        finalTags.forEach(tag => {
+          const u = tag.toUpperCase();
+          if (u === 'BEN_DUOC_DE_NGHI_TITLE' || u === 'BEN_DUOC_DE_NGHI') { hasBenDuoc = true; }
+          else if (u === 'BEN_DE_NGHI_TITLE' || u === 'BEN_DE_NGHI') { hasBenDeNghi = true; }
+          else if (u !== 'TAMUNG-THANHTOAN_TITLE') { gdnFiltered.push(tag); }
+        });
+        if (hasBenDuoc) gdnFiltered.push('BEN_DUOC_DE_NGHI');
+        if (hasBenDeNghi) gdnFiltered.push('BEN_DE_NGHI');
+        finalTags = gdnFiltered;
+      }
       
-      // HDTC needs DIADIEM field even if not in template tags
-      if (templateId === 'HDTC' && !finalTags.some(t => {
-        const u = t.toUpperCase();
-        return u === 'DIA_DIEM' || u === 'DIADIEM' || u === 'DIA DIEM';
-      })) {
-        finalTags.push('DIADIEM');
+      // HDTC needs DIADIEM and BANGGIATRIHOPDONG fields even if not in template tags
+      if (templateId === 'HDTC') {
+        if (!finalTags.some(t => {
+          const u = t.toUpperCase();
+          return u === 'DIA_DIEM' || u === 'DIADIEM' || u === 'DIA DIEM' || u === 'DIADIEMCONGTRINH';
+        })) {
+          finalTags.push('DIADIEM');
+        }
+        if (!finalTags.some(t => t.toUpperCase() === 'BANGGIATRIHOPDONG')) {
+          finalTags.push('BANGGIATRIHOPDONG');
+        }
       }
       
       setTags(finalTags);
@@ -2654,6 +4223,7 @@ const ContractView = ({
     setIsGenerating(true);
     try {
       const zip = new PizZip(templateBuffer);
+
       const doc = new Docxtemplater(zip, { 
         paragraphLoop: true, 
         linebreaks: true, 
@@ -2661,22 +4231,87 @@ const ContractView = ({
       });
       
       const dataToRender: Record<string, string> = {};
+      const tableXmlMap: Record<string, string> = {};
+
       Object.keys(formData).forEach(tag => {
         const upper = tag.toUpperCase();
-        // Skip dots for common table-related tags if empty
-        const isTableTag = upper.includes('NOI_DUNG') || 
-                           upper.includes('DVT') || 
-                           upper.includes('SOLUONG') || 
-                           upper.includes('SL') || 
-                           upper.includes('DON_GIA') ||
-                           upper.includes('DONGIA') ||
-                           upper.includes('THANHTIEN') ||
-                           upper.includes('THANH_TIEN');
+        const isTableTag = (upper.includes('BANG') || upper.includes('TABLE')) && 
+                           !upper.includes('BANG_CHU') && !upper.includes('BANGCHU');
                            
-        dataToRender[tag] = formData[tag] || (isTableTag ? "" : "....................");
+        if (isTableTag) {
+          // Render a clean plain text placeholder
+          dataToRender[tag] = `__BANG_TABLE_PLACEHOLDER_FOR_${tag}__`;
+          
+          const rawValue = formData[tag] || '';
+          if (upper === 'BANG_GDN') {
+            let gdnRows: GdnRow[] = [];
+            try {
+              gdnRows = rawValue ? JSON.parse(rawValue) : [];
+            } catch (e) {
+              gdnRows = [];
+            }
+            tableXmlMap[tag] = generateGdnDocxTable(gdnRows);
+          } else {
+            if (rawValue) {
+              tableXmlMap[tag] = generateContractDocxTable(rawValue);
+            } else {
+              tableXmlMap[tag] = '';
+            }
+          }
+        } else {
+          const isTableField = upper.includes('NOI_DUNG') || 
+                               upper.includes('DVT') || 
+                               upper.includes('SOLUONG') || 
+                               upper.includes('SL') || 
+                               upper.includes('DON_GIA') ||
+                               upper.includes('DONGIA') ||
+                               upper.includes('THANHTIEN') ||
+                               upper.includes('THANH_TIEN');
+                               
+          dataToRender[tag] = formData[tag] || (isTableField ? "" : "....................");
+        }
       });
 
+      // Title variations with title casing
+      const getFormVal = (key: string): string => {
+        const foundKey = Object.keys(formData).find(k => k.toUpperCase() === key.toUpperCase());
+        return foundKey ? formData[foundKey] : '';
+      };
+      
+      const tamUng = getFormVal('TAMUNG-THANHTOAN') || getFormVal('TAMUNG_THANHTOAN') || '';
+      const benDuoc = getFormVal('BEN_DUOC_DE_NGHI') || getFormVal('BENDUOCDENGHI') || '';
+      const benDeNghi = getFormVal('BEN_DE_NGHI') || getFormVal('BENDENGHI') || '';
+
+      dataToRender['TAMUNG-THANHTOAN_TITLE'] = toVietnameseTitleCase(tamUng) || "....................";
+      dataToRender['TAMUNG-THANHTOAN'] = tamUng || "....................";
+      dataToRender['BEN_DUOC_DE_NGHI_TITLE'] = toVietnameseTitleCase(benDuoc) || "....................";
+      dataToRender['BEN_DUOC_DE_NGHI'] = benDuoc || "....................";
+      dataToRender['BEN_DE_NGHI_TITLE'] = toVietnameseTitleCase(benDeNghi) || "....................";
+      dataToRender['BEN_DE_NGHI'] = benDeNghi || "....................";
+
       doc.render(dataToRender);
+
+      // Perform direct XML search-and-replace for tables to keep them as native Word tables (bypass escaping)
+      let renderedXml = doc.getZip().file("word/document.xml")?.asText();
+      if (renderedXml) {
+        Object.keys(tableXmlMap).forEach(tag => {
+          const placeholder = `__BANG_TABLE_PLACEHOLDER_FOR_${tag}__`;
+          let idx = renderedXml.indexOf(placeholder);
+          while (idx !== -1) {
+            const startIdx = renderedXml.lastIndexOf('<w:p', idx);
+            const endIdx = renderedXml.indexOf('</w:p>', idx);
+            if (startIdx !== -1 && endIdx !== -1 && startIdx < idx && idx < endIdx) {
+              const ooxmlTable = tableXmlMap[tag];
+              renderedXml = renderedXml.substring(0, startIdx) + ooxmlTable + renderedXml.substring(endIdx + 6);
+            } else {
+              renderedXml = renderedXml.replace(placeholder, tableXmlMap[tag]);
+            }
+            idx = renderedXml.indexOf(placeholder);
+          }
+        });
+        zip.file("word/document.xml", renderedXml);
+      }
+
       const out = doc.getZip().generate({ type: 'blob', compression: 'DEFLATE' });
       const templateName = CONTRACT_TEMPLATES.find(t => t.id === selectedTemplate)?.name || 'HopDong';
       const fileName = `${templateName}_${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.docx`;
@@ -2732,15 +4367,16 @@ const ContractView = ({
   };
 
   return (
-    <div className="flex flex-col h-full space-y-1">
+    <ContractFormContext.Provider value={{ formData, handleFieldChange, setActiveInvoiceTag, setIsInvoiceSelectorOpen }}>
+      <div className="flex flex-col h-full gap-1">
       {/* Top Header Section */}
-      <div className="flex flex-col md:flex-row gap-2 items-start md:items-center justify-between bg-white p-2 rounded-2xl shadow-sm border border-slate-100">
+      <div className="flex flex-col md:flex-row gap-2 items-start md:items-center justify-between bg-card-dark p-2 rounded-2xl shadow-sm border border-border-dark">
         <div className="space-y-0 text-left">
-          <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-            <PlusSquare className="w-5 h-5 text-indigo-600" />
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <PlusSquare className="size-5 text-primary" />
             Tạo Hợp Đồng Chuyên Nghiệp
           </h2>
-          <p className="text-[11px] text-slate-500">Soạn thảo hợp đồng nhanh chóng với mẫu có sẵn</p>
+          <p className="text-[11px] text-text-dim">Soạn thảo hợp đồng nhanh chóng với mẫu có sẵn</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -2759,7 +4395,7 @@ const ContractView = ({
                 vtLinks: {}
               });
             }}
-            className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 rounded-lg transition-colors border border-slate-100"
+            className="px-3 py-1.5 text-xs font-medium text-text-dim hover:bg-white/5 hover:text-white rounded-lg transition-colors border border-border-dark"
           >
             Làm mới
           </button>
@@ -2767,9 +4403,9 @@ const ContractView = ({
             <button
               onClick={handleGenerate}
               disabled={isGenerating}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50"
+              className="px-4 py-2 bg-primary/20 text-primary border border-primary/30 rounded-xl text-xs font-bold hover:bg-primary/30 transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50"
             >
-              {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {isGenerating ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
               {isGenerating ? 'Đang tạo...' : 'Xuất Hợp Đồng (.docx)'}
             </button>
           )}
@@ -2779,10 +4415,10 @@ const ContractView = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 flex-1 min-h-0">
         {/* Left Column: Template & Parties Selection */}
         <div className="lg:col-span-4 space-y-3 overflow-y-auto pr-1 custom-scrollbar">
-          <div className="card p-2 space-y-2">
-            <h3 className="font-black text-slate-800 text-[10px] uppercase tracking-wider flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
-                <FileText className="w-3.5 h-3.5" />
+          <div className="card bg-transparent border-none p-2 space-y-2">
+            <h3 className="font-black text-white text-[10px] uppercase tracking-wider flex items-center gap-2">
+              <div className="size-6 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                <FileText className="size-3.5" />
               </div>
               1. Mẫu văn bản
             </h3>
@@ -2794,25 +4430,25 @@ const ContractView = ({
                   className={cn(
                     "w-full text-left p-2 rounded-xl border transition-all flex items-center justify-between group",
                     selectedTemplate === t.id 
-                      ? "bg-indigo-50 border-indigo-200 shadow-sm" 
-                      : "bg-white border-slate-100 hover:border-indigo-200 hover:bg-slate-50"
+                      ? "bg-primary/10 border-primary/50 shadow-sm" 
+                      : "bg-white/5 border-border-dark hover:border-primary/50 hover:bg-white/10"
                   )}
                 >
                   <div className="flex items-center gap-2.5">
                     <div className={cn(
-                      "w-8 h-8 rounded-lg flex items-center justify-center",
-                      selectedTemplate === t.id ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600"
+                      "size-8 rounded-lg flex items-center justify-center border",
+                      selectedTemplate === t.id ? "bg-primary text-white border-primary" : "bg-white/5 text-text-dim group-hover:bg-primary/10 group-hover:text-primary border-border-dark"
                     )}>
-                      <FileText className="w-4 h-4" />
+                      <FileText className="size-4" />
                     </div>
                     <div className="flex flex-col">
-                      <span className={cn("text-xs font-black leading-tight", selectedTemplate === t.id ? "text-indigo-900" : "text-slate-700")}>{t.name}</span>
-                      <span className="text-[9px] text-slate-400 font-mono">{t.file}</span>
+                      <span className={cn("text-xs font-black leading-tight", selectedTemplate === t.id ? "text-primary" : "text-white")}>{t.name}</span>
+                      <span className="text-[9px] text-text-dim font-mono">{t.file}</span>
                     </div>
                   </div>
                   {selectedTemplate === t.id && (
-                    <div className="w-4 h-4 bg-indigo-600 rounded-full flex items-center justify-center">
-                      <Check className="w-2.5 h-2.5 text-white" />
+                    <div className="size-4 bg-primary rounded-full flex items-center justify-center">
+                      <Check className="size-2.5 text-white" />
                     </div>
                   )}
                 </button>
@@ -2820,53 +4456,53 @@ const ContractView = ({
             </div>
           </div>
 
-          <div className="card p-2 space-y-2">
-            <h3 className="font-black text-slate-800 text-[10px] uppercase tracking-wider flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600">
-                <Users className="w-3.5 h-3.5" />
+          <div className="card bg-transparent border-none p-2 space-y-2">
+            <h3 className="font-black text-white text-[10px] uppercase tracking-wider flex items-center gap-2">
+              <div className="size-6 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                <Users className="size-3.5" />
               </div>
               2. Các bên liên quan
             </h3>
             
             <div className="space-y-3">
               <div className="space-y-1">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1 block">Bên A (Chủ đầu tư/Thuê)</label>
+                <label className="text-[9px] font-black text-text-dim uppercase tracking-widest pl-1 block">Bên A (Chủ đầu tư/Thuê)</label>
                 <div className="relative group">
                   <select
                     value={selectedPartyAId}
                     onChange={(e) => handlePartyChange(e.target.value, 'A')}
                     disabled={!selectedTemplate}
-                    className="w-full pl-8 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all appearance-none cursor-pointer disabled:opacity-50"
+                    className="w-full pl-8 pr-4 py-1.5 bg-sidebar-dark border border-border-dark rounded-xl text-xs font-bold outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all appearance-none cursor-pointer disabled:opacity-50 text-white"
                   >
                     <option value="">-- Chọn Bên A --</option>
                     {partners.map(p => (
                       <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
                   </select>
-                  <div className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center font-black text-indigo-600 text-[9px] bg-indigo-100 rounded">A</div>
+                  <div className="absolute left-2 top-1/2 -translate-y-1/2 size-4 flex items-center justify-center font-black text-primary text-[9px] bg-primary/10 rounded border border-primary/20">A</div>
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1 block">Bên B (Đơn vị thực hiện/Cho thuê)</label>
+                <label className="text-[9px] font-black text-text-dim uppercase tracking-widest pl-1 block">Bên B (Đơn vị thực hiện/Cho thuê)</label>
                 <div className="relative group">
                   <select
                     value={selectedPartyBId}
                     onChange={(e) => handlePartyChange(e.target.value, 'B')}
                     disabled={!selectedTemplate}
-                    className="w-full pl-8 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all appearance-none cursor-pointer disabled:opacity-50"
+                    className="w-full pl-8 pr-4 py-1.5 bg-sidebar-dark border border-border-dark rounded-xl text-xs font-bold outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all appearance-none cursor-pointer disabled:opacity-50 text-white"
                   >
                     <option value="">-- Chọn Bên B --</option>
                     {partners.map(p => (
                       <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
                   </select>
-                  <div className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center font-black text-indigo-600 text-[9px] bg-indigo-100 rounded">B</div>
+                  <div className="absolute left-2 top-1/2 -translate-y-1/2 size-4 flex items-center justify-center font-black text-primary text-[9px] bg-primary/10 rounded border border-primary/20">B</div>
                 </div>
               </div>
 
               {categorizedTags.moved.length > 0 && (
-                <div className="pt-2 border-t border-slate-100 space-y-2">
+                <div className="pt-2 border-t border-border-dark space-y-2">
                   <div className="grid grid-cols-1 gap-2">
                     {categorizedTags.moved.map(tag => (
                       <TagInput 
@@ -2900,235 +4536,48 @@ const ContractView = ({
         {/* Right Column: Data Entry */}
         <div className="lg:col-span-8 flex flex-col min-h-0">
           {!selectedTemplate ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-12 bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-200">
-               <div className="w-20 h-20 bg-white rounded-3xl shadow-sm flex items-center justify-center mb-6">
-                  <PlusSquare className="w-10 h-10 text-slate-200" />
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-12 bg-sidebar-dark rounded-2xl border-2 border-dashed border-border-dark">
+               <div className="size-20 bg-white/5 rounded-3xl flex items-center justify-center mb-6">
+                  <PlusSquare className="size-10 text-text-dim" />
                </div>
-               <h4 className="text-lg font-bold text-slate-800 mb-2">Sẵn sàng khởi tạo</h4>
-               <p className="text-sm text-slate-400 max-w-sm">Vui lòng chọn một mẫu hợp đồng từ danh sách bên trái để bắt đầu nhập liệu và phát hiện các trường dữ liệu tự động.</p>
+               <h4 className="text-lg font-bold text-white mb-2">Sẵn sàng khởi tạo</h4>
+               <p className="text-sm text-text-dim max-w-sm">Vui lòng chọn một mẫu hợp đồng từ danh sách bên trái để bắt đầu nhập liệu và phát hiện các trường dữ liệu tự động.</p>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col bg-slate-50 relative rounded-2xl overflow-hidden border border-slate-200">
-              {/* Data Entry Tabs/Sections */}
-              <div className="bg-white border-b border-slate-200 px-4 py-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-sm shadow-md">3</div>
-                    <div>
-                      <h3 className="font-black text-sm text-slate-900 tracking-tight">Cấu hình dữ liệu chi tiết</h3>
-                    </div>
+            <div className="flex-1 flex flex-col bg-sidebar-dark relative rounded-2xl overflow-hidden border border-border-dark shadow-sm min-h-0">
+              {/* Header */}
+              <div className="bg-card-dark border-b border-border-dark px-4 py-3 flex items-center justify-between z-10">
+                <div className="flex items-center gap-3">
+                  <div className="size-8 rounded-xl bg-primary/20 border border-primary/30 text-primary flex items-center justify-center font-black text-sm shadow-md">3</div>
+                  <div>
+                    <h3 className="font-black text-sm text-white tracking-tight">Soạn thảo trực quan trên A4</h3>
+                    <p className="text-[10px] text-text-dim">Nhập dữ liệu trực tiếp vào các ô trống nét đứt trong văn bản</p>
                   </div>
+                </div>
+                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full text-[9px] font-black uppercase tracking-wider">
+                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> Chế độ soạn thảo trực tiếp
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-3 custom-scrollbar space-y-4">
-                {/* Dates Section */}
-                {dateGroups.length > 0 && (
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                      <Calendar className="w-3 h-3" /> THỜI GIAN
-                    </label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {dateGroups.map(group => (
-                        <div key={group.id} className="p-2 bg-indigo-50/30 rounded-xl border border-indigo-100/40">
-                          <label className="text-[10px] font-black text-indigo-900 block mb-1 uppercase">{group.label}</label>
-                          <div className="flex items-center gap-1">
-                            <div className="flex-1 flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1">
-                              <input
-                                type="text"
-                                ref={(el) => { dayRefs.current[group.id] = el; }}
-                                placeholder="Ngày"
-                                className="w-10 text-center text-xs font-bold bg-transparent outline-none"
-                                value={formData[group.day || ''] || ''}
-                                maxLength={2}
-                                onChange={(e) => {
-                                  let val = e.target.value.replace(/\D/g, '');
-                                  if (val.length > 0 && parseInt(val) > 31) val = '31';
-                                  if (val.length <= 2) {
-                                    setFormData((p: any) => ({ ...p, [group.day || '']: val }));
-                                    if (val.length === 2 && group.month) {
-                                      monthRefs.current[group.id]?.focus();
-                                    }
-                                  }
-                                }}
-                              />
-                              <span className="text-slate-300">/</span>
-                              <input
-                                type="text"
-                                ref={(el) => { monthRefs.current[group.id] = el; }}
-                                placeholder="Tháng"
-                                className="w-10 text-center text-xs font-bold bg-transparent outline-none"
-                                value={formData[group.month || ''] || ''}
-                                maxLength={2}
-                                onChange={(e) => {
-                                  let val = e.target.value.replace(/\D/g, '');
-                                  if (val.length > 0 && parseInt(val) > 12) val = '12';
-                                  if (val.length <= 2) {
-                                    setFormData((p: any) => ({ ...p, [group.month || '']: val }));
-                                    if (val.length === 2 && group.year) {
-                                      yearRefs.current[group.id]?.focus();
-                                    }
-                                  }
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Backspace' && !formData[group.month || ''] && group.day) {
-                                    dayRefs.current[group.id]?.focus();
-                                  }
-                                }}
-                              />
-                              <span className="text-slate-300">/</span>
-                              <input
-                                type="text"
-                                ref={(el) => { yearRefs.current[group.id] = el; }}
-                                placeholder="Năm"
-                                className="w-14 text-center text-xs font-bold bg-transparent outline-none"
-                                value={formData[group.year || ''] || ''}
-                                maxLength={4}
-                                onChange={(e) => {
-                                  const val = e.target.value.replace(/\D/g, '');
-                                  if (val.length <= 4) {
-                                    setFormData((p: any) => ({ ...p, [group.year || '']: val }));
-                                  }
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Backspace' && !formData[group.year || ''] && group.month) {
-                                    monthRefs.current[group.id]?.focus();
-                                  }
-                                }}
-                                onBlur={(e) => {
-                                  const val = e.target.value;
-                                  if (val.length === 2 && /^\d+$/.test(val)) {
-                                    setFormData((p: any) => ({ ...p, [group.year || '']: '20' + val }));
-                                  }
-                                }}
-                              />
-                            </div>
-                            <div className="relative">
-                              <button className="p-1.5 bg-indigo-100 text-indigo-600 rounded-lg hover:bg-indigo-200 transition-all flex items-center justify-center">
-                                <Calendar className="w-3.5 h-3.5" />
-                                <input 
-                                  type="date"
-                                  className="absolute inset-0 opacity-0 cursor-pointer w-full"
-                                  onChange={(e) => handleDateGroupChange(group.id, e.target.value)}
-                                />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+              {/* A4 Scrollable Container */}
+              <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-stone-950/60 custom-scrollbar flex flex-col justify-start min-h-0">
+                <div className="w-full max-w-[800px] mx-auto bg-white text-stone-900 shadow-[0_10px_35px_rgba(0,0,0,0.5)] border border-stone-200 rounded-lg p-8 md:p-14 font-serif text-[13px] leading-relaxed relative select-text mb-6">
+                  <div className="absolute right-8 top-8 text-[9px] font-sans font-bold text-stone-400 border border-stone-300 px-2 py-0.5 rounded uppercase tracking-widest select-none pointer-events-none">
+                    Khổ A4 • Bản nháp
                   </div>
-                )}
-
-                {/* General Info Tags Section */}
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                    <Database className="w-3 h-3" /> THÔNG TIN & GIÁ TRỊ
-                  </label>
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-2 pb-6">
-                    {(() => {
-                      const giatriTag = categorizedTags.general.find(t => t.toUpperCase() === 'GIATRIHOPDONG');
-                      const bangchuTag = categorizedTags.general.find(t => {
-                        const u = t.toUpperCase();
-                        return u === 'BANGCHUGIATRI' || (u.includes('BANG') && u.includes('CHU') && u.includes('GIA'));
-                      });
-                      
-                      return categorizedTags.general.filter(tag => tag !== bangchuTag).map(tag => {
-                      const u = tag.toUpperCase();
-                      const isFullWidth = u.includes('BANG') || u.includes('DIA_DIEM') || u.includes('DIADIEM') || u.includes('NOI_DUNG') || u.includes('TENCONGTRINH') || u.includes('TEN_CONGTRINH') || u.includes('GOITHAU') || u.includes('GOI_THAU');
-                      const isHalfWidth = u.includes('SO_HD') || u.includes('SOHD') || u.includes('MST') || u.includes('DAI_DIEN') || u.includes('CHUC_VU');
-                      const isCurrency = ['GIATRI', 'GIA_TRI', 'SO_TIEN', 'PHI', 'THANH_TIEN', 'TONG_TIEN'].some(v => u.includes(v)) && !u.includes('CHU');
-
-                      if (tag === giatriTag && bangchuTag) {
-                        return (
-                          <div key="giatri-combined" className="md:col-span-12 relative flex flex-col md:flex-row bg-white border border-slate-200 rounded-xl overflow-hidden focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-400 transition-all shadow-sm">
-                             <div className="flex-1 relative border-b md:border-b-0 md:border-r border-slate-200">
-                               <TagRenderItem tag={giatriTag} {...commonItemProps} hideWrapperStyle />
-                               {((isCurrency && selectedTemplate === 'HDTC')) && (
-                                 <button 
-                                   onClick={(e) => {
-                                     e.preventDefault();
-                                     setActiveInvoiceTag?.(giatriTag);
-                                     setIsInvoiceSelectorOpen?.(true);
-                                   }}
-                                   className="absolute top-1 right-1 flex items-center gap-1 px-2 py-0.5 bg-indigo-600 text-white rounded-lg text-[8px] font-black uppercase tracking-tighter shadow-sm hover:bg-indigo-700 transition-all z-10"
-                                 >
-                                   <Layers className="w-2.5 h-2.5" /> Bóc tách
-                                 </button>
-                               )}
-                             </div>
-                             <div className="flex-1 relative bg-slate-50/50">
-                               <TagRenderItem tag={bangchuTag} {...commonItemProps} hideWrapperStyle />
-                             </div>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div 
-                          key={tag} 
-                          className={cn(
-                            isFullWidth ? "md:col-span-12" : 
-                            isHalfWidth ? "md:col-span-6" : 
-                            "md:col-span-4",
-                            "relative"
-                          )}
-                        >
-                          <TagRenderItem tag={tag} {...commonItemProps} />
-                          {(((isCurrency && selectedTemplate === 'HDTC') || (!isCurrency && (u.includes('BANG') || u.includes('TENCONGTRINH') || u.includes('GOITHAU') || u.includes('DIA_DIEM') || u.includes('DIADIEM'))))) && (
-                            <button 
-                              onClick={(e) => {
-                                e.preventDefault();
-                                setActiveInvoiceTag?.(tag);
-                                setIsInvoiceSelectorOpen?.(true);
-                              }}
-                              className="absolute top-1 right-1 flex items-center gap-1 px-2 py-0.5 bg-indigo-600 text-white rounded-lg text-[8px] font-black uppercase tracking-tighter shadow-sm hover:bg-indigo-700 transition-all z-10"
-                            >
-                              <Layers className="w-2.5 h-2.5" /> Bóc tách
-                            </button>
-                          )}
-                        </div>
-                      );
-                    });
-                    })()}
-                  </div>
+                  
+                  {selectedTemplate === 'GDNTT' && renderGdnDocument()}
+                  {selectedTemplate === 'HDNT' && renderHDNTDocument()}
+                  {selectedTemplate === 'HDTC' && renderHDTCDocument()}
+                  {selectedTemplate === 'HDCM' && renderHDCMDocument()}
                 </div>
-
-                {/* Optional side parties if selected */}
-                {(selectedPartyAId || selectedPartyBId) && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {selectedPartyAId && categorizedTags.partyA.length > 0 && (
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-blue-500 uppercase tracking-widest pl-2 border-l-2 border-blue-500">Thông tin Bên A</label>
-                        <div className="p-2 bg-white rounded-xl border border-slate-100 shadow-sm">
-                           {renderCategorizedPartyTags(categorizedTags.partyA)}
-                        </div>
-                      </div>
-                    )}
-                    {selectedPartyBId && categorizedTags.partyB.length > 0 && (
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-emerald-500 uppercase tracking-widest pl-2 border-l-2 border-emerald-500">Thông tin Bên B</label>
-                        <div className="p-2 bg-white rounded-xl border border-slate-100 shadow-sm">
-                           {renderCategorizedPartyTags(categorizedTags.partyB)}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="bg-white border-t border-slate-100 p-2 flex items-center justify-between text-[9px] text-slate-400">
-                 <div className="flex items-center gap-1.5 uppercase font-black tracking-widest">
-                   <ShieldCheck className="w-3 h-3 text-emerald-500" /> Hệ thống bảo mật
-                 </div>
-                 <div className="italic">Dữ liệu trống mặc định: <span className="text-indigo-600">"............"</span></div>
               </div>
             </div>
           )}
         </div>
       </div>
     </div>
+    </ContractFormContext.Provider>
   );
 };
 
@@ -3171,50 +4620,55 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
 
   return (
     <div className="space-y-6" onClick={closeContextMenu}>
-      <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+      <div className="flex justify-between items-center bg-card-dark p-6 rounded-[24px] border border-border-dark shadow-2xl">
         <div className="flex items-center gap-4">
-              <h2 className="section-title">Đối tác & Khách hàng</h2>
-          <div className="px-3 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-black uppercase tracking-widest">
-            {partners.length} Công ty
+          <div className="size-10 bg-primary/10 rounded-xl flex items-center justify-center">
+            <Users className="size-5 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-white tracking-tighter uppercase">Đối tác & Khách hàng</h2>
+            <div className="text-[10px] font-black text-text-dim uppercase tracking-[0.2em] mt-1">
+              {partners.length} Công ty liên kết
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="size-4 absolute left-4 top-1/2 -translate-y-1/2 text-text-dim" />
             <input 
               type="text" 
               placeholder="Tìm kiếm đối tác..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 transition-all w-64"
+              className="pl-11 pr-4 py-2.5 bg-sidebar-dark border border-border-dark rounded-2xl text-sm focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all w-72 text-white placeholder:text-text-dim"
             />
           </div>
-          <div className="w-px h-6 bg-slate-200 mx-2" />
+          <div className="w-px h-8 bg-border-dark" />
           <button 
             onClick={() => setShowAddressTool(!showAddressTool)}
             className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all border",
+              "flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border shadow-sm",
               showAddressTool 
-              ? "bg-indigo-50 border-indigo-200 text-indigo-700" 
-              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+              ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" 
+              : "bg-white/5 border-border-dark text-text-dim hover:text-white hover:bg-white/10"
             )}
           >
-            <MapPin className="w-4 h-4" />
-            Thông minh 2025
+            <MapPin className="size-4" />
+            AI Address
           </button>
           <button 
             onClick={() => onEdit({ id: 'new', name: '', taxCode: '', address: '' })}
-            className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-100 transition-all active:scale-95"
+            className="btn-primary"
           >
-            <Plus className="w-4 h-4" />
-            Thêm đối tác
+            <Plus className="size-4" />
+            THÊM MỚI
           </button>
           <button 
             onClick={onBatchEdit}
-            className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all active:scale-95"
+            className="btn-secondary"
           >
-            <Edit2 className="w-4 h-4" />
-            Chỉnh sửa 
+            <Edit2 className="size-4" />
+            CHỈNH SỬA
           </button>
         </div>
       </div>
@@ -3228,64 +4682,58 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="card p-6 bg-indigo-50/30 border-indigo-100 shadow-inner">
+            <div className="card p-8 bg-sidebar-dark border-border-dark shadow-inner relative overflow-hidden">
+              <div className="absolute top-0 right-0 size-32 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
               <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-indigo-600 text-white rounded-lg flex items-center justify-center">
-                    <Zap className="w-4 h-4" />
+                <div className="flex items-center gap-3">
+                  <div className="size-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                    <MapPin className="size-5 text-primary" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-slate-800">Smart Address Tool 2025</h4>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Tra cứu & Chuyển đổi mô hình hai cấp</p>
+                    <h3 className="text-base font-black text-white uppercase tracking-widest">Chuyển đổi địa chỉ 2 cấp</h3>
+                    <p className="text-text-dim text-[10px] font-bold uppercase tracking-widest mt-1">Chuẩn hóa dữ liệu theo nghị định mới nhất 2025</p>
                   </div>
                 </div>
               </div>
-              
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-4">
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2 px-1">
-                      Nhập địa chỉ (Free-text)
-                    </label>
-                    <textarea 
-                      value={convInput}
-                      onChange={(e) => handleConvert(e.target.value)}
-                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all h-28 resize-none"
-                      placeholder="Ví dụ: B7/2 Ấp 6, Xã Lê Minh Xuân, Huyện Bình Chánh, TP. Hồ Chí Minh"
-                    />
-                  </div>
-                  <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl text-[11px] text-blue-700 italic">
-                    Hệ thống sẽ tự động bóc tách số nhà, tên đường và chuyển đổi địa giới hành chính sang mô hình 2 cấp chuẩn sáp nhập 1/7/2025.
-                  </div>
+                  <div className="text-[10px] font-black text-text-dim uppercase tracking-widest px-1">Nhập địa chỉ cần phân tách</div>
+                  <textarea 
+                    value={convInput}
+                    onChange={(e) => handleConvert(e.target.value)}
+                    placeholder="Ví dụ: Ấp 5, Phạm Văn Hai, Bình Chánh, TP.HCM..."
+                    className="w-full px-4 py-4 bg-white/5 border border-border-dark rounded-xl text-sm outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all min-h-[120px] resize-none text-white"
+                  />
                 </div>
 
-                <div className="space-y-3">
-                  <h5 className="text-[10px] font-bold text-slate-400 uppercase px-1">Kết quả bóc tách & Chuyển đổi</h5>
-                  
+                <div className="space-y-4">
+                  <div className="text-[10px] font-black text-text-dim uppercase tracking-widest px-1">Phân tách thông minh (Real-time)</div>
                   {convResult ? (
-                    <div className="space-y-2">
-                      <div className="p-3 bg-white border border-slate-100 rounded-xl">
-                        <div className="text-[9px] font-bold text-slate-400 uppercase mb-1">1. Địa chỉ chi tiết</div>
-                        <div className="text-sm font-medium text-slate-700">{convResult.detail || "N/A"}</div>
-                      </div>
-                      
-                      <div className="p-3 bg-white border border-slate-100 rounded-xl">
-                        <div className="text-[9px] font-bold text-slate-400 uppercase mb-1">2. Địa chỉ cũ đã định dạng (Chuẩn hóa chữ hoa)</div>
-                        <div className="text-sm font-semibold text-slate-600 italic">
-                          {convResult.oldFullAddress || `${convResult.detail ? convResult.detail + ', ' : ''}${convResult.oldWard}, ${convResult.oldDistrict}, ${convResult.province}`}
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 bg-white/5 border border-border-dark rounded-2xl">
+                          <div className="text-[9px] font-bold text-text-dim uppercase mb-2">1. Xã/Phường gốc</div>
+                          <div className="text-sm font-black text-white">{convResult.oldWard}</div>
+                        </div>
+                        <div className="p-4 bg-white/5 border border-border-dark rounded-2xl">
+                          <div className="text-[9px] font-bold text-text-dim uppercase mb-2">2. Địa chỉ cũ (3 cấp)</div>
+                          <div className="text-xs font-bold text-text-dim leading-relaxed">
+                            {convResult.oldFullAddress || `${convResult.detail ? convResult.detail + ', ' : ''}${convResult.oldWard}, ${convResult.oldDistrict}, ${convResult.province}`}
+                          </div>
                         </div>
                       </div>
 
-                      <div className="p-4 bg-white border-2 border-indigo-500 rounded-xl shadow-lg relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-2 opacity-5">
-                          <CheckCircle2 className="w-16 h-16 text-indigo-600" />
+                      <div className="p-5 bg-orange-500/5 border border-orange-500/20 rounded-2xl shadow-lg relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-4 opacity-10">
+                          <CheckCircle2 className="size-16 text-orange-500" />
                         </div>
-                        <div className="text-[9px] font-bold text-indigo-500 uppercase mb-2">3. Kết quả đã chuyển đổi (Sang 2 cấp)</div>
-                        <div className="text-sm font-black text-slate-900 mb-2 leading-relaxed">{convResult.fullAddress}</div>
+                        <div className="text-[9px] font-black text-orange-500 uppercase mb-2 tracking-widest">3. Kết quả đã chuyển đổi (Sang 2 cấp)</div>
+                        <div className="text-base font-black text-white mb-3 leading-relaxed">{convResult.fullAddress}</div>
                         <div className="flex gap-2">
                           <div className={cn(
                             "rounded px-2 py-1 text-[10px] font-bold border uppercase tracking-tighter",
-                            convResult.isConverted ? "bg-indigo-50 text-indigo-700 border-indigo-100" : "bg-slate-50 text-slate-400 border-slate-200"
+                            convResult.isConverted ? "bg-primary/20 text-primary border-primary/30" : "bg-white/5 text-text-dim border-border-dark"
                           )}>
                             {convResult.isConverted ? "Khớp bảng ánh xạ 2025" : "Chưa có dữ liệu chính xác"}
                           </div>
@@ -3293,9 +4741,9 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
                       </div>
                     </div>
                   ) : (
-                    <div className="h-40 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center text-slate-400 gap-2">
-                      <MapPin className="w-8 h-8 opacity-20" />
-                      <div className="text-xs font-bold uppercase tracking-widest opacity-40">Chờ nhập dữ liệu...</div>
+                    <div className="h-40 border-2 border-dashed border-border-dark rounded-2xl flex flex-col items-center justify-center text-text-dim gap-2">
+                      <MapPin className="size-8 opacity-20" />
+                      <div className="text-xs font-bold uppercase tracking-widest opacity-40">Chờ nhập dữ liệu…</div>
                     </div>
                   )}
                 </div>
@@ -3305,78 +4753,155 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
         )}
       </AnimatePresence>
 
-      <div className="card overflow-visible shadow-sm border border-slate-200">
-        <table className="w-full text-left">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Thông tin công ty</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Địa chỉ liên hệ</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tài khoản thanh toán</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Đại diện pháp luật</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Hành động</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 text-sm">
-            {filteredPartners.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-slate-400 italic">Không tìm thấy đối tác nào</td>
+      <div className="card overflow-hidden shadow-[0_30px_100px_rgba(0,0,0,0.4)] border border-white/10 bg-card-dark/80 backdrop-blur-xl rounded-[40px]">
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-white/5 border-b border-white/10">
+                <th className="px-8 py-6 text-[11px] font-black text-primary uppercase tracking-[0.25em] w-[22%]">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="size-4 opacity-70" /> Thông tin công ty
+                  </div>
+                </th>
+                <th className="px-8 py-6 text-[11px] font-black text-primary uppercase tracking-[0.25em] w-[35%]">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="size-4 opacity-70" /> Địa chỉ liên hệ
+                  </div>
+                </th>
+                <th className="px-8 py-6 text-[11px] font-black text-primary uppercase tracking-[0.25em] w-[15%]">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="size-4 opacity-70" /> Tài khoản thanh toán
+                  </div>
+                </th>
+                <th className="px-8 py-6 text-[11px] font-black text-primary uppercase tracking-[0.25em] w-[18%]">
+                  <div className="flex items-center gap-2">
+                    <UserCheck className="size-4 opacity-70" /> Đại diện pháp luật
+                  </div>
+                </th>
+                <th className="py-6 pl-8 pr-[60px] text-[11px] font-black text-primary uppercase tracking-[0.25em] text-right w-[10%]">Hành động</th>
               </tr>
-            ) : (
-              filteredPartners.map((partner) => (
-                <tr 
-                  key={partner.id} 
-                  onContextMenu={(e) => handleContextMenu(e, partner)}
-                  className="hover:bg-slate-50/80 transition-colors group relative"
-                >
-                  <td className="px-6 py-5">
-                    <div className="font-black text-slate-900 group-hover:text-blue-600 transition-colors text-base tracking-tight leading-tight">{partner.name}</div>
-                    <div className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">MST: {partner.taxCode}</div>
-                  </td>
-                  <td className="px-6 py-5">
-                    <div className="text-sm font-medium text-slate-600 truncate max-w-[280px] leading-relaxed" title={partner.address}>
-                      <span className="font-black text-slate-400 uppercase text-xs mr-2">Gốc:</span> {partner.address}
-                    </div>
-                    {partner.addressPostMerger && (
-                      <div className="text-sm font-bold text-indigo-600 truncate max-w-[280px] mt-1.5 leading-relaxed bg-indigo-50/50 px-2 py-0.5 rounded border border-indigo-100/50" title={partner.addressPostMerger}>
-                        <span className="font-black uppercase text-xs mr-2">Mới:</span> {partner.addressPostMerger}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-6 py-5">
-                    <div className="text-sm font-black text-slate-800">{partner.accountNumber || '-'}</div>
-                    <div className="text-xs text-slate-400 uppercase font-black tracking-tighter mt-1">{partner.bankName || '-'}</div>
-                  </td>
-                  <td className="px-6 py-5">
-                    <div className="text-slate-800 font-black text-sm">{partner.representative || '-'}</div>
-                    <div className="text-xs text-slate-400 font-bold uppercase mt-1 italic">{partner.position || '-'}</div>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2 outline-none">
-                      <button 
-                        onClick={() => onEdit(partner)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm active:scale-95"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                        Chỉnh sửa
-                      </button>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          onDelete(partner.id);
-                        }}
-                        className="w-8 h-8 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 border border-transparent hover:border-red-100 transition-all flex items-center justify-center shrink-0 active:scale-95"
-                        title="Xóa đối tác"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {filteredPartners.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-8 py-24 text-center">
+                    <div className="flex flex-col items-center gap-4 opacity-20">
+                      <Users className="size-16 text-white" />
+                      <p className="text-xs font-black uppercase tracking-[0.3em] text-white">Chưa có dữ liệu đối tác</p>
                     </div>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                filteredPartners.map((partner) => (
+                  <tr 
+                    key={partner.id} 
+                    onContextMenu={(e) => handleContextMenu(e, partner)}
+                    className="hover:bg-primary/5 transition-all duration-300 group relative"
+                  >
+                    <td className="px-8 py-8 relative">
+                      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                      <div className="relative z-10">
+                        <div className="font-bold text-white group-hover:text-primary transition-colors text-[15px] tracking-tight leading-tight mb-2">
+                          {partner.name}
+                        </div>
+                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-lg group-hover:border-primary/30 transition-all">
+                          <Hash className="size-3 text-primary/60" />
+                          <span className="text-[12px] font-black text-text-dim uppercase tracking-widest">MST: {partner.taxCode}</span>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="px-8 py-8">
+                      <div className="space-y-4 max-w-md">
+                        <div className="flex gap-3 group/item">
+                          <div className="shrink-0 size-8 rounded-xl bg-white/5 flex items-center justify-center border border-white/10 group-hover/item:border-primary/20 transition-all">
+                            <History className="size-3.5 text-text-dim" />
+                          </div>
+                          <div className="text-[13px] font-bold text-text-dim leading-relaxed group-hover:text-white/80 transition-colors">
+                            <span className="text-[9px] font-black text-primary/40 uppercase block mb-1 tracking-widest">Địa chỉ cũ</span>
+                            {partner.address}
+                          </div>
+                        </div>
+                        {partner.addressPostMerger && (
+                          <div className="flex gap-3 group/item p-4 bg-primary/5 rounded-2xl border border-primary/20 shadow-[0_10px_30px_rgba(249,115,22,0.1)]">
+                            <div className="shrink-0 size-8 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30">
+                              <MapPin className="size-3.5 text-primary" />
+                            </div>
+                            <div className="text-[13px] font-black text-primary leading-relaxed">
+                              <span className="text-[9px] font-black text-primary/60 uppercase block mb-1 tracking-widest">Địa chỉ mới (2025)</span>
+                              {partner.addressPostMerger}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+
+                    <td className="px-8 py-8">
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2 text-white font-black text-sm group-hover:text-primary transition-colors">
+                          <CreditCard className="size-3.5 opacity-50" />
+                          {partner.accountNumber || '---'}
+                        </div>
+                        <div className="text-[10px] text-text-dim uppercase font-black tracking-widest leading-tight pl-5 opacity-60">
+                          {partner.bankName || '---'}
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="px-8 py-8 whitespace-nowrap">
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="size-9 rounded-full bg-gradient-to-tr from-white/10 to-white/5 border border-white/10 flex items-center justify-center shadow-lg group-hover:border-primary/30 transition-all">
+                            <UserIcon className="size-4 text-text-dim group-hover:text-primary" />
+                          </div>
+                          <div>
+                            <div className="text-white font-black text-sm flex items-center gap-1.5">
+                              <span className="text-primary/60">
+                                {(() => {
+                                  const g = partner.gender?.toLowerCase();
+                                  if (g === 'nam' || g === 'm' || g === 'male' || g === 'ông') return 'Ông.';
+                                  if (g === 'nữ' || g === 'f' || g === 'female' || g === 'bà') return 'Bà.';
+                                  return '';
+                                })()}
+                              </span>
+                              {partner.representative || '---'}
+                            </div>
+                            <div className="text-[10px] text-text-dim font-black uppercase mt-1 italic tracking-wider opacity-60">
+                              {partner.position || 'Giám đốc'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="py-6 pl-8 pr-[60px] text-right">
+                      <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
+                        <button 
+                          onClick={() => onEdit(partner)}
+                          className="size-11 bg-white/5 border border-white/10 text-text-dim rounded-2xl flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all shadow-xl active:scale-90"
+                          title="Chỉnh sửa hồ sơ"
+                        >
+                          <Edit3 className="size-4" />
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            onDelete(partner.id);
+                          }}
+                          className="size-11 bg-red-500/5 border border-red-500/10 text-text-dim rounded-2xl flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 transition-all shadow-xl active:scale-90"
+                          title="Xóa đối tác"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Context Menu Thật sự - Được gắn vào body hoặc container riêng để tránh bị cắt bởi table overflow */}
@@ -3386,12 +4911,12 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
-            className="fixed z-[9999] bg-white border border-slate-200 shadow-2xl rounded-xl py-2 w-44 overflow-hidden"
+            className="fixed z-[9999] bg-card-dark border border-border-dark shadow-2xl rounded-xl py-2 w-44 overflow-hidden"
             style={{ left: contextMenu.x, top: contextMenu.y }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-3 py-1.5 border-b border-slate-100 mb-1">
-              <div className="text-[9px] font-bold text-slate-400 uppercase truncate" title={contextMenu.partner?.name}>
+            <div className="px-3 py-1.5 border-b border-border-dark mb-1">
+              <div className="text-[9px] font-bold text-text-dim uppercase truncate" title={contextMenu.partner?.name}>
                 {contextMenu.partner?.name}
               </div>
             </div>
@@ -3400,9 +4925,9 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
                 if (contextMenu.partner) onEdit(contextMenu.partner);
                 closeContextMenu();
               }}
-              className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-3 transition-colors font-medium"
+              className="w-full text-left px-4 py-2 text-sm text-white hover:bg-primary/20 hover:text-primary flex items-center gap-3 transition-colors font-medium"
             >
-              <Edit2 className="w-4 h-4" />
+              <Edit2 className="size-4" />
               Chỉnh sửa
             </button>
             <button 
@@ -3416,7 +4941,7 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
               }}
               className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center gap-3 transition-colors font-medium"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="size-4" />
               Xóa đối tác
             </button>
           </motion.div>
@@ -3452,16 +4977,19 @@ const DocsView = ({ items, onDelete, onBulkDelete, onDeleteAll, invoices, partne
     
     try {
       const zip = new JSZip();
+      const itemsMap = new Map(items.map(d => [d.id, d]));
+      const invoicesMap = new Map(invoices.map(i => [i.id, i]));
+      const partnersTaxMap = new Map(partners.map(p => [p.taxCode, p]));
       
       for (const id of selectedIds) {
-        const genDoc = items.find(d => d.id === id);
+        const genDoc = itemsMap.get(id);
         if (!genDoc) continue;
 
-        const inv = invoices.find(i => i.id === genDoc.invoiceId);
+        const inv = invoicesMap.get(genDoc.invoiceId);
         if (!inv) continue;
 
-        const pA = partners.find(p => p.taxCode === inv.extractedData?.seller?.taxCode) || {};
-        const pB = partners.find(p => p.taxCode === inv.extractedData?.buyer?.taxCode) || {};
+        const pA = partnersTaxMap.get(inv.extractedData?.seller?.taxCode) || {};
+        const pB = partnersTaxMap.get(inv.extractedData?.buyer?.taxCode) || {};
 
         try {
           const templateBuffer = await getTemplateBuffer(genDoc.templateType);
@@ -3553,28 +5081,28 @@ const DocsView = ({ items, onDelete, onBulkDelete, onDeleteAll, invoices, partne
 
   if (items.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-          <FileText className="text-slate-300 w-8 h-8" />
+      <div className="bg-card-dark rounded-xl border border-border-dark p-12 text-center">
+        <div className="size-16 bg-sidebar-dark rounded-full flex items-center justify-center mx-auto mb-4">
+          <FileText className="text-text-dim size-8" />
         </div>
-        <h3 className="text-slate-600 font-bold mb-1">Chưa có tài liệu nào</h3>
-        <p className="text-slate-400 text-xs">Vui lòng tạo biên bản từ tab Dashboard</p>
+        <h3 className="text-white font-bold mb-1">Chưa có tài liệu nào</h3>
+        <p className="text-text-dim text-xs">Vui lòng tạo biên bản từ tab Dashboard</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-4 pb-20">
-      <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+      <div className="flex justify-between items-center bg-card-dark p-4 rounded-xl border border-border-dark shadow-sm">
         <div className="flex items-center gap-4">
           <label className="flex items-center gap-3 cursor-pointer select-none">
             <input 
               type="checkbox" 
               checked={selectedIds.length === items.length && items.length > 0}
               onChange={toggleSelectAll}
-              className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              className="size-4 rounded border-border-dark text-primary focus:ring-primary bg-sidebar-dark"
             />
-            <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">
+            <span className="text-xs font-bold text-white uppercase tracking-widest">
               Chọn tất cả ({items.length})
             </span>
           </label>
@@ -3598,8 +5126,8 @@ const DocsView = ({ items, onDelete, onBulkDelete, onDeleteAll, invoices, partne
           <div 
             key={docItem.id} 
             className={cn(
-              "card p-4 transition-all group relative flex gap-4 border-2",
-              selectedIds.includes(docItem.id) ? "border-indigo-400 bg-indigo-50/10 shadow-md ring-1 ring-indigo-100" : "hover:border-blue-300 border-transparent shadow-sm"
+              "card p-4 transition-all group relative flex gap-4 border-2 bg-card-dark text-white",
+              selectedIds.includes(docItem.id) ? "border-primary bg-primary/10 shadow-md ring-1 ring-primary/30" : "hover:border-primary/50 border-transparent shadow-sm"
             )}
             onClick={() => toggleSelect(docItem.id)}
           >
@@ -3611,32 +5139,32 @@ const DocsView = ({ items, onDelete, onBulkDelete, onDeleteAll, invoices, partne
                 type="checkbox" 
                 checked={selectedIds.includes(docItem.id)}
                 onChange={() => toggleSelect(docItem.id)}
-                className="w-5 h-5 rounded-md border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer shadow-sm"
+                className="size-5 rounded-md border-border-dark text-primary focus:ring-primary cursor-pointer shadow-sm bg-sidebar-dark"
               />
             </div>
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded flex items-center justify-center shrink-0">
-                  <FileText className="w-6 h-6" />
+                <div className="size-10 bg-primary/20 text-primary border border-primary/30 rounded flex items-center justify-center shrink-0">
+                  <FileText className="size-6" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-bold text-sm truncate pr-4" title={docItem.fileName}>{docItem.fileName}</div>
-                  <div className="text-[10px] text-slate-400 uppercase font-bold tracking-tight">{docItem.templateType}</div>
+                  <div className="font-bold text-sm truncate pr-4 text-white" title={docItem.fileName}>{docItem.fileName}</div>
+                  <div className="text-[10px] text-text-dim uppercase font-bold tracking-tight">{docItem.templateType}</div>
                 </div>
               </div>
-              <div className="flex items-center justify-between text-xs pt-3 border-t border-slate-100">
-                <span className="text-slate-500 flex items-center gap-1">
-                  <Clock className="w-3 h-3 opacity-40" />
-                  {docItem.createdAt?.toDate ? new Date(docItem.createdAt.toDate()).toLocaleDateString() : '...'}
+              <div className="flex items-center justify-between text-xs pt-3 border-t border-border-dark">
+                <span className="text-text-dim flex items-center gap-1" suppressHydrationWarning>
+                  <Clock className="size-3 opacity-40" />
+                  {docItem.createdAt?.toDate ? new Date(docItem.createdAt.toDate()).toLocaleDateString() : '…'}
                 </span>
                 <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                   <button 
                     disabled={isDownloading === docItem.id}
                     onClick={() => downloadDoc(docItem)}
-                    className="text-white font-bold bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg text-[10px] uppercase tracking-wider shadow-sm transition-all active:scale-95 flex items-center gap-2"
+                    className="text-primary font-bold bg-primary/20 border border-primary/30 hover:bg-primary/30 px-3 py-1.5 rounded-lg text-[10px] uppercase tracking-wider shadow-sm transition-all active:scale-95 flex items-center gap-2"
                   >
-                    {isDownloading === docItem.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                    {isDownloading === docItem.id ? <Loader2 className="size-3 animate-spin" /> : <Download className="size-3" />}
                     Tải về
                   </button>
                   <button 
@@ -3645,10 +5173,10 @@ const DocsView = ({ items, onDelete, onBulkDelete, onDeleteAll, invoices, partne
                       e.preventDefault();
                       onDelete(docItem.id);
                     }}
-                    className="w-8 h-8 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all flex items-center justify-center shrink-0"
+                    className="size-8 text-text-dim hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all flex items-center justify-center shrink-0"
                     title="Xóa tài liệu"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="size-4" />
                   </button>
                 </div>
               </div>
@@ -3664,21 +5192,21 @@ const DocsView = ({ items, onDelete, onBulkDelete, onDeleteAll, invoices, partne
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-16 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur-md text-white rounded-2xl shadow-2xl px-6 py-4 flex items-center gap-6 z-50 border border-slate-700 w-fit"
+            className="fixed bottom-16 left-1/2 -translate-x-1/2 bg-sidebar-dark/95 backdrop-blur-md text-white rounded-2xl shadow-2xl px-6 py-4 flex items-center gap-6 z-50 border border-border-dark w-fit"
           >
-            <div className="flex items-center gap-3 border-r border-slate-700 pr-6 mr-1">
-              <div className="w-7 h-7 bg-indigo-500 rounded-full flex items-center justify-center text-[11px] font-black shadow-lg">
+            <div className="flex items-center gap-3 border-r border-border-dark pr-6 mr-1">
+              <div className="size-7 bg-primary rounded-full flex items-center justify-center text-[11px] font-black shadow-lg text-white">
                 {selectedIds.length}
               </div>
-              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Đã chọn</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-text-dim">Đã chọn</span>
             </div>
 
             <button 
               onClick={downloadDocZip}
               disabled={isBulkDownloading}
-              className="flex items-center gap-2 text-indigo-400 hover:text-indigo-300 hover:bg-white/5 px-4 py-2 rounded-xl transition-all text-xs font-bold uppercase tracking-widest disabled:opacity-50"
+              className="flex items-center gap-2 text-primary hover:text-primary/80 hover:bg-white/5 px-4 py-2 rounded-xl transition-all text-xs font-bold uppercase tracking-widest disabled:opacity-50"
             >
-              {isBulkDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download size={18} />}
+              {isBulkDownloading ? <Loader2 className="size-4 animate-spin" /> : <Download size={18} />}
               Tải về (.zip)
             </button>
 
@@ -3697,7 +5225,7 @@ const DocsView = ({ items, onDelete, onBulkDelete, onDeleteAll, invoices, partne
 
             <button 
               onClick={() => setSelectedIds([])}
-              className="text-[10px] text-slate-500 hover:text-white transition-all uppercase font-bold tracking-widest ml-2"
+              className="text-[10px] text-text-dim hover:text-white transition-all uppercase font-bold tracking-widest ml-2"
             >
               Hủy bỏ
             </button>
@@ -3782,17 +5310,19 @@ const BulkExportModal = ({
     const zip = new JSZip();
     const folder = zip.folder("bien_ban_hang_loat");
     let successCount = 0;
+    const completedInvoicesMap = new Map(completedInvoices.map(invoice => [invoice.id, invoice]));
+    const partnersTaxMap = new Map(partners.map(p => [p.taxCode, p]));
 
     for (let i = 0; i < selectedIds.length; i++) {
         const invId = selectedIds[i];
-        const inv = completedInvoices.find(invoice => invoice.id === invId);
+        const inv = completedInvoicesMap.get(invId);
         if (!inv || !inv.extractedData) {
             setExportProgress(Math.round(((i + 1) / selectedIds.length) * 100));
             continue;
         }
 
-        const pA = partners.find(p => p.taxCode === inv.extractedData?.seller?.taxCode) || {};
-        const pB = partners.find(p => p.taxCode === inv.extractedData?.buyer?.taxCode) || {};
+        const pA = partnersTaxMap.get(inv.extractedData?.seller?.taxCode) || {};
+        const pB = partnersTaxMap.get(inv.extractedData?.buyer?.taxCode) || {};
 
         let templateType = 'BB_CM';
         if (inv.extractedData?.classification) {
@@ -3834,56 +5364,58 @@ const BulkExportModal = ({
   };
 
   const renderList = (list: any[], title: string, icon: any, color: string) => (
-    <div className="flex-1 flex flex-col min-w-0 bg-slate-50/30 rounded-2xl border border-slate-100 overflow-hidden">
-      <div className="px-4 py-3 bg-white border-b border-slate-100 flex items-center justify-between">
+    <div className="flex-1 flex flex-col min-w-0 bg-card-dark rounded-2xl border border-border-dark overflow-hidden">
+      <div className="px-4 py-3 bg-sidebar-dark border-b border-border-dark flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className={cn("p-1.5 rounded-lg", color.replace('text-', 'bg-').replace('-600', '-50'))}>
-            {React.createElement(icon, { className: cn("w-4 h-4", color) })}
+          <div className={cn("p-1.5 rounded-lg", color.replace('text-', 'bg-').concat('/10'))}>
+            {React.createElement(icon, { className: cn("size-4", color) })}
           </div>
-          <span className="font-black text-[10px] uppercase tracking-widest text-slate-700">{title}</span>
-          <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md">{list.length}</span>
+          <span className="font-black text-[10px] uppercase tracking-widest text-white">{title}</span>
+          <span className="text-[10px] font-bold text-text-dim bg-white/5 px-1.5 py-0.5 rounded-md">{list.length}</span>
         </div>
         <button 
           onClick={() => handleSelectAll(list)}
-          className="text-[10px] font-black uppercase text-blue-600 hover:underline"
+          className="text-[10px] font-black uppercase text-primary hover:underline"
         >
           {list.length > 0 && list.every(i => selectedIds.includes(i.id)) ? "Bỏ chọn" : "Chọn hết"}
         </button>
       </div>
       <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
         {list.length > 0 ? (
-          list.map((inv) => (
+          list.map((inv, index) => (
             <div 
               key={inv.id}
               onClick={() => handleToggleSelect(inv.id)}
               className={cn(
                 "p-3 rounded-xl border transition-all cursor-pointer group hover:shadow-md",
                 selectedIds.includes(inv.id) 
-                  ? "bg-white border-blue-500 shadow-lg ring-1 ring-blue-500/10" 
-                  : "bg-white border-slate-100 hover:border-slate-300"
+                  ? "bg-card-dark border-primary shadow-lg ring-1 ring-primary/10" 
+                  : "bg-card-dark border-border-dark hover:border-border-dark/80"
               )}
             >
               <div className="flex items-start gap-3">
                 <div className={cn(
-                  "w-5 h-5 mt-0.5 rounded border-2 flex items-center justify-center transition-colors shrink-0",
-                  selectedIds.includes(inv.id) ? "bg-blue-600 border-blue-600 shadow-sm" : "border-slate-200 group-hover:border-slate-300"
+                  "size-5 mt-0.5 rounded border-2 flex items-center justify-center transition-colors shrink-0",
+                  selectedIds.includes(inv.id) ? "bg-primary border-primary shadow-sm" : "border-border-dark group-hover:border-border-dark/80"
                 )}>
-                  {selectedIds.includes(inv.id) && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                  {selectedIds.includes(inv.id) && <CheckCircle2 className="size-3.5 text-white" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-black text-xs text-slate-800 truncate mb-1">{inv.computedDisplayName}</div>
+                  <div className="font-black text-xs text-white truncate mb-1">
+                    {index + 1}. Hóa đơn số: {inv.computedInvoiceSymbol ? `${inv.computedInvoiceSymbol}-` : ''}{inv.computedInvoiceNumber || '---'}
+                  </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase">HĐ: {inv.computedInvoiceNumber || '---'}</span>
-                    <span className="text-[9px] text-slate-300">•</span>
-                    <span className="text-[9px] font-bold text-slate-400">Ngày: {formatDisplayDate(inv.extractedData?.invoice?.date || inv.extractedData?.date || '---')}</span>
+                    <span className="text-[9px] font-bold text-text-dim uppercase">HĐ: {inv.computedInvoiceNumber || '---'}</span>
+                    <span className="text-[9px] text-text-dim">•</span>
+                    <span className="text-[9px] font-bold text-text-dim">Ngày: {formatDisplayDate(inv.extractedData?.invoice?.date || inv.extractedData?.date || '---')}</span>
                   </div>
                 </div>
                 {inv.extractedData?.classification && (
                   <div className={cn(
                     "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter shadow-sm shrink-0",
-                    inv.extractedData.classification === 'BB_TC' ? 'bg-orange-100 text-orange-700 border border-orange-200' : 
-                    inv.extractedData.classification === 'BB_CM' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 
-                    'bg-green-100 text-green-700 border border-green-200'
+                    inv.extractedData.classification === 'BB_TC' ? 'bg-orange-500/10 text-orange-500 border border-orange-500/20' : 
+                    inv.extractedData.classification === 'BB_CM' ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' : 
+                    'bg-green-500/10 text-green-500 border border-green-500/20'
                   )}>
                     {inv.extractedData.classification === 'BB_TC' ? 'Thi công' : 
                      inv.extractedData.classification === 'BB_CM' ? 'Ca máy' : 'Vật tư'}
@@ -3894,7 +5426,7 @@ const BulkExportModal = ({
           ))
         ) : (
           <div className="py-12 text-center">
-            <p className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">Trống</p>
+            <p className="text-[10px] font-bold uppercase text-text-dim tracking-widest">Trống</p>
           </div>
         )}
       </div>
@@ -3903,86 +5435,86 @@ const BulkExportModal = ({
 
   return (
     <div 
-      className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-white rounded-[32px] shadow-2xl w-full max-w-[1100px] overflow-hidden flex flex-col h-[85vh] border border-white/20"
+        className="bg-card-dark rounded-[32px] shadow-2xl w-full max-w-[1100px] overflow-hidden flex flex-col h-[85vh] border border-white/20"
       >
-        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
+        <div className="p-6 border-b border-border-dark flex justify-between items-center bg-sidebar-dark">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-xl shadow-blue-100">
-              <Download className="w-6 h-6" />
+            <div className="size-12 rounded-2xl bg-primary flex items-center justify-center text-white shadow-xl shadow-primary/20">
+              <Download className="size-6" />
             </div>
             <div>
-              <h3 className="font-black text-xl text-slate-800 tracking-tight">Xuất biên bản hàng loạt</h3>
-              <p className="text-sm text-slate-400 font-medium italic">Tạo tệp .zip chứa các biên bản đã được xử lý tự động</p>
+              <h3 className="font-black text-xl text-white tracking-tight">Xuất biên bản hàng loạt</h3>
+              <p className="text-sm text-text-dim font-medium italic">Tạo tệp .zip chứa các biên bản đã được xử lý tự động</p>
             </div>
           </div>
           <button 
             onClick={onClose} 
-            className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+            className="size-10 flex items-center justify-center rounded-xl text-text-dim hover:text-white hover:bg-white/5 transition-all"
           >
-            <X className="w-6 h-6" />
+            <X className="size-6" />
           </button>
         </div>
 
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Controls */}
-          <div className="px-6 py-4 bg-slate-50/50 border-b border-slate-100 flex flex-wrap items-center gap-4">
+          <div className="px-6 py-4 bg-sidebar-dark border-b border-border-dark flex flex-wrap items-center gap-4">
             <div className="flex-1 min-w-[300px] relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-text-dim" />
               <input
                 type="text"
                 placeholder="Tìm theo Số CT, Tên file, Đơn vị bán..."
                 value={bulkSearch}
                 onChange={(e) => setBulkSearch(e.target.value)}
-                className="w-full pl-11 pr-12 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all placeholder:text-slate-300 shadow-sm"
+                className="w-full pl-11 pr-12 py-3 bg-card-dark border border-border-dark rounded-2xl text-sm font-medium focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all placeholder:text-text-dim shadow-sm text-white"
               />
               {bulkSearch && (
                 <button 
                   onClick={() => setBulkSearch('')}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-text-dim hover:text-white p-1"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="size-4" />
                 </button>
               )}
             </div>
             <div className="flex items-center gap-6 px-4">
                <div className="flex flex-col items-center">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Tổng cộng</span>
-                  <span className="text-xl font-black text-slate-800 leading-none">{completedInvoices.length}</span>
+                  <span className="text-[10px] font-black text-text-dim uppercase tracking-widest leading-none mb-1">Tổng cộng</span>
+                  <span className="text-xl font-black text-white leading-none">{completedInvoices.length}</span>
                </div>
-               <div className="w-px h-8 bg-slate-200"></div>
+               <div className="w-px h-8 bg-border-dark"></div>
                <div className="flex flex-col items-center">
-                  <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest leading-none mb-1">Đã chọn</span>
-                  <span className="text-xl font-black text-blue-600 leading-none">{selectedIds.length}</span>
+                  <span className="text-[10px] font-black text-primary uppercase tracking-widest leading-none mb-1">Đã chọn</span>
+                  <span className="text-xl font-black text-primary leading-none">{selectedIds.length}</span>
                </div>
             </div>
           </div>
 
           {/* 2 Columns View */}
           <div className="flex-1 flex overflow-hidden p-6 gap-6">
-            {renderList(pdfList, "Danh sách PDF", FileText, "text-red-600")}
-            {renderList(xmlList, "Danh sách XML", FileCode, "text-emerald-600")}
+            {renderList(pdfList, "Danh sách PDF", FileText, "text-red-500")}
+            {renderList(xmlList, "Danh sách XML", FileCode, "text-emerald-500")}
           </div>
         </div>
 
-        <div className="p-8 bg-slate-50 border-t border-slate-100">
+        <div className="p-8 bg-sidebar-dark border-t border-border-dark">
           {isExporting ? (
             <div className="space-y-4 max-w-md mx-auto">
               <div className="flex justify-between items-end">
                 <div className="space-y-1">
-                   <div className="text-xs font-black text-blue-600 uppercase tracking-widest">Đang xây dựng tệp ZIP...</div>
-                   <div className="text-[10px] font-bold text-slate-400">Vui lòng không đóng cửa sổ lúc này</div>
+                   <div className="text-xs font-black text-primary uppercase tracking-widest">Đang xây dựng tệp ZIP…</div>
+                   <div className="text-[10px] font-bold text-text-dim">Vui lòng không đóng cửa sổ lúc này</div>
                 </div>
-                <div className="text-2xl font-black text-slate-800">{exportProgress}%</div>
+                <div className="text-2xl font-black text-white">{exportProgress}%</div>
               </div>
-              <div className="h-3 bg-slate-200 rounded-full overflow-hidden shadow-inner">
+              <div className="h-3 bg-border-dark rounded-full overflow-hidden shadow-inner">
                 <motion.div 
-                  className="h-full bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]"
+                  className="h-full bg-primary shadow-primary/20"
                   initial={{ width: 0 }}
                   animate={{ width: `${exportProgress}%` }}
                 />
@@ -3995,16 +5527,16 @@ const BulkExportModal = ({
                 disabled={selectedIds.length === 0}
                 className={cn(
                   "flex-[2] py-4 rounded-2xl font-black text-sm text-white shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-3 relative overflow-hidden group",
-                  selectedIds.length > 0 ? "bg-blue-600 hover:bg-blue-700 shadow-blue-200" : "bg-slate-300 cursor-not-allowed shadow-none"
+                  selectedIds.length > 0 ? "bg-primary hover:bg-primary/80 shadow-primary/20" : "bg-border-dark cursor-not-allowed shadow-none text-text-dim"
                 )}
               >
                 <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                <Download className="w-5 h-5 relative" />
+                <Download className="size-5 relative" />
                 <span className="relative">XUẤT {selectedIds.length} BIÊN BẢN (.ZIP)</span>
               </button>
               <button 
                 onClick={onClose}
-                className="flex-1 py-4 border-2 border-slate-200 rounded-2xl font-black text-sm text-slate-500 hover:bg-white hover:text-slate-800 transition-all active:scale-95 shadow-sm"
+                className="flex-1 py-4 border-2 border-border-dark rounded-2xl font-black text-sm text-text-dim hover:bg-white/5 hover:text-white transition-all active:scale-95 shadow-sm"
               >
                 HỦY
               </button>
@@ -4116,7 +5648,8 @@ export default function App() {
   const [isExportingExcel, setIsExportingExcel] = useState(false);
   const [showBulkExport, setShowBulkExport] = useState(false);
   const [requestCount, setRequestCount] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(0);
+  const timeLeftRef = useRef(0);
+  const timerRef = useRef<any>(null);
   const [isSidebarPinned, setIsSidebarPinned] = useState(false);
   const [pendingReview, setPendingReview] = useState<{file: File, docRef: any, data: any} | null>(null);
   const { toast, clearToasts, removeToast } = useToast();
@@ -4148,8 +5681,8 @@ export default function App() {
     const map = new Map<string, number>();
     if (invoices && invoices.length > 0) {
       const sorted = [...invoices].sort((a, b) => {
-        const dbDateA = a.contractDate || a.extractedData?.invoice?.date || a.extractedData?.date;
-        const dbDateB = b.contractDate || b.extractedData?.invoice?.date || b.extractedData?.date;
+        const dbDateA = a.extractedData?.invoice?.date || a.extractedData?.date;
+        const dbDateB = b.extractedData?.invoice?.date || b.extractedData?.date;
         const tA = parseInvoiceDate(dbDateA) || a.createdAt?.toMillis?.() || 0;
         const tB = parseInvoiceDate(dbDateB) || b.createdAt?.toMillis?.() || 0;
         return tA - tB; 
@@ -4182,6 +5715,137 @@ export default function App() {
         }
       };
     });
+  };
+
+  // --- Supabase Database Fetch Functions ---
+  const fetchPartners = async (uid: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('partners')
+        .select('*')
+        .eq('owner_id', uid)
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      setPartners((data || []).map(p => ({
+        id: p.id,
+        name: fixNgocTham(p.name),
+        taxCode: p.tax_code,
+        address: p.address,
+        addressPostMerger: p.address_post_merger,
+        accountNumber: p.account_number,
+        bankName: p.bank_name,
+        representative: p.representative,
+        position: p.position,
+        gender: p.gender,
+        ownerId: p.owner_id,
+        createdAt: p.created_at,
+        updatedAt: p.updated_at
+      } as Partner)));
+    } catch (err: any) {
+      console.error("Lỗi khi tải danh sách đối tác:", err.message);
+    }
+  };
+
+  const fetchInvoices = async (uid: string) => {
+    try {
+      setIsLoadingInvoices(true);
+      const { data, error } = await supabase
+        .from('invoices')
+        .select('*')
+        .eq('owner_id', uid)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setInvoices((data || []).map(inv => {
+        const rawExtData = inv.extracted_data;
+        const extractedData = rawExtData ? { ...rawExtData } : undefined;
+        if (extractedData) {
+          if (extractedData.seller) {
+            extractedData.seller = { 
+              ...extractedData.seller, 
+              name: fixNgocTham(extractedData.seller.name) 
+            };
+          }
+          if (extractedData.buyer) {
+            extractedData.buyer = { 
+              ...extractedData.buyer, 
+              name: fixNgocTham(extractedData.buyer.name) 
+            };
+          }
+        }
+        return {
+          id: inv.id,
+          fileName: inv.file_name,
+          fileType: inv.file_type,
+          fileURL: extractedData?.fileURL || inv.file_name,
+          status: inv.status,
+          contractNumber: inv.contract_number,
+          contractDate: inv.contract_date,
+          sellerName: fixNgocTham(inv.seller_name),
+          buyerName: fixNgocTham(inv.buyer_name),
+          sellerTaxCode: inv.seller_tax_code,
+          buyerTaxCode: inv.buyer_tax_code,
+          type: inv.type,
+          category: inv.category,
+          totalAmount: inv.total_amount,
+          extractedData,
+          lineItems: inv.line_items,
+          ownerId: inv.owner_id,
+          createdAt: { toMillis: () => new Date(inv.created_at).getTime() } as any,
+          updatedAt: inv.updated_at
+        } as Invoice;
+      }));
+    } catch (err: any) {
+      console.error("Lỗi khi tải danh sách hóa đơn:", err.message);
+    } finally {
+      setIsLoadingInvoices(false);
+    }
+  };
+
+  const fetchGeneratedDocs = async (uid: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('generated_docs')
+        .select('*')
+        .eq('owner_id', uid)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setGeneratedDocs((data || []).map(d => ({
+        id: d.id,
+        invoiceId: d.invoice_id,
+        templateType: d.template_type,
+        fileName: d.file_name,
+        downloadUrl: d.download_url,
+        ownerId: d.owner_id,
+        createdAt: d.created_at,
+        updatedAt: d.updated_at
+      } as GeneratedDoc)));
+    } catch (err: any) {
+      console.error("Lỗi khi tải danh sách biên bản:", err.message);
+    }
+  };
+
+  const fetchContracts = async (uid: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('contracts')
+        .select('*')
+        .eq('owner_id', uid)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setContracts((data || []).map(c => ({
+        id: c.id,
+        templateId: c.template_id,
+        partyAId: c.party_a_id,
+        partyBId: c.party_b_id,
+        formData: c.form_data,
+        fileName: c.file_name,
+        ownerId: c.owner_id,
+        createdAt: c.created_at,
+        updatedAt: c.updated_at
+      } as SmartContract)));
+    } catch (err: any) {
+      console.error("Lỗi khi tải danh sách hợp đồng:", err.message);
+    }
   };
 
   const handleContractFieldChange = (tag: string, val: string) => {
@@ -4317,7 +5981,7 @@ export default function App() {
 
         const tag = currentTags.find(t => {
           const u = t.toUpperCase();
-          return u === 'DIADIEM' || u === 'DIA_DIEM';
+          return u === 'DIADIEM' || u === 'DIA_DIEM' || u === 'DIADIEMCONGTRINH';
         });
         if (tag) smartUpdates[tag] = val;
       }
@@ -4389,11 +6053,19 @@ export default function App() {
         rawItems.push(...items);
       });
 
+      // Filter out items where quantity, price/unitPrice, and total are all 0
+      const filteredRawItems = rawItems.filter(item => {
+        const qty = safeParse(item.quantity || item.SL || '0');
+        const price = safeParse(item.unitPrice || item.Don_Gia || '0');
+        const totalLine = safeParse(item.total || item.Thanh_Tien || item.amount || (qty * price));
+        return !(qty === 0 && price === 0 && totalLine === 0);
+      });
+
       if (isSpecialContract) {
         // Merge items logic: Group by (Name/Description, Unit, Price)
         const mergedMap = new Map<string, any>();
         
-        rawItems.forEach(item => {
+        filteredRawItems.forEach(item => {
           const desc = (item.description || item.name || '---').trim();
           const unit = (item.unit || item.DVT || '---').trim();
           const price = safeParse(item.unitPrice || item.Don_Gia || '0');
@@ -4421,7 +6093,7 @@ export default function App() {
         
         itemsToDisplay = Array.from(mergedMap.values());
       } else {
-        itemsToDisplay = rawItems.map(item => {
+        itemsToDisplay = filteredRawItems.map(item => {
           const qty = safeParse(item.quantity || item.SL || '0');
           const price = safeParse(item.unitPrice || item.Don_Gia || '0');
           return {
@@ -4443,11 +6115,57 @@ export default function App() {
       });
 
       if (isSpecialContract) {
-        const vat = Math.round(total * 0.1);
+        // Calculate the actual VAT rate and tax amount from selected invoices
+        let totalSubtotal = 0;
+        let totalVatAmount = 0;
+        const ratesList: number[] = [];
+
+        selectedDatas.forEach(inv => {
+          const sub = Number(inv.extractedData?.totals?.subtotal) || 0;
+          const vat = Number(inv.extractedData?.totals?.vatAmount) || 0;
+          const gTotal = Number(inv.extractedData?.totals?.grandTotal || inv.extractedData?.totals?.grand_total) || 0;
+          
+          if (sub > 0) {
+            totalSubtotal += sub;
+            totalVatAmount += vat;
+          } else if (gTotal > 0) {
+            totalSubtotal += (gTotal - vat);
+            totalVatAmount += vat;
+          }
+
+          let r = inv.extractedData?.invoice?.vatRate;
+          if (r === undefined || r === null) {
+            if (sub > 0) {
+              r = Math.round((vat / sub) * 100);
+            }
+          }
+          if (r !== undefined && r !== null && !isNaN(r)) {
+            ratesList.push(r);
+          }
+        });
+
+        // Determine the primary display VAT rate (e.g. 8%, 10%, 5%, 0%)
+        const uniqueRates = Array.from(new Set(ratesList));
+        let displayVatRate = 10; // Default fallback
+        if (uniqueRates.length === 1) {
+          displayVatRate = uniqueRates[0];
+        } else if (totalSubtotal > 0) {
+          displayVatRate = Math.round((totalVatAmount / totalSubtotal) * 100);
+        } else if (uniqueRates.length > 1) {
+          displayVatRate = uniqueRates[0];
+        }
+
+        // Check if we should use the exact sum of vatAmount from invoices
+        // to avoid rounding discrepancies
+        let vat = totalVatAmount;
+        if (vat === 0 && total > 0) {
+          vat = Math.round(total * (displayVatRate / 100));
+        }
+        
         const grandTotal = total + vat;
         
         markdownTable += `| | TỔNG CỘNG TIỀN HÀNG | | | | ${formatThousands(String(total))} |\n`;
-        markdownTable += `| | THUẾ GIÁ TRỊ GIA TĂNG (10%) | | | | ${formatThousands(String(vat))} |\n`;
+        markdownTable += `| | THUẾ GIÁ TRỊ GIA TĂNG (${displayVatRate}%) | | | | ${formatThousands(String(vat))} |\n`;
         markdownTable += `| | TỔNG CỘNG TIỀN THANH TOÁN | | | | ${formatThousands(String(grandTotal))} |`;
         
         const valueTag = contractForm.tags.find(t => {
@@ -4459,6 +6177,14 @@ export default function App() {
         }
       } else {
         markdownTable += `| | TỔNG CỘNG | | | | ${formatThousands(String(total))} |`;
+        
+        const valueTag = contractForm.tags.find(t => {
+          const u = t.toUpperCase();
+          return (u.includes('GIATRI') || u.includes('SO_TIEN')) && !u.includes('BANG') && !u.includes('CHU');
+        });
+        if (valueTag) {
+          handleContractFieldChange(valueTag, String(total));
+        }
       }
 
       handleContractFieldChange(activeInvoiceTag, markdownTable);
@@ -4566,11 +6292,87 @@ export default function App() {
       });
 
       const dataToRender: Record<string, string> = {};
+      const tableXmlMap: Record<string, string> = {};
+
       Object.keys(contract.formData).forEach(tag => {
-        dataToRender[tag] = contract.formData[tag] || "....................";
+        const upper = tag.toUpperCase();
+        const isTableTag = (upper.includes('BANG') || upper.includes('TABLE')) && 
+                           !upper.includes('BANG_CHU') && !upper.includes('BANGCHU');
+                           
+        if (isTableTag) {
+          // Render a clean plain text placeholder
+          dataToRender[tag] = `__BANG_TABLE_PLACEHOLDER_FOR_${tag}__`;
+          
+          const rawValue = contract.formData[tag] || '';
+          if (upper === 'BANG_GDN') {
+            let gdnRows: GdnRow[] = [];
+            try {
+              gdnRows = rawValue ? JSON.parse(rawValue) : [];
+            } catch (e) {
+              gdnRows = [];
+            }
+            tableXmlMap[tag] = generateGdnDocxTable(gdnRows);
+          } else {
+            if (rawValue) {
+              tableXmlMap[tag] = generateContractDocxTable(rawValue);
+            } else {
+              tableXmlMap[tag] = '';
+            }
+          }
+        } else {
+          const isTableField = upper.includes('NOI_DUNG') || 
+                               upper.includes('DVT') || 
+                               upper.includes('SOLUONG') || 
+                               upper.includes('SL') || 
+                               upper.includes('DON_GIA') ||
+                               upper.includes('DONGIA') ||
+                               upper.includes('THANHTIEN') ||
+                               upper.includes('THANH_TIEN');
+                               
+          dataToRender[tag] = contract.formData[tag] || (isTableField ? "" : "....................");
+        }
       });
 
+      // Title variations with title casing
+      const getFormVal = (key: string): string => {
+        const foundKey = Object.keys(contract.formData).find(k => k.toUpperCase() === key.toUpperCase());
+        return foundKey ? contract.formData[foundKey] : '';
+      };
+      
+      const tamUng = getFormVal('TAMUNG-THANHTOAN') || getFormVal('TAMUNG_THANHTOAN') || '';
+      const benDuoc = getFormVal('BEN_DUOC_DE_NGHI') || getFormVal('BENDUOCDENGHI') || '';
+      const benDeNghi = getFormVal('BEN_DE_NGHI') || getFormVal('BENDENGHI') || '';
+
+      dataToRender['TAMUNG-THANHTOAN_TITLE'] = toVietnameseTitleCase(tamUng) || "....................";
+      dataToRender['TAMUNG-THANHTOAN'] = tamUng || "....................";
+      dataToRender['BEN_DUOC_DE_NGHI_TITLE'] = toVietnameseTitleCase(benDuoc) || "....................";
+      dataToRender['BEN_DUOC_DE_NGHI'] = benDuoc || "....................";
+      dataToRender['BEN_DE_NGHI_TITLE'] = toVietnameseTitleCase(benDeNghi) || "....................";
+      dataToRender['BEN_DE_NGHI'] = benDeNghi || "....................";
+
       docT.render(dataToRender);
+
+      // Perform direct XML search-and-replace for tables to keep them as native Word tables (bypass escaping)
+      let renderedXml = docT.getZip().file("word/document.xml")?.asText();
+      if (renderedXml) {
+        Object.keys(tableXmlMap).forEach(tag => {
+          const placeholder = `__BANG_TABLE_PLACEHOLDER_FOR_${tag}__`;
+          let idx = renderedXml.indexOf(placeholder);
+          while (idx !== -1) {
+            const startIdx = renderedXml.lastIndexOf('<w:p', idx);
+            const endIdx = renderedXml.indexOf('</w:p>', idx);
+            if (startIdx !== -1 && endIdx !== -1 && startIdx < idx && idx < endIdx) {
+              const ooxmlTable = tableXmlMap[tag];
+              renderedXml = renderedXml.substring(0, startIdx) + ooxmlTable + renderedXml.substring(endIdx + 6);
+            } else {
+              renderedXml = renderedXml.replace(placeholder, tableXmlMap[tag]);
+            }
+            idx = renderedXml.indexOf(placeholder);
+          }
+        });
+        docT.getZip().file("word/document.xml", renderedXml);
+      }
+
       const out = docT.getZip().generate({ type: 'blob', compression: 'DEFLATE' });
       saveAs(out, contract.fileName);
       toast("Đã tải hợp đồng!", "success");
@@ -4619,29 +6421,30 @@ export default function App() {
         }
         
         // Special handling for partners edit view
-        if (foundTab === 'partners' && slug) {
-          const isBatch = slug.startsWith('batch/');
-          const isEdit = slug.startsWith('edit/');
-          const actualSlug = isBatch ? slug.slice(6) : (isEdit ? slug.slice(5) : slug);
-          const subParts = actualSlug.split('-');
-          const taxCode = subParts[0];
-          
-          if (partners.length > 0) {
-            const pIndex = partners.findIndex(p => p.taxCode === taxCode);
-            if (pIndex !== -1) {
-              const p = partners[pIndex];
-              if (isBatch) {
-                setMultiPartnerEdit(prev => (prev?.isOpen ? { ...prev, currentIndex: pIndex } : { isOpen: true, currentIndex: pIndex, drafts: {}, showExitConfirm: false }));
-                setEditingPartner(null);
-              } else {
-                setEditingPartner(p);
-                setMultiPartnerEdit(null);
+        if (foundTab === 'partners') {
+          if (sub === 'batch' || sub === 'edit') {
+            const isBatch = sub === 'batch';
+            const actualSlug = slug || '';
+            const subParts = actualSlug.split('-');
+            const taxCode = subParts[0];
+            
+            if (partners.length > 0 && taxCode) {
+              const pIndex = partners.findIndex(p => p.taxCode === taxCode);
+              if (pIndex !== -1) {
+                const p = partners[pIndex];
+                if (isBatch) {
+                  setMultiPartnerEdit(prev => (prev?.isOpen ? { ...prev, currentIndex: pIndex } : { isOpen: true, currentIndex: pIndex, drafts: {}, showExitConfirm: false }));
+                  setEditingPartner(null);
+                } else {
+                  setEditingPartner(p);
+                  setMultiPartnerEdit(null);
+                }
               }
             }
+          } else {
+            setEditingPartner(null);
+            setMultiPartnerEdit(null);
           }
-        } else if (foundTab === 'partners' && !slug) {
-          setEditingPartner(null);
-          setMultiPartnerEdit(null);
         }
       } else if (!currentFullHash || currentFullHash === '/') {
         window.location.hash = `#/${TAB_CONFIG.dashboard.hash}/`;
@@ -4677,6 +6480,11 @@ export default function App() {
     if (tab === 'dashboard') {
       setSelectedInvoice(null);
     }
+  };
+
+  const handleDashboardSubTabChange = (subTab: 'invoices' | 'contracts') => {
+    const sub = subTab === 'invoices' ? 'Quan-ly-hoa-don' : 'Quan-ly-hop-dong';
+    window.location.hash = `#/${TAB_CONFIG.dashboard.hash}/${sub}/`;
   };
 
   const handleInvoiceSelect = (inv: Invoice | null) => {
@@ -4742,22 +6550,29 @@ export default function App() {
   }, [toast]);
 
   useEffect(() => {
-    let timer: any;
-    if (timeLeft > 0) {
-      timer = setInterval(() => {
-        setTimeLeft(prev => prev - 1);
-      }, 1000);
+    if (requestCount > 0) {
+      if (timeLeftRef.current === 0) {
+        timeLeftRef.current = 60;
+        if (timerRef.current) clearInterval(timerRef.current);
+        timerRef.current = setInterval(() => {
+          if (timeLeftRef.current > 0) {
+            timeLeftRef.current -= 1;
+          } else {
+            clearInterval(timerRef.current);
+            setRequestCount(0);
+          }
+        }, 1000);
+      }
     } else {
-      setRequestCount(0);
+      timeLeftRef.current = 0;
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     }
-    return () => clearInterval(timer);
-  }, [timeLeft]);
-
-  useEffect(() => {
-    // Start countdown whenever a request is made if not already counting
-    if (requestCount > 0 && timeLeft === 0) {
-      setTimeLeft(60);
-    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
   }, [requestCount]);
 
 
@@ -4825,94 +6640,91 @@ export default function App() {
   const handleUpdatePartner = async (id: string, updates: Partial<Partner>) => {
     if (!user) return;
     try {
+      const mapped = cleanObject({
+        name: updates.name,
+        tax_code: updates.taxCode,
+        address: updates.address,
+        address_post_merger: updates.addressPostMerger,
+        account_number: updates.accountNumber,
+        bank_name: updates.bankName,
+        representative: updates.representative,
+        position: updates.position,
+        gender: updates.gender,
+        owner_id: user.uid,
+        updated_at: new Date().toISOString()
+      });
+
       if (id === 'new') {
-         await addDoc(collection(db, 'partners'), cleanObject({
-           ...updates,
-           createdAt: serverTimestamp(),
-           updatedAt: serverTimestamp(),
-           ownerId: user.uid
-         }));
+        const { error } = await supabase.from('partners').insert({
+          ...mapped,
+          created_at: new Date().toISOString()
+        });
+        if (error) throw error;
       } else {
-        await updateDoc(doc(db, 'partners', id), cleanObject({
-          ...updates,
-          updatedAt: serverTimestamp()
-        }));
+        const { error } = await supabase.from('partners').update(mapped).eq('id', id);
+        if (error) throw error;
       }
-    } catch (error) {
-      handleFirestoreError(error, id === 'new' ? OperationType.CREATE : OperationType.UPDATE, `partners/${id}`);
+      fetchPartners(user.uid);
+    } catch (error: any) {
+      console.error("Lỗi khi cập nhật đối tác:", error);
+      toast("Lỗi khi cập nhật đối tác: " + error.message, "error");
     }
   };
 
   const handleDeletePartner = async (id: string) => {
+    if (!user) return;
     console.log("handleDeletePartner called with id:", id);
     try {
-      await deleteDoc(doc(db, 'partners', id));
+      const { error } = await supabase.from('partners').delete().eq('id', id);
+      if (error) throw error;
       toast("Đã xóa đối tác thành công", "success");
-    } catch (error) {
+      fetchPartners(user.uid);
+    } catch (error: any) {
       console.error("Delete partner error:", error);
-      handleFirestoreError(error, OperationType.DELETE, `partners/${id}`);
-      toast("Lỗi khi xóa đối tác", "error");
+      toast("Lỗi khi xóa đối tác: " + error.message, "error");
     }
   };
 
   const handleDeleteInvoice = async (id: string) => {
+    if (!user) return;
     console.log("handleDeleteInvoice called with id:", id);
     try {
-      await deleteDoc(doc(db, 'invoices', id));
+      const { error } = await supabase.from('invoices').delete().eq('id', id);
+      if (error) throw error;
       console.log("Invoice deleted successfully");
-    } catch (error) {
+      fetchInvoices(user.uid);
+    } catch (error: any) {
       console.error("Delete invoice error:", error);
-      handleFirestoreError(error, OperationType.DELETE, `invoices/${id}`);
+      toast("Lỗi khi xóa hóa đơn: " + error.message, "error");
     }
   };
 
   const handleDeleteDoc = async (id: string) => {
+    if (!user) return;
     console.log("Attempting to delete doc:", id);
     try {
-      await deleteDoc(doc(db, 'generated_docs', id));
+      const { error } = await supabase.from('generated_docs').delete().eq('id', id);
+      if (error) throw error;
       toast('Đã xóa 1 tài liệu');
+      fetchGeneratedDocs(user.uid);
     } catch (error: any) {
       console.error("Delete doc error:", error);
       toast(`Lỗi khi xóa tài liệu: ${error.message || 'Không xác định'}`, 'error');
-      try {
-        handleFirestoreError(error, OperationType.DELETE, `generated_docs/${id}`);
-      } catch (err) {
-        // Already handled error
-      }
     }
   };
 
   const handleBulkDeleteDocs = async (ids: string[]) => {
-    if (!ids || ids.length === 0) return;
+    if (!user || !ids || ids.length === 0) return;
     console.log("Attempting to bulk delete docs:", ids);
     try {
       setIsProcessing(true);
-      // Fallback to individual deletes if batch is tricky, 
-      // but let's keep batch first and see if individual error handling helps
-      const batch = writeBatch(db);
-      ids.forEach(id => {
-        batch.delete(doc(db, 'generated_docs', id));
-      });
-      await batch.commit();
+      const { error } = await supabase.from('generated_docs').delete().in('id', ids);
+      if (error) throw error;
       toast(`Đã xóa ${ids.length} tài liệu thành công`);
+      fetchGeneratedDocs(user.uid);
     } catch (error: any) {
       console.error('Bulk delete error:', error);
       toast(`Lỗi khi xóa hàng loạt: ${error.message || 'Không xác định'}`, 'error');
-      
-      // If batch fails, try individual as fallback for debugging
-      console.log("Trying individual deletes as fallback...");
-      let successCount = 0;
-      for (const id of ids) {
-        try {
-          await deleteDoc(doc(db, 'generated_docs', id));
-          successCount++;
-        } catch (e) {
-          console.error(`Failed to delete individual doc ${id}:`, e);
-        }
-      }
-      if (successCount > 0) {
-        toast(`Đã xóa thủ công được ${successCount}/${ids.length} tài liệu`);
-      }
     } finally {
       setIsProcessing(false);
     }
@@ -4927,36 +6739,46 @@ export default function App() {
   const handleContractSave = async (data: Omit<SmartContract, 'id' | 'ownerId' | 'createdAt'>) => {
     if (!user) return;
     try {
-      await addDoc(collection(db, 'contracts'), {
-        ...data,
-        ownerId: user.uid,
-        createdAt: serverTimestamp()
-      }).catch(error => handleFirestoreError(error, OperationType.CREATE, 'contracts'));
+      const { error } = await supabase.from('contracts').insert({
+        template_id: data.templateId,
+        party_a_id: data.partyAId || null,
+        party_b_id: data.partyBId || null,
+        form_data: data.formData,
+        file_name: data.fileName,
+        owner_id: user.uid,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+      if (error) throw error;
+      fetchContracts(user.uid);
     } catch (err: any) {
+      console.error("Lỗi khi lưu hợp đồng:", err);
       toast("Lỗi khi lưu hợp đồng: " + err.message, "error");
     }
   };
 
   const handleDeleteContract = async (id: string) => {
+    if (!user) return;
     if (!confirm("Bạn có chắc chắn muốn xóa hợp đồng này?")) return;
     try {
-      await deleteDoc(doc(db, 'contracts', id));
+      const { error } = await supabase.from('contracts').delete().eq('id', id);
+      if (error) throw error;
       toast("Đã xóa hợp đồng", "success");
+      fetchContracts(user.uid);
     } catch (err: any) {
-      toast("Lỗi khi xóa: " + err.message, "error");
+      toast("Lỗi khi xóa hợp đồng: " + err.message, "error");
     }
   };
 
   const handleBulkDeleteContracts = async (ids: string[]) => {
+    if (!user || !ids || ids.length === 0) return;
     if (!confirm(`Bạn có chắc muốn xóa ${ids.length} hợp đồng?`)) return;
     setIsProcessing(true);
     try {
-      const batch = writeBatch(db);
-      ids.forEach(id => {
-        batch.delete(doc(db, 'contracts', id));
-      });
-      await batch.commit();
-      toast(`Đã xóa ${ids.length} hợp đồng`, "success");
+      const { error } = await supabase.from('contracts').delete().in('id', ids);
+      if (error) throw error;
+      toast(`Đã xóa ${ids.length} hợp đồng thành công`, "success");
+      fetchContracts(user.uid);
     } catch (err: any) {
       toast("Lỗi khi xóa hàng loạt: " + err.message, "error");
     } finally {
@@ -4964,114 +6786,196 @@ export default function App() {
     }
   };
 
-  useEffect(() => {
-    const unsubAuth = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-    });
-
-    // Only sync if user is authenticated
-    let unsubPartners = () => {};
-    let unsubInvoices = () => {};
-    let unsubDocs = () => {};
-    let unsubContracts = () => {};
-
-    if (user) {
-      setIsLoadingInvoices(true);
-      // Sync data from Firestore
-      const qPartners = query(
-        collection(db, 'partners'), 
-        where('ownerId', '==', user.uid),
-        orderBy('updatedAt', 'desc')
-      );
-      unsubPartners = onSnapshot(qPartners, (snap) => {
-        setPartners(snap.docs.map(d => {
-          const data = d.data();
-          return { 
-            id: d.id, 
-            ...data,
-            name: fixNgocTham(data.name)
-          } as Partner;
-        }));
-      }, (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'partners');
-      });
-
-      const qInvoices = query(
-        collection(db, 'invoices'), 
-        where('ownerId', '==', user.uid),
-        orderBy('createdAt', 'desc')
-      );
-      unsubInvoices = onSnapshot(qInvoices, (snap) => {
-        setInvoices(snap.docs.map(d => {
-          const data = d.data() as Invoice;
-          
-          // Deep clone extractedData to avoid mutation and ensure UI updates correctly
-          const extractedData = data.extractedData ? { ...data.extractedData } : undefined;
-          if (extractedData) {
-            if (extractedData.seller) {
-              extractedData.seller = { 
-                ...extractedData.seller, 
-                name: fixNgocTham(extractedData.seller.name) 
-              };
-            }
-            if (extractedData.buyer) {
-              extractedData.buyer = { 
-                ...extractedData.buyer, 
-                name: fixNgocTham(extractedData.buyer.name) 
-              };
-            }
-          }
-          
-          return { 
-            id: d.id, 
-            ...data,
-            extractedData,
-            sellerName: fixNgocTham(data.sellerName),
-            buyerName: fixNgocTham(data.buyerName)
-          } as Invoice;
-        }));
-        setIsLoadingInvoices(false);
-      }, (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'invoices');
-        setIsLoadingInvoices(false);
-      });
-
-      const qDocs = query(
-        collection(db, 'generated_docs'), 
-        where('ownerId', '==', user.uid),
-        orderBy('createdAt', 'desc')
-      );
-      unsubDocs = onSnapshot(qDocs, (snap) => {
-        setGeneratedDocs(snap.docs.map(d => ({ id: d.id, ...d.data() } as GeneratedDoc)));
-      }, (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'generated_docs');
-      });
-
-      const qContracts = query(
-        collection(db, 'contracts'), 
-        where('ownerId', '==', user.uid),
-        orderBy('createdAt', 'desc')
-      );
-      unsubContracts = onSnapshot(qContracts, (snap) => {
-        setContracts(snap.docs.map(d => ({ id: d.id, ...d.data() } as SmartContract)));
-      }, (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'contracts');
-      });
-    } else {
-      setPartners([]);
-      setInvoices([]);
-      setGeneratedDocs([]);
-      setContracts([]);
+  const runFirebaseToSupabaseMigration = async (uid: string) => {
+    try {
+      const { collection, getDocs, query, where } = await import('firebase/firestore');
+      const { db } = await import('./lib/firebase');
+      
+      console.log('🔄 Checking if Firebase Firestore data needs to be migrated to Supabase...');
+      
+      // Query Firestore invoices
+      const invQuery = query(collection(db, 'invoices'), where('ownerId', '==', uid));
+      const invSnap = await getDocs(invQuery);
+      
+      if (invSnap.empty) {
+        console.log('✅ No Firebase invoices found to migrate.');
+        localStorage.setItem(`migrated_to_supabase_${uid}`, 'true');
+        return;
+      }
+      
+      // We have data in Firebase! Let's check if Supabase is indeed empty or if we should sync
+      const { data: supabaseInvs, error: sbError } = await supabase
+        .from('invoices')
+        .select('id')
+        .eq('owner_id', uid)
+        .limit(1);
+        
+      if (sbError) throw sbError;
+      
+      if (supabaseInvs && supabaseInvs.length > 0) {
+        console.log('✅ Supabase already has invoice data. Skipping auto-migration.');
+        localStorage.setItem(`migrated_to_supabase_${uid}`, 'true');
+        return;
+      }
+      
+      console.log(`🚀 Found ${invSnap.size} invoices in Firebase. Starting one-time migration to Supabase...`);
+      setIsProcessing(true);
+      setProcessingStatus('Đang di chuyển dữ liệu từ Firebase sang Supabase...');
+      
+      // A. Migrate Partners
+      const partnerQuery = query(collection(db, 'partners'), where('ownerId', '==', uid));
+      const partnerSnap = await getDocs(partnerQuery);
+      console.log(`Partners to migrate: ${partnerSnap.size}`);
+      for (const docSnap of partnerSnap.docs) {
+        const d = docSnap.data();
+        const partnerData = {
+          id: docSnap.id,
+          name: d.name || '',
+          tax_code: d.taxCode || '',
+          address: d.address || '',
+          address_post_merger: d.addressPostMerger || null,
+          account_number: d.accountNumber || null,
+          bank_name: d.bankName || null,
+          representative: d.representative || null,
+          position: d.position || null,
+          gender: d.gender || null,
+          owner_id: uid,
+          created_at: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : new Date().toISOString(),
+          updated_at: d.updatedAt?.toDate ? d.updatedAt.toDate().toISOString() : new Date().toISOString()
+        };
+        await supabase.from('partners').insert(partnerData);
+      }
+      
+      // B. Migrate Invoices
+      for (const docSnap of invSnap.docs) {
+        const d = docSnap.data();
+        const invoiceData = {
+          id: docSnap.id,
+          file_name: d.fileName || '',
+          file_type: d.fileType || 'pdf',
+          status: d.status || 'completed',
+          contract_number: d.contractNumber || null,
+          contract_date: d.contractDate || null,
+          seller_name: d.sellerName || null,
+          buyer_name: d.buyerName || null,
+          seller_tax_code: d.sellerTaxCode || null,
+          buyer_tax_code: d.buyerTaxCode || null,
+          type: d.type || null,
+          category: d.category || null,
+          total_amount: d.totalAmount || null,
+          extracted_data: d.extractedData || null,
+          line_items: d.lineItems || null,
+          owner_id: uid,
+          created_at: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : new Date().toISOString(),
+          updated_at: d.updatedAt?.toDate ? d.updatedAt.toDate().toISOString() : new Date().toISOString()
+        };
+        await supabase.from('invoices').insert(invoiceData);
+      }
+      
+      // C. Migrate Generated Docs
+      const genDocQuery = query(collection(db, 'generated_docs'), where('ownerId', '==', uid));
+      const genDocSnap = await getDocs(genDocQuery);
+      console.log(`Generated docs to migrate: ${genDocSnap.size}`);
+      for (const docSnap of genDocSnap.docs) {
+        const d = docSnap.data();
+        const genDocData = {
+          id: docSnap.id,
+          invoice_id: d.invoiceId || null,
+          template_type: d.templateType || '',
+          file_name: d.fileName || '',
+          download_url: d.downloadUrl || null,
+          owner_id: uid,
+          created_at: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        await supabase.from('generated_docs').insert(genDocData);
+      }
+      
+      // D. Migrate Contracts
+      const contractQuery = query(collection(db, 'contracts'), where('ownerId', '==', uid));
+      const contractSnap = await getDocs(contractQuery);
+      console.log(`Contracts to migrate: ${contractSnap.size}`);
+      for (const docSnap of contractSnap.docs) {
+        const d = docSnap.data();
+        const contractData = {
+          id: docSnap.id,
+          template_id: d.templateId || '',
+          party_a_id: d.partyAId || null,
+          party_b_id: d.partyBId || null,
+          form_data: d.formData || {},
+          file_name: d.fileName || '',
+          owner_id: uid,
+          created_at: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        await supabase.from('contracts').insert(contractData);
+      }
+      
+      console.log('🎉 Firebase to Supabase migration completed successfully!');
+      localStorage.setItem(`migrated_to_supabase_${uid}`, 'true');
+      toast("Đã chuyển đổi toàn bộ dữ liệu từ Firebase sang Supabase thành công!", "success");
+      
+      // Reload Supabase data to refresh UI
+      await Promise.all([
+        fetchPartners(uid),
+        fetchInvoices(uid),
+        fetchGeneratedDocs(uid),
+        fetchContracts(uid)
+      ]);
+      
+    } catch (error: any) {
+      console.error('❌ Error migrating data from Firebase to Supabase:', error);
+      toast("Lỗi khi chuyển đổi dữ liệu từ Firebase: " + error.message, "error");
+    } finally {
+      setIsProcessing(false);
+      setProcessingStatus('');
     }
+  };
+
+  useEffect(() => {
+    const unsubAuth = onAuthStateChanged(auth, async (u) => {
+      setUser(u);
+      if (u) {
+        setIsLoadingInvoices(true);
+
+        // Pass the Firebase UID securely through a custom HTTP header to PostgreSQL RLS
+        try {
+          (supabase as any).rest.headers['x-custom-user-id'] = u.uid;
+        } catch (headerErr) {
+          console.error("Failed to set x-custom-user-id header:", headerErr);
+        }
+
+        // Fetch data from Supabase once authenticated via custom header
+        await Promise.all([
+          fetchPartners(u.uid),
+          fetchInvoices(u.uid),
+          fetchGeneratedDocs(u.uid),
+          fetchContracts(u.uid)
+        ]);
+        setIsLoadingInvoices(false);
+
+        // One-time automatic migration check
+        const migrationKey = `migrated_to_supabase_${u.uid}`;
+        if (localStorage.getItem(migrationKey) !== 'true') {
+          await runFirebaseToSupabaseMigration(u.uid);
+        }
+      } else {
+        setPartners([]);
+        setInvoices([]);
+        setGeneratedDocs([]);
+        setContracts([]);
+        try {
+          delete (supabase as any).rest.headers['x-custom-user-id'];
+        } catch (e) {
+          // Silent catch
+        }
+      }
+    });
 
     return () => {
       unsubAuth();
-      unsubPartners();
-      unsubInvoices();
-      unsubDocs();
-      unsubContracts();
     };
-  }, [user]);
+  }, []);
 
   // Helper: Normalize extracted data (Fix typos, common AI mistakes)
   const normalizeExtractedData = (data: any) => {
@@ -5193,35 +7097,55 @@ export default function App() {
   };
 
   const [uploadQueue, setUploadQueue] = useState<File[]>([]);
+  const [rejectedFiles, setRejectedFiles] = useState<{file: File, reason: string}[]>([]);
+  const [processingStatus, setProcessingStatus] = useState<string>('');
 
-  const handleFileUpload = (files: File[]) => {
+  const handleFileUpload = (accepted: File[], rejections: any[]) => {
     if (!user) {
       toast("Vui lòng đăng nhập trước khi thực hiện.", "error");
       return;
     }
     
-    // Check for duplicates before adding to queue
+    console.log("Files dropped:", { accepted: accepted.length, rejections: rejections.length });
+
+    // Handle rejections from Dropzone (e.g. wrong type)
+    const newRejections = rejections.map(rej => ({
+      file: rej.file,
+      reason: rej.errors[0]?.message || "Định dạng không được hỗ trợ"
+    }));
+
+    setRejectedFiles(prev => [...prev, ...newRejections]);
+
+    // Check for duplicates and add to valid queue
     const validFiles: File[] = [];
-    files.forEach(file => {
+    accepted.forEach(file => {
       const isDuplicate = invoices.some(inv => inv.fileName === file.name) || 
                           uploadQueue.some(q => q.name === file.name);
+      
       if (isDuplicate) {
-        toast(`Hóa đơn [${file.name}] đã có sẵn hoặc đang trong hàng đợi.`, 'error');
+        setRejectedFiles(prev => [...prev, { file, reason: "Hóa đơn này đã tồn tại trong hệ thống" }]);
       } else {
         const ext = file.name.split('.').pop()?.toLowerCase();
         if (ext === 'pdf' || ext === 'xml' || file.type.startsWith('image/')) {
           validFiles.push(file);
         } else {
-          toast(`Định dạng [${file.name}] không được hỗ trợ.`, 'error');
+          setRejectedFiles(prev => [...prev, { file, reason: "Định dạng tệp không hợp lệ" }]);
         }
       }
     });
 
-    setUploadQueue(prev => [...prev, ...validFiles]);
+    if (validFiles.length > 0) {
+      setUploadQueue(prev => [...prev, ...validFiles]);
+      toast(`Đã thêm ${validFiles.length} tệp vào hàng chờ`, "success");
+    }
   };
 
   const removeFromQueue = (fileName: string) => {
     setUploadQueue(prev => prev.filter(f => f.name !== fileName));
+  };
+
+  const removeRejectedFile = (fileName: string) => {
+    setRejectedFiles(prev => prev.filter(f => f.file.name !== fileName));
   };
 
   const processQueue = async () => {
@@ -5231,199 +7155,187 @@ export default function App() {
     const isBatchProcessing = filesToProcess.length > 1;
     setUploadQueue([]); // Clear queue before starting
     setIsProcessing(true);
+    setProcessingStatus('Khởi tạo hàng chờ...');
     
     let loadingToastId: string | null = null;
     const updateLoading = (msg: string) => {
+      setProcessingStatus(msg);
       if (loadingToastId) removeToast(loadingToastId);
       loadingToastId = toast(msg, 'loading');
     };
     
-    for (let i = 0; i < filesToProcess.length; i++) {
-      let file = filesToProcess[i];
-      updateLoading(`[${i+1}/${filesToProcess.length}] Đang xử lý ${file.name}...`);
-      
-      // Image Compression for image files
-      if (file.type.startsWith('image/')) {
-        try {
-          updateLoading(`[${i+1}/${filesToProcess.length}] Đang nén ảnh để tối ưu tốc độ...`);
-          const options = {
-            maxSizeMB: 1,
-            maxWidthOrHeight: 1920,
-            useWebWorker: true
-          };
-          file = await imageCompression(file, options);
-          console.log(`Compressed ${file.name} to ${file.size / 1024 / 1024} MB`);
-        } catch (error) {
-          console.warn("Compression failed, using original file:", error);
-        }
-      }
-
-      if (i > 0) {
-        await new Promise(resolve => setTimeout(resolve, 3000));
-      }
-
-      let docRef: any;
-      try {
-        const fileExt = file.name.split('.').pop()?.toLowerCase();
+    try {
+      for (let i = 0; i < filesToProcess.length; i++) {
+        let file = filesToProcess[i];
+        updateLoading(`Đang xử lý [${i+1}/${filesToProcess.length}]: ${file.name}`);
+        console.log(`Processing file ${i+1}/${filesToProcess.length}: ${file.name}`);
         
-        // Bước 1: Tạo URL xem trước tạm thời (GAS sẽ xử lý lưu tệp vào Google Drive sau)
-        const fileURL = URL.createObjectURL(file);
-        const filePath = `drive://pending_gas_save/${file.name}`;
-
-        // Bước 2: Tạo mục Firestore (Bước 1 của 3)
-        try {
-          docRef = await addDoc(collection(db, 'invoices'), cleanObject({
-            fileName: file.name,
-            fileType: fileExt,
-            fileURL: fileURL,
-            storagePath: filePath,
-            status: 'processing',
-            ownerId: user.uid,
-            createdAt: serverTimestamp()
-          }));
-        } catch (error) {
-          handleFirestoreError(error, OperationType.CREATE, 'invoices');
+        // Image Compression for image files
+        if (file.type.startsWith('image/')) {
+          try {
+            setProcessingStatus(`Đang nén ảnh: ${file.name}`);
+            const options = {
+              maxSizeMB: 1,
+              maxWidthOrHeight: 1920,
+              useWebWorker: true
+            };
+            file = await imageCompression(file, options);
+            console.log(`Compressed ${file.name} to ${file.size / 1024 / 1024} MB`);
+          } catch (error) {
+            console.warn("Compression failed, using original file:", error);
+          }
         }
 
-        updateLoading(`[${i+1}/${filesToProcess.length}] Đang gửi dữ liệu sang Google Script...`);
+        if (i > 0) {
+          updateLoading(`Tạm nghỉ giữa các tệp...`);
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
 
-        let extractedData: any;
-        if (fileExt === 'xml') {
-          setRequestCount(prev => prev + 1); // Increment for XML parse
-          const text = await file.text();
-          try {
+        let docRef: any = null;
+        try {
+          const fileExt = file.name.split('.').pop()?.toLowerCase();
+          const fileURL = URL.createObjectURL(file);
+          const filePath = `drive://pending_gas_save/${file.name}`;
+
+          // Step 1: Create Supabase record
+          updateLoading(`Đang đăng ký hóa đơn: ${file.name}`);
+          const initialInvoiceData: any = {
+            file_name: file.name,
+            file_type: fileExt,
+            status: 'processing',
+            owner_id: user.uid,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          const { data: insertedInv, error: insertError } = await supabase
+            .from('invoices')
+            .insert(initialInvoiceData)
+            .select('id')
+            .single();
+
+          if (insertError || !insertedInv) throw new Error("Không thể khởi tạo bản ghi trong Supabase: " + (insertError?.message || "unknown"));
+          docRef = { id: insertedInv.id };
+          fetchInvoices(user.uid);
+
+          let extractedData: any;
+          if (fileExt === 'xml') {
+            updateLoading(`Đang phân tích XML: ${file.name}`);
+            setRequestCount(prev => prev + 1);
+            const text = await file.text();
             extractedData = await parseInvoiceXml(text);
             extractedData = normalizeExtractedData(extractedData);
-          } catch (error: any) {
-            console.error("XML Parse Error:", error);
-            throw new Error(`Lỗi phân tích XML: ${error.message}`);
-          }
-          
-          if (extractedData.items) {
-            try {
-              const { classifyInvoice } = await import('./lib/mistral');
-              extractedData.classification = await classifyInvoice(extractedData.items);
-            } catch (e) {
-              console.error("Classification failed:", e);
-            }
-          }
-        } else {
-          updateLoading(`[${i+1}/${filesToProcess.length}] Đang chờ Mistral AI phản hồi...`);
-          
-          try {
-            setRequestCount(prev => prev + 1); // Increment for PDF extraction
-            const rawExtracted = await extractFromInvoice(file);
-            // Chuẩn hóa dữ liệu sau khi nhận từ AI
-            extractedData = normalizeExtractedData(rawExtracted);
-          } catch (err: any) {
-            // Check for Quota/Rate Limit (429 or Quota exceeded)
-            const errMsg = err.message || "";
-            if (errMsg.includes("429") || errMsg.toLowerCase().includes("quota")) {
-              setIsTokenLimited(true);
-              setCountdown(60); // Set 60s countdown
-              toast("Lỗi giới hạn Token AI. Đang tạm dừng...", "error");
-              
-              // Internal timer for countdown display
-              const timer = setInterval(() => {
-                setCountdown(prev => {
-                  if (prev <= 1) {
-                    clearInterval(timer);
-                    return 0;
-                  }
-                  return prev - 1;
-                });
-              }, 1000);
-
-              // Actual process pause
-              await new Promise(resolve => setTimeout(resolve, 60000));
-              
-              setIsTokenLimited(false);
-              i--; // Retry the same file
-              if (docRef) await deleteDoc(docRef); // Cleanup pending record for retry
-              continue;
-            }
-            throw err;
-          }
-          
-          // Re-classify based on local keywords for consistency
-          if (extractedData && (extractedData.items || extractedData.items_list)) {
-            try {
-              const { classifyInvoice } = await import('./lib/mistral');
-              const items = extractedData.items || extractedData.items_list || [];
-              extractedData.classification = await classifyInvoice(items);
-            } catch (e) {
-              console.error("Local classification failed:", e);
-            }
-          }
-        }
-
-        // Step 3 (NEW): Show Review Modal instead of auto-completing
-        if (extractedData) {
-          if (extractedData.seller) {
-            extractedData.seller.name = fixNgocTham(extractedData.seller.name);
-          }
-          if (extractedData.buyer) {
-            extractedData.buyer.name = fixNgocTham(extractedData.buyer.name);
-          }
-          
-          if (extractedData.items) {
-             extractedData.items = mergeDuplicateItems(extractedData.items);
-          }
-          
-          if (isBatchProcessing) {
-            // TỰ ĐỘNG HOÀN TẤT CHO BATCH
-            const updates = cleanObject({
-              status: 'completed',
-              extractedData: extractedData
-            });
-            await updateDoc(docRef, updates);
-
-            const { seller, buyer, invoice } = extractedData;
-            const invDate = invoice?.date ? new Date(invoice.date) : new Date();
-            const cutOffDate = new Date('2025-07-01');
-            const isPostMerger = invDate > cutOffDate;
-
-            if (seller) await upsertPartner(seller, isPostMerger);
-            if (buyer) await upsertPartner(buyer, isPostMerger);
             
-            // For batch, we remove the loading toast before showing success
-            if (loadingToastId) {
-              removeToast(loadingToastId);
-              loadingToastId = null;
+            if (extractedData.items) {
+              try {
+                const { classifyInvoice } = await import('./lib/mistral');
+                extractedData.classification = await classifyInvoice(extractedData.items);
+              } catch (e) {
+                console.error("Classification failed:", e);
+              }
             }
-            toast(`Đã tự động lưu ${file.name}`, "success");
           } else {
-            if (loadingToastId) removeToast(loadingToastId);
-            clearToasts(); 
-            setPendingReview({ file, docRef, data: extractedData });
-            setIsProcessing(false);
-            return; 
-          }
-        }
+            updateLoading(`Đang trích xuất AI: ${file.name}`);
+            setRequestCount(prev => prev + 1);
+            try {
+              const rawExtracted = await extractFromInvoice(file);
+              extractedData = normalizeExtractedData(rawExtracted);
+            } catch (err: any) {
+              const errMsg = err.message || "";
+              if (errMsg.includes("429") || errMsg.toLowerCase().includes("quota")) {
+                setIsTokenLimited(true);
+                setCountdown(60);
+                toast("Lỗi giới hạn Token AI. Đang tạm dừng...", "error");
+                
+                const timer = setInterval(() => {
+                  setCountdown(prev => {
+                    if (prev <= 1) {
+                      clearInterval(timer);
+                      return 0;
+                    }
+                    return prev - 1;
+                  });
+                }, 1000);
 
-      } catch (error: any) {
-        console.error("Processing error:", error);
-        if (loadingToastId) {
-          removeToast(loadingToastId);
-          loadingToastId = null;
-        }
-        toast(`Lỗi khi xử lý tệp ${file.name}: ${error.message}`, "error");
-        if (docRef) {
-          try {
-            await updateDoc(docRef, cleanObject({ 
-              status: 'error',
-              error: error instanceof Error ? error.message : String(error)
-            }));
-          } catch (e) {
-            console.error("Failed to update error status:", e);
+                await new Promise(resolve => setTimeout(resolve, 60000));
+                setIsTokenLimited(false);
+                i--; // Retry same file
+                if (docRef) await supabase.from('invoices').delete().eq('id', docRef.id);
+                continue;
+              }
+              throw err;
+            }
+            
+            if (extractedData && (extractedData.items || extractedData.items_list)) {
+              try {
+                const { classifyInvoice } = await import('./lib/mistral');
+                const items = extractedData.items || extractedData.items_list || [];
+                extractedData.classification = await classifyInvoice(items);
+              } catch (e) {
+                console.error("Local classification failed:", e);
+              }
+            }
+          }
+
+          if (extractedData) {
+            updateLoading(`Đang lưu kết quả: ${file.name}`);
+            if (extractedData.seller) extractedData.seller.name = fixNgocTham(extractedData.seller.name);
+            if (extractedData.buyer) extractedData.buyer.name = fixNgocTham(extractedData.buyer.name);
+            if (extractedData.items) extractedData.items = mergeDuplicateItems(extractedData.items);
+            
+            if (isBatchProcessing) {
+              const updates = cleanObject({ status: 'completed', extractedData });
+              const mapped = mapInvoiceToSupabase(updates);
+              const { error: updateError } = await supabase
+                .from('invoices')
+                .update(mapped)
+                .eq('id', docRef.id);
+              if (updateError) throw updateError;
+              fetchInvoices(user.uid);
+
+              const { seller, buyer, invoice } = extractedData;
+              const invDate = invoice?.date ? new Date(invoice.date) : new Date();
+              const cutOffDate = new Date('2025-07-01');
+              const isPostMerger = invDate > cutOffDate;
+
+              if (seller) await upsertPartner(seller, isPostMerger);
+              if (buyer) await upsertPartner(buyer, isPostMerger);
+              
+              console.log(`Successfully auto-processed ${file.name}`);
+            } else {
+              if (loadingToastId) removeToast(loadingToastId);
+              clearToasts(); 
+              setPendingReview({ file, docRef, data: extractedData });
+              setIsProcessing(false);
+              setProcessingStatus('');
+              return; // Stop here and show Review Modal
+            }
+          }
+
+        } catch (innerError: any) {
+          console.error(`Inner processing error for ${file.name}:`, innerError);
+          toast(`Lỗi tệp ${file.name}: ${innerError.message}`, "error");
+          if (docRef) {
+            try {
+              const updates = {
+                status: 'error',
+                extracted_data: { error: innerError.message }
+              };
+              await supabase.from('invoices').update(updates).eq('id', docRef.id);
+            } catch (e) {
+              console.error("Failed to update error status", e);
+            }
           }
         }
       }
+      toast("Đã hoàn thành xử lý danh sách hóa đơn", "success");
+    } catch (outerError: any) {
+      console.error("Outer processing error:", outerError);
+      toast(`Lỗi hệ thống: ${outerError.message}`, "error");
+    } finally {
+      if (loadingToastId) removeToast(loadingToastId);
+      setIsProcessing(false);
+      setProcessingStatus('');
     }
-    if (loadingToastId) removeToast(loadingToastId);
-    clearToasts(); 
-    setIsProcessing(false);
-    toast("Đã xử lý xong danh sách tệp", "success");
   };
 
   const handleCancelReview = async () => {
@@ -5431,8 +7343,10 @@ export default function App() {
     const { docRef } = pendingReview;
     
     try {
-      // Xóa bản ghi tạm khỏi Firestore nếu người dùng hủy
-      await deleteDoc(docRef);
+      // Xóa bản ghi tạm khỏi Supabase nếu người dùng hủy
+      const { error } = await supabase.from('invoices').delete().eq('id', docRef.id);
+      if (error) throw error;
+      if (user) fetchInvoices(user.uid);
       toast("Đã hủy bỏ và không lưu hóa đơn", "info");
     } catch (error) {
       console.error("Lỗi khi xóa bản ghi tạm:", error);
@@ -5444,70 +7358,86 @@ export default function App() {
 
   const upsertPartner = async (p: any, isPostMerger: boolean) => {
     if (!p || !p.taxCode || !user) return;
-    const q = query(
-      collection(db, 'partners'), 
-      where('ownerId', '==', user.uid),
-      where('taxCode', '==', p.taxCode)
-    );
-    const snap = await getDocs(q);
-    const existing = snap.docs[0];
-    
-    // Address handling and conversion
-    const rawAddress = p.address || "";
-    let finalAddress = "";
-    let finalAddressPostMerger = "";
-
-    // Determine which field to fill based on invoice date
-    if (isPostMerger) {
-      finalAddressPostMerger = rawAddress;
-      // Auto-convert for post-merger invoices to ensure 2nd level normalization
-      const converted = smartConvertAddress(rawAddress);
-      if (converted.isConverted) {
-        finalAddressPostMerger = converted.fullAddress;
-      }
-    } else {
-      finalAddress = rawAddress;
-    }
-
-    const partnerData: any = {
-      name: fixNgocTham(p.name) || "",
-      taxCode: p.taxCode,
-      address: finalAddress,
-      addressPostMerger: finalAddressPostMerger,
-      accountNumber: p.accountNumber || "",
-      bankName: p.bankName || "",
-      position: p.position || "Giám đốc",
-      updatedAt: serverTimestamp(),
-      ownerId: user.uid
-    };
-
-    if (!existing) {
-      await addDoc(collection(db, 'partners'), cleanObject(partnerData));
-    } else {
-      const current = existing.data();
-      const updates: any = {};
+    try {
+      const { data: existingDocs, error: queryError } = await supabase
+        .from('partners')
+        .select('*')
+        .eq('owner_id', user.uid)
+        .eq('tax_code', p.taxCode);
+      if (queryError) throw queryError;
       
-      // Update fields ONLY if they are currently empty or null
-      if (isPostMerger && !current.addressPostMerger && finalAddressPostMerger) {
-        updates.addressPostMerger = finalAddressPostMerger;
-      }
-      if (!isPostMerger && !current.address && finalAddress) {
-        updates.address = finalAddress;
-      }
-      if (!current.accountNumber && p.accountNumber) {
-        updates.accountNumber = p.accountNumber;
-      }
-      if (!current.bankName && p.bankName) {
-        updates.bankName = p.bankName;
-      }
-      if (!current.position) {
-        updates.position = "Giám đốc";
-      }
+      const existing = existingDocs && existingDocs[0];
       
-      if (Object.keys(updates).length > 0) {
-        updates.updatedAt = serverTimestamp();
-        await updateDoc(existing.ref, cleanObject(updates));
+      // Address handling and conversion
+      const rawAddress = p.address || "";
+      let finalAddress = "";
+      let finalAddressPostMerger = "";
+
+      // Determine which field to fill based on invoice date
+      if (isPostMerger) {
+        finalAddressPostMerger = rawAddress;
+        // Auto-convert for post-merger invoices to ensure 2nd level normalization
+        const converted = smartConvertAddress(rawAddress);
+        if (converted.isConverted) {
+          finalAddressPostMerger = converted.fullAddress;
+        }
+      } else {
+        finalAddress = rawAddress;
       }
+
+      const partnerData: any = {
+        name: fixNgocTham(p.name) || "",
+        tax_code: p.taxCode,
+        address: finalAddress,
+        address_post_merger: finalAddressPostMerger,
+        account_number: p.accountNumber || "",
+        bank_name: p.bankName || "",
+        position: p.position || "Giám đốc",
+        updated_at: new Date().toISOString(),
+        owner_id: user.uid
+      };
+
+      if (!existing) {
+        const { error: insertError } = await supabase
+          .from('partners')
+          .insert({
+            ...partnerData,
+            created_at: new Date().toISOString()
+          });
+        if (insertError) throw insertError;
+      } else {
+        const current = existing;
+        const updates: any = {};
+        
+        // Update fields ONLY if they are currently empty or null
+        if (isPostMerger && !current.address_post_merger && finalAddressPostMerger) {
+          updates.address_post_merger = finalAddressPostMerger;
+        }
+        if (!isPostMerger && !current.address && finalAddress) {
+          updates.address = finalAddress;
+        }
+        if (!current.account_number && p.accountNumber) {
+          updates.account_number = p.accountNumber;
+        }
+        if (!current.bank_name && p.bankName) {
+          updates.bank_name = p.bankName;
+        }
+        if (!current.position) {
+          updates.position = "Giám đốc";
+        }
+        
+        if (Object.keys(updates).length > 0) {
+          updates.updated_at = new Date().toISOString();
+          const { error: updateError } = await supabase
+            .from('partners')
+            .update(updates)
+            .eq('id', existing.id);
+          if (updateError) throw updateError;
+        }
+      }
+      fetchPartners(user.uid);
+    } catch (err: any) {
+      console.error("Lỗi khi lưu/cập nhật đối tác:", err.message);
     }
   };
 
@@ -5527,7 +7457,10 @@ export default function App() {
         updates.fileURL = newUrl;
       }
 
-      await updateDoc(docRef, updates);
+      const mapped = mapInvoiceToSupabase(updates);
+      const { error } = await supabase.from('invoices').update(mapped).eq('id', docRef.id);
+      if (error) throw error;
+      if (user) fetchInvoices(user.uid);
 
       // Sync Partner check
       const { seller, buyer, invoice } = updatedData;
@@ -5542,8 +7475,9 @@ export default function App() {
       setPendingReview(null);
       clearToasts(); // Xóa sạch toast khi xong
       handleTabChange('dashboard');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `invoices/${docRef.id}`);
+    } catch (error: any) {
+      console.error(error);
+      toast("Lỗi khi lưu hóa đơn: " + error.message, "error");
     } finally {
       setIsProcessing(false);
     }
@@ -5609,7 +7543,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen w-full font-sans select-none overflow-hidden bg-slate-50">
+    <div className="flex h-screen w-full font-sans select-none overflow-hidden bg-bg-dark">
       {/* Review Modal */}
       {pendingReview && (
         <ReviewModal 
@@ -5628,11 +7562,11 @@ export default function App() {
       />
       
       <main className="flex-1 flex flex-col h-full overflow-hidden">
-        <header className="h-[48px] bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0">
-          <div className="flex items-center gap-2 text-slate-500 text-sm italic">
+        <header className="h-[64px] bg-sidebar-dark border-b border-border-dark flex items-center justify-between px-6 shrink-0 shadow-sm">
+          <div className="flex items-center gap-2 text-text-dim text-sm italic">
             <span>DocuForge AI</span>
-            <span className="text-slate-300">/</span>
-            <span className="text-slate-900 font-bold not-italic uppercase text-xs">
+            <span className="text-text-dim/50">/</span>
+            <span className="text-white font-bold not-italic uppercase text-xs">
               {(() => {
                 switch(activeTab) {
                   case 'dashboard': return 'Bảng điều khiển';
@@ -5645,32 +7579,24 @@ export default function App() {
               })()}
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center bg-slate-50 rounded-xl p-1 border border-slate-100 gap-1">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center bg-white/5 rounded-2xl p-1.5 border border-border-dark gap-1">
               <button 
                 onClick={() => handleTabChange('upload')}
-                className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition-all flex items-center gap-2"
+                className="btn-primary py-3"
               >
-                <Plus className="w-4 h-4" />
-                Bắt đầu lượt mới
+                <Plus className="size-5" />
+                <span>Bắt đầu lượt mới</span>
               </button>
             </div>
-            <div className="w-8 h-8 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center text-[10px] font-bold text-slate-600 ml-2">
-              GA
+            <div className="size-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-black text-primary shadow-inner">
+              {user?.displayName ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : "GA"}
             </div>
           </div>
         </header>
 
         <div className="flex-1 p-4 overflow-y-auto">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
-              transition={{ duration: 0.2 }}
-              className="h-full"
-            >
+          <div className="h-full">
               {activeTab === 'dashboard' && !selectedInvoice && (
                 <DashboardView 
                   stats={stats} 
@@ -5681,7 +7607,7 @@ export default function App() {
                   isExportingExcel={isExportingExcel}
                   isLoadingData={isLoadingInvoices}
                   subTab={dashboardSubTab}
-                  onSubTabChange={setDashboardSubTab}
+                  onSubTabChange={handleDashboardSubTabChange}
                   generatedDocs={generatedDocs}
                   contracts={contracts}
                   invoices={invoices}
@@ -5695,17 +7621,19 @@ export default function App() {
                   onDownloadContract={downloadContract}
                   user={user}
                   rankMap={rankMap}
+                  fetchInvoices={fetchInvoices}
+                  fetchGeneratedDocs={fetchGeneratedDocs}
                 />
               )}
               {activeTab === 'dashboard' && selectedInvoice && (
                 <div className="grid grid-cols-12 gap-6 h-full min-h-[600px]">
                   {/* Left Panel: Extracted Source */}
                   <div className="col-span-4 flex flex-col card h-full">
-                    <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                      <h3 className="font-bold text-sm text-slate-700 truncate mr-2">Nguồn: {selectedInvoice.fileName}</h3>
+                    <div className="p-4 border-b border-border-dark flex justify-between items-center bg-sidebar-dark">
+                      <h3 className="font-bold text-sm text-white truncate mr-2">Nguồn: {selectedInvoice.fileName}</h3>
                       <button 
                         onClick={() => handleInvoiceSelect(null)}
-                        className="text-xs text-slate-400 hover:text-slate-600"
+                        className="text-xs text-text-dim hover:text-white"
                       >
                         Quay lại
                       </button>
@@ -5732,21 +7660,21 @@ export default function App() {
 
                         const sellerSection = (
                           <div key="seller">
-                            <label className="text-sm text-slate-400 font-black uppercase block mb-2">
+                            <label className="text-sm text-primary font-black uppercase block mb-2">
                               {labelSeller}
                             </label>
-                            <div className="text-xl font-semibold text-slate-800 leading-tight tracking-tight">{selectedInvoice.extractedData?.seller?.name}</div>
-                            <div className="text-base font-bold text-slate-500 mt-2 bg-slate-50 px-3 py-1 rounded-lg w-fit border border-slate-100">MST: {selectedInvoice.extractedData?.seller?.taxCode}</div>
+                            <div className="text-xl font-semibold text-white leading-tight tracking-tight">{selectedInvoice.extractedData?.seller?.name}</div>
+                            <div className="text-base font-bold text-white mt-2 bg-primary/20 px-3 py-1 rounded-lg w-fit border border-primary/30">MST: {selectedInvoice.extractedData?.seller?.taxCode}</div>
                           </div>
                         );
 
                         const buyerSection = (
                           <div key="buyer">
-                            <label className="text-sm text-slate-400 font-black uppercase block mb-2">
+                            <label className="text-sm text-emerald-500 font-black uppercase block mb-2">
                               {labelBuyer}
                             </label>
-                            <div className="text-xl font-semibold text-slate-800 leading-tight tracking-tight">{selectedInvoice.extractedData?.buyer?.name}</div>
-                            <div className="text-base font-bold text-slate-500 mt-2 bg-slate-50 px-3 py-1 rounded-lg w-fit border border-slate-100">MST: {selectedInvoice.extractedData?.buyer?.taxCode}</div>
+                            <div className="text-xl font-semibold text-white leading-tight tracking-tight">{selectedInvoice.extractedData?.buyer?.name}</div>
+                            <div className="text-base font-bold text-white mt-2 bg-emerald-500/10 px-3 py-1 rounded-lg w-fit border border-emerald-500/20">MST: {selectedInvoice.extractedData?.buyer?.taxCode}</div>
                           </div>
                         );
 
@@ -5757,11 +7685,11 @@ export default function App() {
                         );
                       })()}
                       
-                      <div className="space-y-6 pt-8 border-t-2 border-dashed border-slate-100 mt-4">
-                        <label className="text-sm text-slate-400 font-black uppercase block mb-2">Thông tin Hợp đồng liên quan</label>
+                      <div className="space-y-6 pt-8 border-t-2 border-dashed border-border-dark mt-4">
+                        <label className="text-sm text-text-dim font-black uppercase block mb-2">Thông tin Hợp đồng liên quan</label>
                         <div className="grid grid-cols-2 gap-6">
                           <div className="space-y-2">
-                            <div className="text-xs text-slate-500 uppercase font-black px-1 tracking-widest">Số hợp đồng</div>
+                            <div className="text-xs text-text-dim uppercase font-black px-1 tracking-widest">Số hợp đồng</div>
                             <input 
                               type="text"
                               defaultValue={selectedInvoice.contractNumber || ''}
@@ -5770,18 +7698,22 @@ export default function App() {
                                 const val = e.target.value;
                                 if (val === selectedInvoice.contractNumber) return;
                                 try {
-                                  await updateDoc(doc(db, 'invoices', selectedInvoice.id), {
-                                    contractNumber: val
-                                  });
-                                } catch (err) {
-                                  handleFirestoreError(err, OperationType.UPDATE, `invoices/${selectedInvoice.id}`);
+                                  const { error: updateError } = await supabase
+                                    .from('invoices')
+                                    .update({ contract_number: val, updated_at: new Date().toISOString() })
+                                    .eq('id', selectedInvoice.id);
+                                  if (updateError) throw updateError;
+                                  setSelectedInvoice(prev => prev ? { ...prev, contractNumber: val } : null);
+                                  if (user) fetchInvoices(user.uid);
+                                } catch (err: any) {
+                                  console.error("Lỗi khi cập nhật số HĐ:", err);
                                 }
                               }}
-                              className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-base font-bold outline-none focus:ring-8 focus:ring-blue-500/5 focus:border-blue-500 transition-all shadow-sm"
+                              className="w-full px-4 py-3 bg-card-dark border-2 border-border-dark text-white rounded-xl text-base font-bold outline-none focus:ring-8 focus:ring-primary/10 focus:border-primary transition-all shadow-sm placeholder:text-text-dim"
                             />
                           </div>
                           <div className="space-y-2">
-                            <div className="text-xs text-slate-500 uppercase font-black px-1 tracking-widest">Ngày ký HĐ</div>
+                            <div className="text-xs text-text-dim uppercase font-black px-1 tracking-widest">Ngày ký HĐ</div>
                             <input 
                               type="text"
                               defaultValue={selectedInvoice.contractDate || ''}
@@ -5790,21 +7722,25 @@ export default function App() {
                                 const val = e.target.value;
                                 if (val === selectedInvoice.contractDate) return;
                                 try {
-                                  await updateDoc(doc(db, 'invoices', selectedInvoice.id), {
-                                    contractDate: val
-                                  });
-                                } catch (err) {
-                                  handleFirestoreError(err, OperationType.UPDATE, `invoices/${selectedInvoice.id}`);
+                                  const { error: updateError } = await supabase
+                                    .from('invoices')
+                                    .update({ contract_date: val, updated_at: new Date().toISOString() })
+                                    .eq('id', selectedInvoice.id);
+                                  if (updateError) throw updateError;
+                                  setSelectedInvoice(prev => prev ? { ...prev, contractDate: val } : null);
+                                  if (user) fetchInvoices(user.uid);
+                                } catch (err: any) {
+                                  console.error("Lỗi khi cập nhật ngày ký HĐ:", err);
                                 }
                               }}
-                              className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-base font-bold outline-none focus:ring-8 focus:ring-blue-500/5 focus:border-blue-500 transition-all shadow-sm"
+                              className="w-full px-4 py-3 bg-card-dark border-2 border-border-dark text-white rounded-xl text-base font-bold outline-none focus:ring-8 focus:ring-primary/10 focus:border-primary transition-all shadow-sm placeholder:text-text-dim"
                             />
                           </div>
                         </div>
                       </div>
 
-                      <div className="p-4 bg-slate-900 rounded-xl text-[11px] text-blue-400 overflow-x-auto shadow-inner">
-                        <div className="text-blue-300 font-bold mb-2 opacity-70">DỮ LIỆU JSON GỐC://</div>
+                      <div className="p-4 bg-sidebar-dark rounded-xl text-[11px] text-primary overflow-x-auto shadow-inner">
+                        <div className="text-text-dim font-bold mb-2 opacity-70">DỮ LIỆU JSON GỐC://</div>
                         {JSON.stringify(selectedInvoice.extractedData, null, 2)}
                       </div>
                     </div>
@@ -5812,10 +7748,10 @@ export default function App() {
 
                   {/* Right Panel: Template Logic */}
                   <div className="col-span-8 flex flex-col card h-full">
-                    <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <div className="p-4 border-b border-border-dark flex justify-between items-center bg-sidebar-dark">
                       <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full border border-blue-100">
-                          <HardHat className="w-3.5 h-3.5" />
+                        <div className="flex items-center gap-2 px-3 py-1 bg-primary/20 text-primary rounded-full border border-primary/30">
+                          <HardHat className="size-3.5" />
                           <span className="text-xs font-bold uppercase tracking-wider">
                             {(() => {
                               const raw = selectedInvoice.extractedData?.classification;
@@ -5864,13 +7800,15 @@ export default function App() {
                             a.download = `${tType}_${selectedInvoice.fileName.split('.')[0]}.docx`;
                             a.click();
 
-                            await addDoc(collection(db, 'generated_docs'), {
-                              invoiceId: selectedInvoice.id,
-                              templateType: tType,
-                              fileName: `${tType}_${selectedInvoice.fileName.split('.')[0]}.docx`,
-                              ownerId: user.uid,
-                              createdAt: serverTimestamp()
-                            }).catch(error => handleFirestoreError(error, OperationType.CREATE, 'generated_docs'));
+                            const { error: genDocError } = await supabase.from('generated_docs').insert({
+                              invoice_id: selectedInvoice.id,
+                              template_type: tType,
+                              file_name: `${tType}_${selectedInvoice.fileName.split('.')[0]}.docx`,
+                              owner_id: user.uid,
+                              created_at: new Date().toISOString()
+                            });
+                            if (genDocError) throw genDocError;
+                            fetchGeneratedDocs(user.uid);
                           } catch (err: any) {
                             alert(err.message || "Generation failed.");
                           } finally {
@@ -5883,15 +7821,15 @@ export default function App() {
                       </button>
                     </div>
                     <div className="flex-1 overflow-auto p-4">
-                      <table className="w-full border-collapse border border-slate-200 text-[11px]">
+                      <table className="w-full border-collapse border border-border-dark text-[11px]">
                         <thead>
-                          <tr className="bg-slate-50 font-bold text-slate-600">
-                            <th className="border border-slate-200 p-2 w-8">Stt</th>
-                            <th className="border border-slate-200 p-2 text-left">Nội dung hàng hóa/dịch vụ</th>
-                            <th className="border border-slate-200 p-2">ĐVT</th>
-                            <th className="border border-slate-200 p-2">SL</th>
-                            <th className="border border-slate-200 p-2">Đơn giá</th>
-                            <th className="border border-slate-200 p-2 text-right">Thành tiền</th>
+                          <tr className="bg-sidebar-dark font-bold text-text-dim">
+                            <th className="border border-border-dark p-2 w-8">Stt</th>
+                            <th className="border border-border-dark p-2 text-left">Nội dung hàng hóa/dịch vụ</th>
+                            <th className="border border-border-dark p-2">ĐVT</th>
+                            <th className="border border-border-dark p-2">SL</th>
+                            <th className="border border-border-dark p-2">Đơn giá</th>
+                            <th className="border border-border-dark p-2 text-right">Thành tiền</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -5902,22 +7840,22 @@ export default function App() {
                             const fallback = "";
 
                             return (
-                              <tr key={i}>
-                                <td className="border border-slate-200 p-2 text-center text-slate-400 table-cell">{i + 1}</td>
-                                <td className="border border-slate-200 p-2 font-medium table-cell">{item.description || item.name || "Nhập nội dung..."}</td>
-                                <td className="border border-slate-200 p-2 text-center table-cell">{item.unit && !item.unit.toString().match(/^[. ]+$/) ? item.unit : ''}</td>
-                                <td className="border border-slate-200 p-2 text-center table-cell">{qty > 0 ? formatVNNumber(qty) : ''}</td>
-                                <td className="border border-slate-200 p-2 text-right table-cell">{price > 0 ? formatVNNumber(price) : ''}</td>
-                                <td className="border border-slate-200 p-2 text-right font-bold text-slate-800 table-cell">{amount > 0 ? formatVNNumber(amount) : '0'}</td>
+                              <tr key={item.id || `item-edit-${i}-${item.description || ''}`}>
+                                <td className="border border-border-dark p-2 text-center text-text-dim table-cell">{i + 1}</td>
+                                <td className="border border-border-dark p-2 font-medium table-cell text-white">{item.description || item.name || "Nhập nội dung..."}</td>
+                                <td className="border border-border-dark p-2 text-center table-cell text-white">{item.unit && !item.unit.toString().match(/^[. ]+$/) ? item.unit : ''}</td>
+                                <td className="border border-border-dark p-2 text-center table-cell text-white">{qty > 0 ? formatVNNumber(qty) : ''}</td>
+                                <td className="border border-border-dark p-2 text-right table-cell text-white">{price > 0 ? formatVNNumber(price) : ''}</td>
+                                <td className="border border-border-dark p-2 text-right font-bold text-white table-cell">{amount > 0 ? formatVNNumber(amount) : '0'}</td>
                               </tr>
                             );
                           })}
-                          <tr className="bg-slate-100/50 font-bold">
-                            <td colSpan={5} className="border border-slate-200 p-2 text-right uppercase text-[10px] tracking-wider">Tổng cộng</td>
-                            <td className="border border-slate-200 p-2 text-right">{formatVNNumber(selectedInvoice.extractedData?.totals?.subtotal)}</td>
+                          <tr className="bg-white/5 font-bold">
+                            <td colSpan={5} className="border border-border-dark p-2 text-right uppercase text-[10px] tracking-wider text-white">Tổng cộng</td>
+                            <td className="border border-border-dark p-2 text-right text-white">{formatVNNumber(selectedInvoice.extractedData?.totals?.subtotal)}</td>
                           </tr>
-                          <tr className="font-bold">
-                            <td colSpan={5} className="border border-slate-200 p-2 text-right italic text-[10px]">
+                          <tr className="font-bold text-white">
+                            <td colSpan={5} className="border border-border-dark p-2 text-right italic text-[10px]">
                               Thuế GTGT ({(() => {
                                 const rate = selectedInvoice.extractedData?.invoice?.vatRate;
                                 if (rate !== undefined && rate !== null) return rate;
@@ -5927,11 +7865,11 @@ export default function App() {
                                 return 8;
                               })()}%)
                             </td>
-                            <td className="border border-slate-200 p-2 text-right">{formatVNNumber(selectedInvoice.extractedData?.totals?.vatAmount)}</td>
+                            <td className="border border-border-dark p-2 text-right">{formatVNNumber(selectedInvoice.extractedData?.totals?.vatAmount)}</td>
                           </tr>
-                          <tr className="bg-blue-50 text-blue-900 font-bold">
-                            <td colSpan={5} className="border border-slate-200 p-2 text-right text-xs uppercase tracking-tight">Thành tiền (Sau thuế)</td>
-                            <td className="border border-slate-200 p-2 text-right text-xs">{formatVNNumber(selectedInvoice.extractedData?.totals?.grandTotal || selectedInvoice.extractedData?.totals?.grand_total)}</td>
+                          <tr className="bg-primary/20 text-white font-bold">
+                            <td colSpan={5} className="border border-border-dark p-2 text-right text-xs uppercase tracking-tight">Thành tiền (Sau thuế)</td>
+                            <td className="border border-border-dark p-2 text-right text-xs">{formatVNNumber(selectedInvoice.extractedData?.totals?.grandTotal || selectedInvoice.extractedData?.totals?.grand_total)}</td>
                           </tr>
                         </tbody>
                       </table>
@@ -5943,9 +7881,12 @@ export default function App() {
                 <UploadView 
                   onUpload={handleFileUpload} 
                   queue={uploadQueue}
+                  rejectedFiles={rejectedFiles}
                   onRemove={removeFromQueue}
+                  onRemoveRejected={removeRejectedFile}
                   onProcess={processQueue}
                   isProcessing={isProcessing}
+                  processingStatus={processingStatus}
                 />
               )}
               {activeTab === 'partners' && (
@@ -5967,20 +7908,24 @@ export default function App() {
                     const isAvailableLocally = localTemplates.some(lt => lt.id === t.id);
 
                     return (
-                      <div key={t.id} className="card p-6 flex flex-col items-center text-center group relative overflow-hidden">
+                      <div key={t.id} className="card p-8 flex flex-col items-center text-center group relative overflow-hidden transition-all hover:translate-y-[-4px]">
+                        <div className="absolute top-0 right-0 size-24 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
                         {isAvailableLocally && !isAvailableOnServer && (
-                          <div className="absolute top-0 right-0 bg-amber-500 text-white text-[8px] font-bold px-2 py-1 uppercase rounded-bl-lg animate-pulse">
+                          <div className="absolute top-4 right-4 flex items-center gap-1 bg-orange-500/10 text-orange-500 text-[8px] font-black px-2 py-1 uppercase rounded-lg border border-orange-500/20 animate-pulse">
+                            <Zap className="size-2" />
                             Cần khôi phục
                           </div>
                         )}
                         <div className={cn(
-                          "w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-colors",
-                          isAvailableOnServer ? "bg-green-50 text-green-600" : "bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500"
+                          "size-16 rounded-[24px] flex items-center justify-center mb-6 transition-all duration-500 shadow-2xl",
+                          isAvailableOnServer 
+                          ? "bg-emerald-500/10 text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white" 
+                          : "bg-white/5 text-text-dim group-hover:bg-primary group-hover:text-white"
                         )}>
-                          <t.icon className="w-6 h-6" />
+                          <t.icon className="size-8" />
                         </div>
-                        <h4 className="card-title mb-1">{t.label}</h4>
-                        <p className="secondary-text mb-6 flex-1">{t.desc}</p>
+                        <h4 className="text-lg font-black text-white mb-2 tracking-tighter uppercase">{t.label}</h4>
+                        <p className="text-text-dim text-xs font-semibold leading-relaxed mb-8 flex-1">{t.desc}</p>
                         
                         <div className="w-full space-y-2">
                           <label className="block w-full">
@@ -6034,8 +7979,8 @@ export default function App() {
                             <div className={cn(
                               "cursor-pointer py-2 px-4 rounded-lg text-xs font-bold transition-all border-2 border-dashed",
                               isAvailableOnServer 
-                                ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100" 
-                                : "bg-slate-50 text-slate-500 border-slate-200 hover:border-blue-300 hover:text-blue-600"
+                                ? "bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20" 
+                                : "bg-sidebar-dark text-text-dim border-border-dark hover:border-primary/50 hover:text-primary"
                             )}>
                               {isAvailableOnServer ? 'Cập nhật Template (.docx)' : 'Tải lên Template (.docx)'}
                             </div>
@@ -6046,18 +7991,18 @@ export default function App() {
                               onClick={() => restoreTemplate(t.id)}
                               className="w-full py-1.5 px-4 bg-amber-100 text-amber-700 rounded-lg text-[10px] font-bold hover:bg-amber-200 transition-all flex items-center justify-center gap-1"
                             >
-                              <CheckCircle2 className="w-3 h-3" />
+                              <CheckCircle2 className="size-3" />
                               Khôi phục từ bộ nhớ
                             </button>
                           )}
 
                           {isAvailableOnServer ? (
                             <div className="text-[10px] text-green-500 flex items-center justify-center gap-1 font-bold">
-                              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Đã sẵn sàng trên máy chủ
+                              <div className="size-1.5 rounded-full bg-green-500 animate-pulse" /> Đã sẵn sàng trên máy chủ
                             </div>
                           ) : (
-                            <div className="text-[10px] text-slate-400 flex items-center justify-center gap-1 font-bold">
-                              <div className="w-1.5 h-1.5 rounded-full bg-slate-300" /> Chưa có trên máy chủ
+                            <div className="text-[10px] text-text-dim flex items-center justify-center gap-1 font-bold">
+                              <div className="size-1.5 rounded-full bg-text-dim" /> Chưa có trên máy chủ
                             </div>
                           )}
                         </div>
@@ -6088,28 +8033,27 @@ export default function App() {
                   handleFieldChange={handleContractFieldChange}
                 />
               )}
-            </motion.div>
-          </AnimatePresence>
+            </div>
         </div>
 
-        <footer className="h-10 bg-white border-t border-slate-200 px-6 flex items-center justify-between text-[10px] uppercase font-bold tracking-widest text-slate-400">
+        <footer className="h-10 bg-sidebar-dark border-t border-border-dark px-6 flex items-center justify-between text-[10px] uppercase font-bold tracking-widest text-text-dim">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${isLoadingInvoices || isProcessing ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500'}`}></div>
+              <div className={`size-2 rounded-full ${isLoadingInvoices || isProcessing ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500'}`}></div>
               <span>AI MODEL: MISTRAL-LARGE-LATEST (PREMIUM)</span>
             </div>
             <div className="flex items-center gap-2">
-              <Globe className="w-3 h-3" />
+              <Globe className="size-3" />
               <span>AI REGION: ASIA-SOUTHEAST1 (SINGAPORE)</span>
             </div>
             <div className="flex items-center gap-2">
-              <Zap className="w-3 h-3" />
+              <Zap className="size-3" />
               <span>API STATUS: HEALTHY | REQUESTS: {requestCount}</span>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1"><Cpu className="w-3 h-3" /> GAS SERVICE: CONNECTED</span>
-            <span className="text-slate-200">|</span>
+            <span className="flex items-center gap-1"><Cpu className="size-3" /> GAS SERVICE: CONNECTED</span>
+            <span className="text-border-dark">|</span>
             <span>© 2026 SMARTINVOICE PRO</span>
           </div>
         </footer>
@@ -6117,23 +8061,23 @@ export default function App() {
 
       {/* Token Limit Countdown Modal */}
       {isTokenLimited && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <motion.div 
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center space-y-6"
+            className="bg-card-dark border border-border-dark rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center space-y-6"
           >
-            <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Clock className="w-10 h-10 text-amber-500 animate-pulse" />
+            <div className="size-20 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-amber-500/20">
+              <Clock className="size-10 text-amber-500 animate-pulse" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-slate-800">GIỚI HẠN YÊU CẦU AI</h3>
-              <p className="text-slate-500 text-sm mt-2">Đã đạt đến giới hạn xử lý của AI. Hệ thống sẽ tự động thử lại sau:</p>
+              <h3 className="text-xl font-bold text-white">GIỚI HẠN YÊU CẦU AI</h3>
+              <p className="text-text-dim text-sm mt-2">Đã đạt đến giới hạn xử lý của AI. Hệ thống sẽ tự động thử lại sau:</p>
             </div>
-            <div className="text-5xl font-black text-indigo-600">
+            <div className="text-5xl font-black text-primary">
               {countdown}s
             </div>
-            <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Vui lòng không đóng trình duyệt để tiếp tục hàng đợi</p>
+            <p className="text-[10px] text-text-dim uppercase font-bold tracking-widest">Vui lòng không đóng trình duyệt để tiếp tục hàng đợi</p>
           </motion.div>
         </div>
       )}
@@ -6142,26 +8086,32 @@ export default function App() {
       {/* Single Partner Edit Modal */}
       <AnimatePresence>
         {editingPartner && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex items-center justify-center p-6">
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200"
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-card-dark rounded-[48px] shadow-[0_50px_100px_rgba(0,0,0,0.6)] w-full max-w-4xl overflow-hidden border border-white/10 flex flex-col max-h-[95vh]"
             >
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
-                    <Edit2 className="w-4 h-4" />
+              {/* Modern Header */}
+              <div className="p-10 border-b border-white/5 flex justify-between items-center bg-white/5 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-orange-400 to-primary/20" />
+                <div className="flex items-center gap-5 relative z-10">
+                  <div className="size-16 bg-primary/20 text-primary rounded-[24px] flex items-center justify-center border border-primary/30 shadow-2xl">
+                    <Building2 className="size-8" />
                   </div>
-                  <h3 className="font-bold text-slate-900">{editingPartner.id === 'new' ? 'Thêm đối tác' : 'Chỉnh sửa nhanh'}</h3>
+                  <div>
+                    <h3 className="text-2xl font-black text-white uppercase tracking-widest">{editingPartner.id === 'new' ? 'Khởi tạo đối tác mới' : 'Cập nhật hồ sơ đối tác'}</h3>
+                    <p className="text-text-dim text-xs font-bold uppercase tracking-[0.2em] mt-1.5 opacity-60">Chuẩn hóa dữ liệu hệ thống doanh nghiệp</p>
+                  </div>
                 </div>
-                <button onClick={() => setEditingPartner(null)} className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full transition-colors">
-                  <X className="w-5 h-5" />
+                <button type="button" onClick={() => handlePartnerEditSelect(null)} className="size-12 flex items-center justify-center text-text-dim hover:text-white hover:bg-white/10 rounded-2xl transition-all">
+                  <X className="size-6" />
                 </button>
               </div>
+
               <form 
-                className="p-6 space-y-4"
+                className="flex-1 overflow-y-auto p-12 space-y-12 custom-scrollbar"
                 onSubmit={async (e) => {
                   e.preventDefault();
                   const formData = new FormData(e.currentTarget);
@@ -6183,147 +8133,144 @@ export default function App() {
                     }
 
                     await handleUpdatePartner(editingPartner.id, updatePayload);
-                    setEditingPartner(null);
-                    toast(editingPartner.id === 'new' ? "Đã thêm đối tác mới" : "Đã cập nhật đối tác", "success");
+                    handlePartnerEditSelect(null);
+                    toast(editingPartner.id === 'new' ? "Đã lưu đối tác mới thành công" : "Cập nhật hồ sơ thành công", "success");
                   } catch (err) {
-                    toast("Lỗi xử lý", "error");
+                    toast("Lỗi xử lý dữ liệu", "error");
                   } finally {
                     setIsProcessing(false);
                   }
                 }}
               >
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Công ty / MST</label>
-                  {editingPartner.id === 'new' ? (
-                     <div className="space-y-2">
-                        <input name="name" required placeholder="Tên công ty" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-semibold" />
-                        <input name="taxCode" required placeholder="Mã số thuế" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all" />
-                     </div>
-                  ) : (
-                    <>
-                      <div className="text-sm font-semibold text-slate-900">{editingPartner.name}</div>
-                      <div className="text-[10px] text-slate-400 italic">{editingPartner.taxCode}</div>
-                    </>
-                  )}
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <div className="flex justify-between items-center mb-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Địa chỉ gốc (Trước 1/7/2025)</label>
-                      <button 
-                        type="button"
-                        onClick={() => {
-                          const addrInput = (document.getElementsByName('address')[0] as HTMLTextAreaElement).value;
-                          if (!addrInput) return;
-                          const result = smartConvertAddress(addrInput);
-                          if (result.isConverted) {
-                            (document.getElementsByName('address')[0] as HTMLTextAreaElement).value = result.oldFullAddress || addrInput;
-                            (document.getElementsByName('addressPostMerger')[0] as HTMLTextAreaElement).value = result.fullAddress;
-                            toast("Đã chuyển đổi thành công!", "success");
-                          } else {
-                            toast("Địa chỉ đã chuẩn hoặc không cần chuyển đổi", "info");
-                          }
-                        }}
-                        className="text-[9px] font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-lg transition-all border border-indigo-100"
-                      >
-                        <ArrowRight className="w-2.5 h-2.5" /> Chuyển đổi thông minh
-                      </button>
+                {/* SECTION 1: IDENTITY */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3 text-primary">
+                    <Fingerprint className="size-5" />
+                    <span className="text-[11px] font-black uppercase tracking-[0.3em]">Định danh doanh nghiệp</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="md:col-span-2">
+                      <label className="text-[11px] font-black text-text-dim uppercase block mb-3 tracking-widest ml-1">Tên pháp nhân công ty</label>
+                      {editingPartner.id === 'new' ? (
+                        <input name="name" required placeholder="Ví dụ: CÔNG TY TNHH XÂY DỰNG ABC..." className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-base font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white" />
+                      ) : (
+                        <div className="p-4 px-6 bg-white/5 rounded-2xl border border-white/10 shadow-inner">
+                          <div className="text-base font-black text-white">{editingPartner.name}</div>
+                        </div>
+                      )}
                     </div>
-                    <textarea 
-                      name="address"
-                      defaultValue={editingPartner.address}
-                      onBlur={(e) => {
-                        const addrInput = e.target.value;
-                        if (!addrInput) return;
-                        const result = smartConvertAddress(addrInput);
-                        if (result.isConverted) {
-                          (document.getElementsByName('address')[0] as HTMLTextAreaElement).value = result.oldFullAddress || addrInput;
-                          (document.getElementsByName('addressPostMerger')[0] as HTMLTextAreaElement).value = result.fullAddress;
-                          toast("Đã tự động chuyển đổi địa chỉ", "success");
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          const addrInput = (e.target as HTMLTextAreaElement).value;
-                          if (!addrInput) return;
-                          const result = smartConvertAddress(addrInput);
-                          if (result.isConverted) {
-                            (document.getElementsByName('address')[0] as HTMLTextAreaElement).value = result.oldFullAddress || addrInput;
-                            (document.getElementsByName('addressPostMerger')[0] as HTMLTextAreaElement).value = result.fullAddress;
-                            toast("Đã tự động chuyển đổi địa chỉ", "success");
-                          }
-                        }
-                      }}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all resize-none h-16"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Địa chỉ sau khi sáp nhập (Từ 1/7/2025)</label>
-                    <textarea 
-                      name="addressPostMerger"
-                      defaultValue={editingPartner.addressPostMerger}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all resize-none h-16"
-                      placeholder="Địa chỉ mới theo mô hình 2 cấp..."
-                    />
+                    <div>
+                      <label className="text-[11px] font-black text-text-dim uppercase block mb-3 tracking-widest ml-1">Mã số thuế</label>
+                      {editingPartner.id === 'new' ? (
+                        <input name="taxCode" required placeholder="Số MST..." className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-base font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white" />
+                      ) : (
+                        <div className="p-4 px-6 bg-white/5 rounded-2xl border border-white/10 shadow-inner">
+                          <div className="text-base font-black text-primary tracking-[0.1em]">{editingPartner.taxCode}</div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Số tài khoản</label>
-                    <input 
-                      name="accountNumber"
-                      defaultValue={editingPartner.accountNumber}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
-                    />
+                {/* SECTION 2: ADDRESSES */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3 text-primary">
+                    <MapPin className="size-5" />
+                    <span className="text-[11px] font-black uppercase tracking-[0.3em]">Thông tin địa chỉ hành chính</span>
                   </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Ngân hàng</label>
-                    <input 
-                      name="bankName"
-                      defaultValue={editingPartner.bankName}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center px-1">
+                        <label className="text-[11px] font-black text-text-dim uppercase tracking-widest">Địa chỉ gốc (Trước 1/7/2025)</label>
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            const addrInput = (document.getElementsByName('address')[0] as HTMLTextAreaElement).value;
+                            if (!addrInput) return;
+                            const result = smartConvertAddress(addrInput);
+                            if (result.isConverted) {
+                              (document.getElementsByName('address')[0] as HTMLTextAreaElement).value = result.oldFullAddress || addrInput;
+                              (document.getElementsByName('addressPostMerger')[0] as HTMLTextAreaElement).value = result.fullAddress;
+                              toast("Đã chuyển đổi thành công!", "success");
+                            } else {
+                              toast("Địa chỉ đã chuẩn hoặc không cần chuyển đổi", "info");
+                            }
+                          }}
+                          className="text-[10px] font-black text-primary hover:text-white hover:bg-primary px-4 py-1.5 rounded-xl transition-all border border-primary/30 uppercase tracking-widest flex items-center gap-2"
+                        >
+                          <Zap className="size-3" /> Tự động chuẩn hóa
+                        </button>
+                      </div>
+                      <textarea 
+                        name="address"
+                        defaultValue={editingPartner.address}
+                        placeholder="Nhập địa chỉ đầy đủ..."
+                        className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-3xl text-base font-medium focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white min-h-[140px] leading-relaxed"
+                      />
+                    </div>
+                    <div className="space-y-4">
+                      <label className="text-[11px] font-black text-text-dim uppercase tracking-widest block px-1">Địa chỉ sau khi sáp nhập (Từ 1/7/2025)</label>
+                      <textarea 
+                        name="addressPostMerger"
+                        defaultValue={editingPartner.addressPostMerger}
+                        placeholder="Hệ thống sẽ tự động tạo địa chỉ mới nếu bạn bấm Chuẩn hóa..."
+                        className="w-full px-6 py-5 bg-primary/5 border border-primary/20 rounded-3xl text-base font-black text-primary focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none min-h-[140px] leading-relaxed placeholder:text-primary/30"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Người đại diện</label>
-                    <input 
-                      name="representative"
-                      defaultValue={editingPartner.representative}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
-                    />
+                {/* SECTION 3: FINANCE & REP */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 text-primary">
+                      <CreditCard className="size-5" />
+                      <span className="text-[11px] font-black uppercase tracking-[0.3em]">Tài khoản ngân hàng</span>
+                    </div>
+                    <div className="grid grid-cols-1 gap-6">
+                      <div className="space-y-3">
+                        <label className="text-[11px] font-black text-text-dim uppercase tracking-widest block ml-1">Số tài khoản</label>
+                        <input name="accountNumber" defaultValue={editingPartner.accountNumber} placeholder="Nhập số tài khoản..." className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-base font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white" />
+                      </div>
+                      <div className="space-y-3">
+                        <label className="text-[11px] font-black text-text-dim uppercase tracking-widest block ml-1">Tên ngân hàng & Chi nhánh</label>
+                        <input name="bankName" defaultValue={editingPartner.bankName} placeholder="Ví dụ: VCB - CN Tân Sơn Nhất..." className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-base font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white" />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Chức vụ</label>
-                    <input 
-                      name="position"
-                      defaultValue={editingPartner.position || 'Giám đốc'}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Giới tính</label>
-                    <select 
-                      name="gender" 
-                      defaultValue={editingPartner.gender || 'Ông'}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
-                    >
-                      <option value="Ông">Ông</option>
-                      <option value="Bà">Bà</option>
-                    </select>
+
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 text-primary">
+                      <UserCheck className="size-5" />
+                      <span className="text-[11px] font-black uppercase tracking-[0.3em]">Đại diện pháp luật</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="col-span-2 space-y-3">
+                        <label className="text-[11px] font-black text-text-dim uppercase tracking-widest block ml-1">Họ và tên đại diện</label>
+                        <input name="representative" defaultValue={editingPartner.representative} placeholder="Nhập họ tên đầy đủ..." className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-base font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white" />
+                      </div>
+                      <div className="space-y-3">
+                        <label className="text-[11px] font-black text-text-dim uppercase tracking-widest block ml-1">Chức vụ</label>
+                        <input name="position" defaultValue={editingPartner.position || 'Giám đốc'} className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-base font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white" />
+                      </div>
+                      <div className="space-y-3">
+                        <label className="text-[11px] font-black text-text-dim uppercase tracking-widest block ml-1">Xưng hô</label>
+                        <select name="gender" defaultValue={editingPartner.gender || 'Ông'} className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-base font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white appearance-none cursor-pointer">
+                          <option value="Ông" className="bg-card-dark text-white">Ông</option>
+                          <option value="Bà" className="bg-card-dark text-white">Bà</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="pt-4 flex gap-3">
-                  <button type="submit" disabled={isProcessing} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all active:scale-95">
-                    {isProcessing ? 'Đang lưu...' : 'Cập nhật'}
+                {/* Footer Buttons */}
+                <div className="pt-10 flex gap-6 border-t border-white/5">
+                  <button type="submit" disabled={isProcessing} className="flex-1 py-5 bg-primary text-white rounded-[24px] text-sm font-black uppercase tracking-[0.3em] shadow-[0_20px_40px_rgba(249,115,22,0.3)] hover:translate-y-[-4px] active:scale-95 transition-all flex items-center justify-center gap-3">
+                    {isProcessing ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}
+                    {editingPartner.id === 'new' ? 'Hoàn tất khởi tạo' : 'Lưu thay đổi hồ sơ'}
                   </button>
-                  <button type="button" onClick={() => setEditingPartner(null)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all">Hủy</button>
+                  <button type="button" onClick={() => handlePartnerEditSelect(null)} className="px-10 py-5 bg-white/5 text-text-dim hover:text-white border border-white/10 rounded-[24px] text-sm font-black uppercase tracking-[0.3em] transition-all hover:bg-white/10">Hủy bỏ</button>
                 </div>
               </form>
             </motion.div>
@@ -6331,47 +8278,61 @@ export default function App() {
         )}
       </AnimatePresence>
 
+
       {/* Advanced Multi-Partner Edit Modal */}
       <AnimatePresence>
         {multiPartnerEdit && multiPartnerEdit.isOpen && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex items-center justify-center p-6">
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              initial={{ scale: 0.9, opacity: 0, y: 30 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]"
+              exit={{ scale: 0.9, opacity: 0, y: 30 }}
+              className="bg-card-dark rounded-[56px] shadow-[0_60px_150px_rgba(0,0,0,0.7)] w-full max-w-6xl overflow-hidden border border-white/10 flex flex-col max-h-[95vh]"
             >
-              {/* Header */}
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center">
-                    <Users className="w-5 h-5" />
+              {/* Premium Batch Header */}
+              <div className="p-10 border-b border-white/5 flex justify-between items-center bg-white/5 relative">
+                <div className="absolute bottom-0 left-0 h-[2px] bg-primary transition-all duration-500 shadow-[0_0_20px_rgba(249,115,22,0.5)]" style={{ width: `${((multiPartnerEdit.currentIndex + 1) / partners.length) * 100}%` }} />
+                
+                <div className="flex items-center gap-6">
+                  <div className="size-16 bg-gradient-to-tr from-primary to-orange-400 text-white rounded-[24px] flex items-center justify-center shadow-2xl">
+                    <Layers className="size-8" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-900">Chỉnh sửa thông tin đối tác</h3>
-                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">
-                      Công ty {multiPartnerEdit.currentIndex + 1} / {partners.length}
-                    </p>
+                    <h3 className="text-2xl font-black text-white uppercase tracking-widest">Trung tâm chỉnh sửa hàng loạt</h3>
+                    <div className="flex items-center gap-3 mt-2">
+                      <span className="px-3 py-1 bg-primary/20 text-primary border border-primary/30 rounded-lg text-[10px] font-black uppercase tracking-widest">
+                         Đối tác {multiPartnerEdit.currentIndex + 1} / {partners.length}
+                      </span>
+                      <div className="h-1 w-32 bg-white/5 rounded-full overflow-hidden">
+                        <div className="h-full bg-primary" style={{ width: `${((multiPartnerEdit.currentIndex + 1) / partners.length) * 100}%` }} />
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+
+                <div className="flex items-center gap-4">
+                  <div className="text-right mr-4">
+                    <div className="text-[10px] font-black text-text-dim uppercase tracking-widest mb-1 opacity-60">Tiến độ cập nhật</div>
+                    <div className="text-sm font-black text-white">{Math.round(((multiPartnerEdit.currentIndex + 1) / partners.length) * 100)}% Hoàn tất</div>
+                  </div>
                   <button 
                     onClick={() => {
                       if (Object.keys(multiPartnerEdit.drafts).length > 0) {
                         setMultiPartnerEdit(prev => prev ? { ...prev, showExitConfirm: true } : null);
                       } else {
+                        window.location.hash = `#/${TAB_CONFIG.partners.hash}/`;
                         setMultiPartnerEdit(null);
                       }
                     }} 
-                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-all"
+                    className="size-12 flex items-center justify-center text-text-dim hover:text-white hover:bg-white/10 rounded-2xl transition-all"
                   >
-                    <X className="w-5 h-5" />
+                    <X className="size-6" />
                   </button>
                 </div>
               </div>
 
-              {/* Form Content */}
-              <div className="flex-1 overflow-y-auto p-8">
+              {/* Enhanced Batch Content */}
+              <div className="flex-1 overflow-y-auto p-12 custom-scrollbar">
                 {(() => {
                   const currentPartner = partners[multiPartnerEdit.currentIndex];
                   if (!currentPartner) return null;
@@ -6396,26 +8357,36 @@ export default function App() {
                   };
 
                   return (
-                    <div className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Tên công ty (Cố định)</label>
-                          <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-slate-600 font-semibold text-sm">
-                            {currentPartner.name}
+                    <div className="space-y-12">
+                      {/* Section: Identity */}
+                      <div className="bg-white/5 p-8 rounded-[32px] border border-white/5 shadow-inner">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                          <div className="space-y-3">
+                            <label className="text-[11px] font-black text-text-dim uppercase tracking-widest px-1 flex items-center gap-2">
+                              <Building2 className="size-3.5 opacity-50" /> Tên pháp nhân (Hệ thống)
+                            </label>
+                            <div className="p-5 bg-sidebar-dark/50 border border-white/5 rounded-2xl text-white font-black text-lg tracking-tight shadow-lg">
+                              {currentPartner.name}
+                            </div>
                           </div>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Mã số thuế</label>
-                          <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-slate-400 text-sm">
-                            {currentPartner.taxCode}
+                          <div className="space-y-3">
+                            <label className="text-[11px] font-black text-text-dim uppercase tracking-widest px-1 flex items-center gap-2">
+                              <Hash className="size-3.5 opacity-50" /> Mã số thuế
+                            </label>
+                            <div className="p-5 bg-sidebar-dark/50 border border-white/5 rounded-2xl text-primary font-black text-lg tracking-[0.2em] shadow-lg">
+                              {currentPartner.taxCode}
+                            </div>
                           </div>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1">
+                      {/* Section: Address Mapping */}
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                        <div className="space-y-4">
                           <div className="flex justify-between items-center px-1">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Địa chỉ gốc (Trước 1/7/2025)</label>
+                            <label className="text-[11px] font-black text-text-dim uppercase tracking-widest flex items-center gap-2">
+                              <History className="size-4 opacity-50" /> Địa chỉ gốc
+                            </label>
                             <button 
                               onClick={async () => {
                                 if (!data.address) return;
@@ -6423,112 +8394,99 @@ export default function App() {
                                 if (result.isConverted) {
                                   handleFieldChange('address', result.oldFullAddress || data.address);
                                   handleFieldChange('addressPostMerger', result.fullAddress);
-                                  toast("Đã chuyển đổi thành công!", "success");
+                                  toast("Đã ánh xạ địa chỉ 2025!", "success");
                                 } else {
-                                  toast("Không tìm thấy địa giới hành chính cần sáp nhập", "info");
+                                  toast("Dữ liệu đã tối ưu", "info");
                                 }
                               }}
-                              className="text-[9px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded transition-all"
+                              className="text-[10px] font-black text-primary hover:text-white hover:bg-primary px-4 py-2 rounded-xl transition-all border border-primary/30 uppercase tracking-widest flex items-center gap-2"
                             >
-                              <ArrowRight className="w-2.5 h-2.5" /> Chuẩn hóa 2025
+                              <Zap className="size-3.5" /> Chuyển đổi 2 cấp
                             </button>
                           </div>
                           <textarea 
                             value={data.address || ''}
                             onChange={(e) => handleFieldChange('address', e.target.value)}
-                            onBlur={() => {
-                              if (!data.address) return;
-                              const result = smartConvertAddress(data.address);
-                              if (result.isConverted) {
-                                handleFieldChange('address', result.oldFullAddress || data.address);
-                                handleFieldChange('addressPostMerger', result.fullAddress);
-                                toast("Đã tự động chuyển đổi địa chỉ", "success");
-                              }
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault();
-                                if (!data.address) return;
-                                const result = smartConvertAddress(data.address);
-                                if (result.isConverted) {
-                                  handleFieldChange('address', result.oldFullAddress || data.address);
-                                  handleFieldChange('addressPostMerger', result.fullAddress);
-                                  toast("Đã tự động chuyển đổi địa chỉ", "success");
-                                }
-                              }
-                            }}
-                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all resize-none h-20"
+                            className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-[28px] text-base font-medium focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white min-h-[120px] leading-relaxed"
                             placeholder="Nhập địa chỉ..."
                           />
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Địa chỉ sau sáp nhập (Từ 1/7/2025)</label>
+                        <div className="space-y-4">
+                          <label className="text-[11px] font-black text-text-dim uppercase tracking-widest block px-1 flex items-center gap-2">
+                            <MapPin className="size-4 opacity-50" /> Địa chỉ mới sau sáp nhập
+                          </label>
                           <textarea 
                             value={data.addressPostMerger || ''}
                             onChange={(e) => handleFieldChange('addressPostMerger', e.target.value)}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all resize-none h-20"
-                            placeholder="Địa chỉ mới theo mô hình 2 cấp..."
+                            className="w-full px-6 py-5 bg-primary/5 border border-primary/20 rounded-[28px] text-base font-black text-primary focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none min-h-[120px] leading-relaxed placeholder:text-primary/20"
+                            placeholder="Hệ thống sẽ tự động điền..."
                           />
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Số tài khoản</label>
+                      {/* Section: Finance & Rep */}
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                        <div className="space-y-4">
+                          <label className="text-[11px] font-black text-text-dim uppercase tracking-widest px-1 flex items-center gap-2">
+                            <CreditCard className="size-4 opacity-50" /> Tài khoản ngân hàng
+                          </label>
                           <input 
                             value={data.accountNumber || ''}
                             onChange={(e) => handleFieldChange('accountNumber', e.target.value)}
-                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
-                            placeholder="0123456789..."
+                            className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-base font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white"
+                            placeholder="Số tài khoản..."
                           />
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Ngân hàng</label>
+                        <div className="lg:col-span-2 space-y-4">
+                          <label className="text-[11px] font-black text-text-dim uppercase tracking-widest px-1 flex items-center gap-2">
+                            <Building className="size-4 opacity-50" /> Ngân hàng & Chi nhánh
+                          </label>
                           <input 
                             value={data.bankName || ''}
                             onChange={(e) => handleFieldChange('bankName', e.target.value)}
-                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
-                            placeholder="Tên ngân hàng..."
+                            className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-base font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white"
+                            placeholder="Tên ngân hàng chi tiết..."
                           />
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Người đại diện</label>
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                        <div className="space-y-4">
+                          <label className="text-[11px] font-black text-text-dim uppercase tracking-widest px-1 flex items-center gap-2">
+                            <UserCheck className="size-4 opacity-50" /> Họ tên đại diện
+                          </label>
                           <input 
                             value={data.representative || ''}
                             onChange={(e) => handleFieldChange('representative', e.target.value)}
-                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
-                            placeholder="Nguyễn Văn A"
+                            className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-base font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white"
+                            placeholder="Tên đầy đủ..."
                           />
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Chức vụ</label>
+                        <div className="space-y-4">
+                          <label className="text-[11px] font-black text-text-dim uppercase tracking-widest px-1">Chức vụ</label>
                           <input 
                             value={data.position || 'Giám đốc'}
                             onChange={(e) => handleFieldChange('position', e.target.value)}
-                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
-                            placeholder="Giám đốc"
+                            className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-base font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white"
                           />
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Giới tính</label>
+                        <div className="space-y-4">
+                          <label className="text-[11px] font-black text-text-dim uppercase tracking-widest px-1">Xưng hô</label>
                           <select 
                             value={data.gender || 'Ông'}
                             onChange={(e) => handleFieldChange('gender', e.target.value)}
-                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                            className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-base font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white appearance-none cursor-pointer"
                           >
-                            <option value="Ông">Ông</option>
-                            <option value="Bà">Bà</option>
+                            <option value="Ông" className="bg-card-dark text-white">Ông</option>
+                            <option value="Bà" className="bg-card-dark text-white">Bà</option>
                           </select>
                         </div>
                       </div>
 
                       {Object.keys(multiPartnerEdit.drafts[currentPartner.id] || {}).length > 0 && (
-                        <div className="flex items-center gap-2 text-amber-600 bg-amber-50 p-2 rounded-lg text-[10px] font-bold uppercase tracking-wide">
-                          <Clock className="w-3 h-3" />
-                          Đang có thay đổi chưa lưu cho công ty này
+                        <div className="flex items-center gap-3 text-primary bg-primary/10 p-5 rounded-[24px] border border-primary/20 animate-pulse">
+                          <Clock className="size-5" />
+                          <span className="text-[11px] font-black uppercase tracking-widest">Phát hiện thay đổi chưa lưu cho đối tác hiện tại</span>
                         </div>
                       )}
                     </div>
@@ -6536,69 +8494,68 @@ export default function App() {
                 })()}
               </div>
 
-              {/* Navigation & Actions */}
-              <div className="p-6 bg-slate-50 border-t border-slate-100 flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex gap-2">
+              {/* Professional Footer Bar */}
+              <div className="p-10 bg-white/5 border-t border-white/5 flex flex-col gap-6">
+                <div className="flex items-center justify-between gap-10">
+                  <div className="flex gap-4">
                     <button 
                       onClick={() => setMultiPartnerEdit(prev => prev ? { ...prev, currentIndex: Math.max(0, prev.currentIndex - 1) } : null)}
                       disabled={multiPartnerEdit.currentIndex === 0}
-                      className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm"
+                      className="size-16 flex items-center justify-center rounded-[24px] border border-white/10 bg-white/5 text-text-dim hover:text-white hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-all shadow-xl"
                     >
-                      <ChevronLeft className="w-5 h-5" />
+                      <ChevronLeft className="size-8" />
                     </button>
                     <button 
                       onClick={() => setMultiPartnerEdit(prev => prev ? { ...prev, currentIndex: Math.min(partners.length - 1, prev.currentIndex + 1) } : null)}
                       disabled={multiPartnerEdit.currentIndex === partners.length - 1}
-                      className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm"
+                      className="size-16 flex items-center justify-center rounded-[24px] border border-white/10 bg-white/5 text-text-dim hover:text-white hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-all shadow-xl"
                     >
-                      <ChevronRight className="w-5 h-5" />
+                      <ChevronRight className="size-8" />
                     </button>
                   </div>
 
-                  <div className="flex gap-3">
+                  <div className="flex-1 flex justify-end gap-6">
                     <button 
                       onClick={() => {
                         if (Object.keys(multiPartnerEdit.drafts).length > 0) {
                           setMultiPartnerEdit(prev => prev ? { ...prev, showExitConfirm: true } : null);
                         } else {
+                          window.location.hash = `#/${TAB_CONFIG.partners.hash}/`;
                           setMultiPartnerEdit(null);
                         }
                       }}
-                      className="px-6 py-2.5 text-slate-600 font-bold text-xs hover:bg-slate-200 rounded-xl transition-all"
+                      className="px-10 py-5 bg-white/5 text-text-dim hover:text-white border border-white/10 rounded-[28px] text-sm font-black uppercase tracking-[0.2em] transition-all hover:bg-white/10"
                     >
-                      Thoát
+                      Thoát phiên làm việc
                     </button>
                     <button 
                       onClick={async () => {
                         const drafts = multiPartnerEdit.drafts;
                         const ids = Object.keys(drafts);
-                        if (ids.length === 0) {
-                          setMultiPartnerEdit(null);
-                          return;
-                        }
+                        if (ids.length === 0) return;
 
                         setIsProcessing(true);
                         try {
                           await Promise.all(ids.map(id => handleUpdatePartner(id, drafts[id])));
-                          toast(`Đã cập nhật thông tin cho ${ids.length} đối tác`, "success");
+                          toast(`Đã đồng bộ hóa dữ liệu cho ${ids.length} đối tác`, "success");
+                          window.location.hash = `#/${TAB_CONFIG.partners.hash}/`;
                           setMultiPartnerEdit(null);
                         } catch (err) {
-                          toast("Có lỗi xảy ra khi lưu dữ liệu", "error");
+                          toast("Lỗi đồng bộ dữ liệu", "error");
                         } finally {
                           setIsProcessing(false);
                         }
                       }}
-                      disabled={Object.keys(multiPartnerEdit.drafts).length === 0}
+                      disabled={Object.keys(multiPartnerEdit.drafts).length === 0 || isProcessing}
                       className={cn(
-                        "px-8 py-2.5 rounded-xl text-xs font-bold shadow-lg transition-all active:scale-95 flex items-center gap-2",
+                        "px-12 py-5 rounded-[28px] text-sm font-black tracking-[0.2em] uppercase shadow-[0_20px_50px_rgba(249,115,22,0.3)] transition-all active:scale-95 flex items-center gap-4",
                         Object.keys(multiPartnerEdit.drafts).length > 0 
-                          ? "bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200" 
-                          : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                          ? "bg-primary text-white hover:translate-y-[-4px]" 
+                          : "bg-white/5 text-text-dim cursor-not-allowed opacity-40"
                       )}
                     >
-                      {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                      Lưu tất cả ({Object.keys(multiPartnerEdit.drafts).length} công ty)
+                      {isProcessing ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}
+                      Lưu tất cả ({Object.keys(multiPartnerEdit.drafts).length} Thay đổi)
                     </button>
                   </div>
                 </div>
@@ -6608,32 +8565,36 @@ export default function App() {
         )}
       </AnimatePresence>
 
+
       {/* Exit Confirmation Dialog */}
       <AnimatePresence>
         {multiPartnerEdit && multiPartnerEdit.showExitConfirm && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-4">
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full border border-slate-200"
+              className="bg-card-dark rounded-[32px] shadow-2xl p-8 max-w-sm w-full border border-border-dark"
             >
-              <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mb-4">
-                <AlertCircle className="w-6 h-6" />
+              <div className="size-16 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-red-500/5">
+                <AlertCircle className="size-8" />
               </div>
-              <h4 className="text-lg font-bold text-slate-900 mb-2">Thoát mà không lưu?</h4>
-              <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+              <h4 className="text-xl font-black text-white uppercase tracking-widest mb-3">Thoát mà không lưu?</h4>
+              <p className="text-sm text-text-dim mb-8 leading-relaxed font-bold">
                 Bạn có các thay đổi chưa được cập nhật vào hệ thống. Nếu thoát bây giờ, các chỉnh sửa này sẽ bị mất. Bạn có chắc chắn không?
               </p>
-              <div className="flex gap-3">
+              <div className="flex gap-4">
                 <button 
                   onClick={() => setMultiPartnerEdit(prev => prev ? { ...prev, showExitConfirm: false } : null)}
-                  className="flex-1 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all"
+                  className="btn-secondary flex-1 py-3 text-[10px]"
                 >
                   Quay lại
                 </button>
                 <button 
-                  onClick={() => setMultiPartnerEdit(null)}
-                  className="flex-1 py-2.5 bg-red-600 text-white rounded-xl text-xs font-bold hover:bg-red-700 shadow-lg shadow-red-100 transition-all active:scale-95"
+                  onClick={() => {
+                    window.location.hash = `#/${TAB_CONFIG.partners.hash}/`;
+                    setMultiPartnerEdit(null);
+                  }}
+                  className="flex-1 py-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all shadow-lg"
                 >
                   Có, thoát đi
                 </button>
@@ -6654,62 +8615,62 @@ export default function App() {
       <AnimatePresence>
         {isInvoiceSelectorOpen && (
           <div 
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 bg-slate-900/60 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 bg-black/60 backdrop-blur-sm"
             onClick={(e) => e.target === e.currentTarget && setIsInvoiceSelectorOpen(false)}
           >
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white w-full max-w-[1240px] h-[90vh] rounded-[40px] shadow-2xl flex flex-col overflow-hidden border border-white/20"
+              className="bg-card-dark w-full max-w-[1240px] h-[90vh] rounded-[40px] shadow-2xl flex flex-col overflow-hidden border border-border-dark"
             >
               {/* Modal Header */}
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white relative z-50 shadow-sm">
+              <div className="p-6 border-b border-border-dark flex items-center justify-between bg-white/5 relative z-50 shadow-sm">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-xl shadow-indigo-100">
-                    <ShoppingBag className="w-6 h-6" />
+                  <div className="size-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary border border-primary/30 shadow-xl shadow-none">
+                    <ShoppingBag className="size-6" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+                    <h2 className="text-xl font-black text-white tracking-widest uppercase flex items-center gap-2">
                        Lấy bảng từ hóa đơn
                        {getContractCategory() && (
-                        <span className="px-2 py-0.5 bg-indigo-600 text-white rounded-md text-[10px] font-black uppercase shadow-sm">
+                        <span className="px-2 py-0.5 bg-primary/20 text-primary border border-primary/30 rounded-md text-[10px] font-black uppercase shadow-sm">
                           {getContractCategory()}
                         </span>
                       )}
                     </h2>
-                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-                      Tab hiện tại: <span className="text-indigo-600 font-black">{getFriendlyLabel(activeInvoiceTag || '')}</span>
+                    <p className="text-[11px] text-text-dim font-bold uppercase tracking-widest mt-1">
+                      Tab hiện tại: <span className="text-primary font-black">{getFriendlyLabel(activeInvoiceTag || '')}</span>
                     </p>
                   </div>
                 </div>
 
                 <div className="flex-1 max-w-sm mx-10 relative">
-                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-text-dim" />
                    <input 
                       type="text" 
                       placeholder="Tìm số CT, tên tệp..."
                       value={selectorSearch}
                       onChange={(e) => setSelectorSearch(e.target.value)}
-                      className="w-full pl-11 pr-12 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none"
+                      className="w-full pl-11 pr-12 py-2.5 bg-sidebar-dark border border-border-dark rounded-2xl text-sm font-bold focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none text-white placeholder:text-text-dim"
                     />
                     {selectorSearch && (
                       <button 
                         onClick={() => setSelectorSearch('')}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-text-dim hover:text-white p-1"
                       >
-                        <X className="w-4 h-4" />
+                        <X className="size-4" />
                       </button>
                     )}
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                  <div className="flex bg-sidebar-dark p-1.5 rounded-2xl border border-border-dark">
                     <button 
                       onClick={() => setInvoiceFilterMode('all')}
                       className={cn(
                         "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                        invoiceFilterMode === 'all' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                        invoiceFilterMode === 'all' ? "bg-white/10 text-primary shadow-sm" : "text-text-dim hover:text-white"
                       )}
                     >
                       Tất cả
@@ -6718,7 +8679,7 @@ export default function App() {
                       onClick={() => setInvoiceFilterMode('seller')}
                       className={cn(
                         "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                        invoiceFilterMode === 'seller' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                        invoiceFilterMode === 'seller' ? "bg-white/10 text-primary shadow-sm" : "text-text-dim hover:text-white"
                       )}
                     >
                       Bên bán
@@ -6727,7 +8688,7 @@ export default function App() {
                       onClick={() => setInvoiceFilterMode('buyer')}
                       className={cn(
                         "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                        invoiceFilterMode === 'buyer' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                        invoiceFilterMode === 'buyer' ? "bg-white/10 text-primary shadow-sm" : "text-text-dim hover:text-white"
                       )}
                     >
                       Bên mua
@@ -6735,15 +8696,15 @@ export default function App() {
                   </div>
                   <button 
                     onClick={() => setIsInvoiceSelectorOpen(false)}
-                    className="p-3 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-2xl transition-all"
+                    className="p-3 text-text-dim hover:text-white hover:bg-white/5 rounded-2xl transition-all"
                   >
-                    <X className="w-6 h-6" />
+                    <X className="size-6" />
                   </button>
                 </div>
               </div>
 
               {/* Modal Body */}
-              <div className="flex-1 flex overflow-hidden bg-slate-50/30 gap-6 p-6">
+              <div className="flex-1 flex overflow-hidden bg-sidebar-dark gap-6 p-6">
                 {(() => {
                   const term = selectorSearch.toLowerCase().trim();
                   
@@ -6804,73 +8765,109 @@ export default function App() {
                   const pdfInvoices = filtered.filter(i => i.fileType === 'pdf');
                   const xmlInvoices = filtered.filter(i => i.fileType === 'xml');
 
-                  const renderCol = (list: any[], title: string, icon: any, color: string) => (
-                    <div className="flex-1 flex flex-col min-w-0 bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
-                       <div className="p-4 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
+                  const renderCol = (list: any[], title: string, icon: any, color: string, bgColor: string, placement: 'left' | 'right' = 'right') => (
+                    <div className="flex-1 flex flex-col min-w-0 bg-card-dark rounded-[32px] border border-border-dark shadow-sm overflow-hidden">
+                       <div className="p-4 border-b border-border-dark flex items-center justify-between bg-white/5">
                           <div className="flex items-center gap-2">
-                             <div className={cn("p-2 rounded-xl", color.replace('text-', 'bg-').replace('-600', '-50'))}>
-                                {React.createElement(icon, { className: cn("w-4 h-4", color) })}
+                             <div className={cn("p-2 rounded-xl", bgColor)}>
+                                {React.createElement(icon, { className: cn("size-4", color) })}
                              </div>
-                             <span className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">{title}</span>
+                             <span className="text-[10px] font-black uppercase tracking-[0.15em] text-text-dim">{title}</span>
                           </div>
-                          <span className="text-xs font-black text-slate-400">{list.length}</span>
+                          <span className="text-xs font-black text-white">{list.length}</span>
                        </div>
                        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-                         {list.map(inv => {
+                         {list.map((inv, index) => {
                             const isSelected = selectedInvoices.includes(inv.id);
                             const data = inv.extractedData || {};
+                            
+                            // Transform to InvoiceItem for HoverCard/TapCard
+                            const hoverInv = {
+                              id: inv.id,
+                              invoiceNumber: inv.computedInvoiceNumber || '---',
+                              invoiceSymbol: inv.computedInvoiceSymbol || data.invoice?.serial || undefined,
+                              companyName: data.seller?.name || '---',
+                              taxCode: data.seller?.taxCode || '---',
+                              buyerName: data.buyer?.name || '---',
+                              buyerTaxCode: data.buyer?.taxCode || '---',
+                              classification: typeof data.classification === 'object' ? data.classification.type : (data.classification || 'BB_VT'),
+                              address: data.buyer?.address || '---',
+                              date: data.invoice?.date || data.date || '',
+                              contractNumber: inv.contractNumber || '',
+                              contractDate: inv.contractDate || '',
+                              status: 'paid',
+                              type: inv.fileType === 'pdf' ? 'PDF' : 'XML',
+                              total: Number(data.totals?.grandTotal) || 0,
+                              vat: Number(data.totals?.vatAmount) || 0,
+                              items: (data.items || []).map((item: any) => ({
+                                id: item.id || `${item.description || ''}-${Number(item.quantity) || 0}-${Number(item.unitPrice || item.price) || 0}`,
+                                description: item.description || item.name || '---',
+                                unit: item.unit || '-',
+                                quantity: Number(item.quantity) || 0,
+                                price: Number(item.unitPrice || item.price) || 0,
+                                total: Number(item.amount || item.total) || 0
+                              }))
+                            };
+
                             return (
-                              <motion.div 
-                                key={inv.id}
-                                whileHover={{ y: -2 }}
-                                onClick={() => {
-                                  setSelectedInvoices(prev => 
-                                    prev.includes(inv.id) ? prev.filter(id => id !== inv.id) : [...prev, inv.id]
-                                  );
-                                  setPreviewInvoiceId(inv.id);
-                                }}
-                                className={cn(
-                                  "p-4 rounded-3xl border transition-all cursor-pointer relative",
-                                  isSelected 
-                                    ? "bg-white border-indigo-500 shadow-xl ring-1 ring-indigo-500/20" 
-                                    : "bg-white border-slate-100 hover:border-indigo-200 hover:shadow-lg",
-                                  previewInvoiceId === inv.id && !isSelected && "border-indigo-300 ring-2 ring-indigo-600/10"
-                                )}
+                              <InvoiceResponsiveCard 
+                                key={inv.id} 
+                                invoice={hoverInv as any} 
+                                placement={placement}
                               >
-                                <div className="flex items-start gap-4">
-                                  <div className={cn(
-                                    "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-inner",
-                                    isSelected ? "bg-indigo-600 text-white" : "bg-slate-50 text-slate-300"
-                                  )}>
-                                    {isSelected ? <CheckCircle2 className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-[13px] font-black text-slate-800 truncate mb-1">{inv.computedDisplayName}</div>
-                                    <div className="flex flex-wrap items-center gap-3">
-                                      <div className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded uppercase">HĐ: {inv.computedInvoiceNumber || '---'}</div>
-                                      <div className="text-[10px] font-bold text-slate-400 uppercase">Ngày: {formatDisplayDate(data.invoice?.date || data.date || '---')}</div>
-                                    </div>
-                                    <div className="mt-2 text-[10px] font-bold text-slate-600 line-clamp-1 uppercase opacity-60">
-                                      BÁN: {data.seller?.name || '---'}
-                                    </div>
-                                  </div>
-                                  {inv.extractedData?.classification && (
-                                    <div className={cn(
-                                      "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter shadow-sm shrink-0",
-                                      inv.extractedData.classification === 'BB_TC' ? 'bg-orange-100 text-orange-700' : 
-                                      inv.extractedData.classification === 'BB_CM' ? 'bg-blue-100 text-blue-700' : 
-                                      'bg-green-100 text-green-700'
-                                    )}>
-                                      {inv.extractedData.classification.replace('BB_', '')}
-                                    </div>
+                                <motion.div 
+                                  whileHover={{ y: -2 }}
+                                  onClick={() => {
+                                    setSelectedInvoices(prev => 
+                                      prev.includes(inv.id) ? prev.filter(id => id !== inv.id) : [...prev, inv.id]
+                                    );
+                                    setPreviewInvoiceId(inv.id);
+                                  }}
+                                  className={cn(
+                                    "p-4 rounded-3xl border transition-all cursor-pointer relative",
+                                    isSelected 
+                                      ? "bg-primary/5 border-primary shadow-xl ring-1 ring-primary/20" 
+                                      : "bg-white/5 border-border-dark hover:border-primary/50 hover:shadow-lg",
+                                    previewInvoiceId === inv.id && !isSelected && "border-primary ring-2 ring-primary/20"
                                   )}
-                                </div>
-                              </motion.div>
+                                >
+                                  <div className="flex items-start gap-4">
+                                    <div className={cn(
+                                      "size-10 rounded-2xl flex items-center justify-center shrink-0 shadow-inner",
+                                      isSelected ? "bg-primary text-white" : "bg-white/5 text-text-dim border border-border-dark"
+                                    )}>
+                                      {isSelected ? <CheckCircle2 className="size-5" /> : <FileText className="size-5" />}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-[13px] font-black text-white truncate mb-1">
+                                        {index + 1}. Hóa đơn số: {inv.computedInvoiceSymbol ? `${inv.computedInvoiceSymbol}-` : ''}{inv.computedInvoiceNumber || '---'}
+                                      </div>
+                                      <div className="flex flex-wrap items-center gap-3">
+                                        <div className="text-[10px] font-bold text-text-dim bg-white/5 border border-border-dark px-2 py-0.5 rounded uppercase">HĐ: {inv.computedInvoiceNumber || '---'}</div>
+                                        <div className="text-[10px] font-bold text-text-dim uppercase">Ngày: {formatDisplayDate(data.invoice?.date || data.date || '---')}</div>
+                                      </div>
+                                      <div className="mt-2 text-[10px] font-bold text-text-dim line-clamp-1 uppercase opacity-60">
+                                        BÁN: {data.seller?.name || '---'}
+                                      </div>
+                                    </div>
+                                    {inv.extractedData?.classification && (
+                                      <div className={cn(
+                                        "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter shadow-sm shrink-0 border",
+                                        inv.extractedData.classification === 'BB_TC' ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' : 
+                                        inv.extractedData.classification === 'BB_CM' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' : 
+                                        'bg-green-500/20 text-green-400 border-green-500/30'
+                                      )}>
+                                        {inv.extractedData.classification.replace('BB_', '')}
+                                      </div>
+                                    )}
+                                  </div>
+                                </motion.div>
+                              </InvoiceResponsiveCard>
                             );
                          })}
                          {list.length === 0 && (
-                            <div className="py-20 text-center opacity-20">
-                               <FileQuestion className="w-12 h-12 mx-auto mb-4" />
+                            <div className="py-20 text-center opacity-30 text-white">
+                               <FileQuestion className="size-12 mx-auto mb-4" />
                                <p className="text-[10px] font-black uppercase tracking-widest">Không có dữ liệu</p>
                             </div>
                          )}
@@ -6880,21 +8877,31 @@ export default function App() {
 
                   return (
                     <>
-                      {renderCol(pdfInvoices, "Hóa đơn PDF", FileText, "text-red-600")}
-                      {renderCol(xmlInvoices, "Hóa đơn XML", FileCode, "text-emerald-600")}
+                      {renderCol(pdfInvoices, "Hóa đơn PDF", FileText, "text-red-500", "bg-red-500/20", "right")}
+                      {renderCol(xmlInvoices, "Hóa đơn XML", FileCode, "text-emerald-500", "bg-emerald-500/20", "left")}
                     </>
                   );
                 })()}
 
                 {/* Right: Detailed Preview Panel - Wider (500px) */}
-                <div className="w-[500px] bg-white border border-slate-200 shadow-2xl rounded-[32px] flex flex-col relative z-20 overflow-hidden">
+                <div className="w-[500px] bg-card-dark border border-border-dark shadow-2xl rounded-[32px] flex flex-col relative z-20 overflow-hidden">
                   {(() => {
                     const activeRawInv = invoices.find(i => i.id === (previewInvoiceId || (selectedInvoices.length > 0 ? selectedInvoices[selectedInvoices.length - 1] : null)));
                     const activeInv = activeRawInv ? getEnrichedInvoice(activeRawInv, rankMap) : null;
+                    
+                    let modalDisplayName = activeInv?.computedDisplayName;
+                    if (activeInv) {
+                      const sameTypeList = invoices.filter(i => i.fileType === activeInv.fileType);
+                      const localIdx = sameTypeList.findIndex(i => i.id === activeInv.id);
+                      if (localIdx !== -1) {
+                        const displaySymbol = activeInv.computedInvoiceSymbol ? `${activeInv.computedInvoiceSymbol}-` : '';
+                        modalDisplayName = `${localIdx + 1}. Hóa đơn số: ${displaySymbol}${activeInv.computedInvoiceNumber || '---'}`;
+                      }
+                    }
                     if (!activeInv) {
                       return (
-                        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-300">
-                          <Search className="w-16 h-16 mb-4 opacity-20" />
+                        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-text-dim">
+                          <Search className="size-16 mb-4 opacity-20" />
                           <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">Nhấp chọn để xem nhanh</p>
                         </div>
                       );
@@ -6906,51 +8913,51 @@ export default function App() {
                     return (
                       <div className="flex-1 flex flex-col overflow-hidden">
                         {/* Preview Header */}
-                        <div className="p-6 border-b border-indigo-500/20 bg-indigo-600 text-white shadow-xl relative">
+                        <div className="p-6 border-b border-primary/20 bg-primary/10 text-white shadow-xl relative">
                           <div className="absolute top-0 right-0 p-4 opacity-10">
-                             <Search className="w-20 h-20 rotate-12" />
+                             <Search className="size-20 rotate-12" />
                           </div>
                           <div className="flex items-center justify-between mb-4 relative z-10">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white border border-white/30 backdrop-blur-md">
-                                <Search className="w-5 h-5" />
+                              <div className="size-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary border border-primary/30 backdrop-blur-md">
+                                <Search className="size-5" />
                               </div>
-                              <div className="text-[10px] font-black uppercase tracking-widest text-indigo-100">Chi tiết hóa đơn</div>
+                              <div className="text-[10px] font-black uppercase tracking-widest text-primary">Chi tiết hóa đơn</div>
                             </div>
-                            <div className="bg-white/20 px-3 py-1.5 rounded-lg border border-white/20 text-[10px] font-black uppercase">
+                            <div className="bg-primary/20 px-3 py-1.5 rounded-lg border border-primary/30 text-[10px] font-black uppercase text-primary">
                                {formatDisplayDate(data.invoice?.date || data.date || '---')}
                             </div>
                           </div>
-                          <div className="font-black text-base leading-tight break-words tracking-tight uppercase relative z-10">{activeInv.computedDisplayName}</div>
+                          <div className="font-black text-base leading-tight break-words tracking-tight uppercase relative z-10 text-white">{modalDisplayName}</div>
                         </div>
 
                         {/* Preview Content */}
-                        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-6 bg-slate-50/50">
+                        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-6 bg-transparent">
                           {/* Partners info */}
                           <div className="space-y-4">
-                             <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm">
-                               <div className="text-[9px] font-black text-indigo-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                 <Building2 className="w-3.5 h-3.5" /> BÊN BÁN
+                             <div className="bg-white/5 rounded-3xl p-5 border border-border-dark shadow-sm">
+                               <div className="text-[9px] font-black text-primary uppercase tracking-widest mb-3 flex items-center gap-2">
+                                 <Building2 className="size-3.5" /> BÊN BÁN
                                </div>
-                               <div className="text-xs font-black text-slate-800 leading-relaxed uppercase">
+                               <div className="text-xs font-black text-white leading-relaxed uppercase">
                                  {data.seller?.name || '---'}
                                </div>
-                               <div className="mt-2 text-[10px] font-bold text-slate-400">MST: {data.seller?.taxCode || '---'}</div>
+                               <div className="mt-2 text-[10px] font-bold text-text-dim">MST: {data.seller?.taxCode || '---'}</div>
                              </div>
-                             <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm">
+                             <div className="bg-white/5 rounded-3xl p-5 border border-border-dark shadow-sm">
                                <div className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                 <UserSquare2 className="w-3.5 h-3.5" /> BÊN MUA
+                                 <UserSquare2 className="size-3.5" /> BÊN MUA
                                </div>
-                               <div className="text-xs font-black text-slate-800 leading-relaxed uppercase">
+                               <div className="text-xs font-black text-white leading-relaxed uppercase">
                                  {data.buyer?.name || '---'}
                                </div>
-                               <div className="mt-2 text-[10px] font-bold text-slate-400">MST: {data.buyer?.taxCode || '---'}</div>
+                               <div className="mt-2 text-[10px] font-bold text-text-dim">MST: {data.buyer?.taxCode || '---'}</div>
                              </div>
                           </div>
 
                           {/* Items List */}
                           <div className="space-y-3">
-                            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2">Hàng hóa & Dịch vụ</div>
+                            <div className="text-[9px] font-black text-text-dim uppercase tracking-widest px-2">Hàng hóa & Dịch vụ</div>
                             <div className="space-y-2">
                               {items.map((item: any, idx: number) => {
                                 const safeParseVal = (v: any) => {
@@ -6963,15 +8970,15 @@ export default function App() {
                                 const totalVal = safeParseVal(item.total || item.Thanh_Tien || item.amount);
                                 const calcTotal = totalVal || (qty * price);
                                 return (
-                                  <div key={idx} className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
-                                    <div className="text-[11px] font-black text-slate-800 mb-2 uppercase line-clamp-2">
+                                  <div key={item.id || `item-preview-${idx}-${item.description || ''}`} className="p-4 rounded-2xl bg-white/5 border border-border-dark shadow-sm">
+                                    <div className="text-[11px] font-black text-white mb-2 uppercase line-clamp-2">
                                       {item.description || item.name}
                                     </div>
                                     <div className="flex justify-between items-baseline">
-                                      <div className="text-[10px] font-bold text-slate-400">
+                                      <div className="text-[10px] font-bold text-text-dim">
                                         {qty} × {formatThousands(String(price))} {item.unit || ''}
                                       </div>
-                                      <div className="text-xs font-black text-emerald-600">
+                                      <div className="text-xs font-black text-emerald-400">
                                         {formatThousands(String(calcTotal))} đ
                                       </div>
                                     </div>
@@ -6991,10 +8998,10 @@ export default function App() {
                            };
                            const gTotal = safeParse(data.totals?.grandTotal || data.totals?.totalAmount || '0');
                            return (
-                             <div className="p-6 bg-slate-900 border-t border-white/5 shadow-[0_-10px_20px_rgba(0,0,0,0.1)]">
+                             <div className="p-6 bg-sidebar-dark border-t border-border-dark shadow-[0_-10px_20px_rgba(0,0,0,0.1)]">
                                 <div className="flex justify-between items-center">
                                   <div className="flex flex-col">
-                                    <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Tổng thanh toán</span>
+                                    <span className="text-[9px] font-black text-primary uppercase tracking-widest">Tổng thanh toán</span>
                                     <span className="text-[10px] font-bold text-white/40 uppercase">Đã bao gồm thuế</span>
                                   </div>
                                   <div className="text-2xl font-black text-emerald-400 tracking-tighter">
@@ -7011,18 +9018,18 @@ export default function App() {
               </div>
 
               {/* Modal Footer */}
-              <div className="p-6 border-t border-slate-100 bg-white flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.02)]">
+              <div className="p-6 border-t border-border-dark bg-card-dark flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.02)]">
                 <div className="flex items-center gap-6">
                    <div className="flex gap-2">
                       <div className="flex flex-col">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Số lượng chọn</span>
-                        <div className="text-2xl font-black text-indigo-600 leading-none">{selectedInvoices.length}</div>
+                        <span className="text-[9px] font-black text-text-dim uppercase tracking-[0.2em] mb-1">Số lượng chọn</span>
+                        <div className="text-2xl font-black text-white leading-none">{selectedInvoices.length}</div>
                       </div>
                    </div>
-                   <div className="w-px h-10 bg-slate-100"></div>
+                   <div className="w-px h-10 bg-border-dark"></div>
                    <button 
                       onClick={() => setSelectedInvoices([])}
-                      className="text-[10px] font-black uppercase text-slate-400 hover:text-red-500 transition-colors"
+                      className="text-[10px] font-black uppercase text-text-dim hover:text-red-500 transition-colors"
                    >
                      Hủy chọn tất cả
                    </button>
@@ -7030,18 +9037,18 @@ export default function App() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => setIsInvoiceSelectorOpen(false)}
-                    className="px-10 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all border-2 border-transparent hover:border-slate-100"
+                    className="px-10 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest text-text-dim hover:bg-white/5 transition-all border-2 border-transparent hover:border-border-dark hover:text-white"
                   >
                     Hủy bỏ
                   </button>
                   <button 
                     onClick={() => handleContractInvoiceIntegration(selectedInvoices)}
                     disabled={selectedInvoices.length === 0}
-                    className="px-12 py-4 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-2xl shadow-indigo-200 disabled:opacity-50 disabled:shadow-none flex items-center gap-3 group relative overflow-hidden"
+                    className="btn-primary px-12 py-4 text-[11px] flex items-center gap-3 group relative overflow-hidden disabled:opacity-50 disabled:shadow-none"
                   >
                     <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                     <span className="relative">Xác nhận dữ liệu</span>
-                    <ArrowRight className="w-5 h-5 relative" />
+                    <ArrowRight className="size-5 relative" />
                   </button>
                 </div>
               </div>
@@ -7052,18 +9059,18 @@ export default function App() {
 
       {/* Processing Overlay */}
       {isProcessing && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-xs text-center border border-slate-200">
-            <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mb-6">
-              <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10000] flex items-center justify-center">
+          <div className="bg-card-dark p-8 rounded-[32px] shadow-2xl flex flex-col items-center max-w-xs text-center border border-border-dark">
+            <div className="size-16 rounded-full bg-primary/10 flex items-center justify-center mb-6 shadow-lg shadow-primary/5">
+              <Loader2 className="size-8 text-primary animate-spin" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900 mb-2">Đang xử lý hóa đơn</h3>
-            <p className="text-slate-500 text-sm italic">Mistral AI đang trích xuất dữ liệu từ các tệp của bạn. Quá trình này có thể mất vài giây...</p>
+            <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-widest">Đang xử lý hóa đơn</h3>
+            <p className="text-text-dim text-sm italic font-bold leading-relaxed">Hệ thống đang trích xuất dữ liệu từ các tệp của bạn. Quá trình này có thể mất vài giây…</p>
           </div>
         </div>
       )}
       
       <AIChatBox stats={{ invoices, contracts, partners }} />
-    </div>
+      </div>
   );
 }

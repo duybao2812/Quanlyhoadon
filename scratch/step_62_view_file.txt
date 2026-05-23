@@ -1,0 +1,84 @@
+Created At: 2026-05-20T11:27:40Z
+Completed At: 2026-05-20T11:27:40Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8256
+Total Bytes: 401487
+Showing lines 6700 to 6800
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+6700:               const r = data.classification;
+6701:               const t = typeof r === 'object' ? r.type : (r || 'BB_VT');
+6702:               switch(t) {
+6703:                 case 'BB_VT': return 'Vật tư';
+6704:                 case 'BB_CM': return 'Ca máy';
+6705:                 case 'BB_TC': return 'Thi công';
+6706:                 default: return t;
+6707:               }
+6708:             })(),
+6709:             'Tên tệp': inv.fileName
+6710:           };
+6711:         });
+6712: 
+6713:       const worksheet = XLSX.utils.json_to_sheet(excelData);
+6714:       const workbook = XLSX.utils.book_new();
+6715:       XLSX.utils.book_append_sheet(workbook, worksheet, "Danh sách hóa đơn");
+6716:       
+6717:       // Auto-size columns
+6718:       const maxWidths = Object.keys(excelData[0] || {}).map(key => ({ wch: 20 }));
+6719:       worksheet['!cols'] = maxWidths;
+6720: 
+6721:       XLSX.writeFile(workbook, `Danh_sach_hoa_don_${new Date().getTime()}.xlsx`);
+6722:       toast("Đã xuất file Excel thành công", "success");
+6723:     } catch (err) {
+6724:       console.error("Excel export error:", err);
+6725:       toast("Lỗi khi xuất file Excel", "error");
+6726:     } finally {
+6727:       setIsExportingExcel(false);
+6728:     }
+6729:   };
+6730: 
+6731:   const stats = {
+6732:     pending: invoices.filter(i => i.status === 'processing').length,
+6733:     partners: partners.length,
+6734:     invoices: invoices.length,
+6735:     recentInvoices: invoices
+6736:   };
+6737: 
+6738:   return (
+6739:     <div className="flex h-screen w-full fo
+<truncated 1282 bytes>
+Tải lên hóa đơn';
+6767:                   case 'partners': return 'Đối tác';
+6768:                   case 'templates': return 'Mẫu tài liệu';
+6769:                   case 'docs': return 'Tài liệu đã tạo';
+6770:                   default: return activeTab;
+6771:                 }
+6772:               })()}
+6773:             </span>
+6774:           </div>
+6775:           <div className="flex items-center gap-6">
+6776:             <div className="flex items-center bg-white/5 rounded-2xl p-1.5 border border-border-dark gap-1">
+6777:               <button 
+6778:                 onClick={() => handleTabChange('upload')}
+6779:                 className="btn-primary py-3"
+6780:               >
+6781:                 <Plus className="size-5" />
+6782:                 <span>Bắt đầu lượt mới</span>
+6783:               </button>
+6784:             </div>
+6785:             <div className="size-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-black text-primary shadow-inner">
+6786:               {user?.displayName ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : "GA"}
+6787:             </div>
+6788:           </div>
+6789:         </header>
+6790: 
+6791:         <div className="flex-1 p-4 overflow-y-auto">
+6792:           <div className="h-full">
+6793:               {activeTab === 'dashboard' && !selectedInvoice && (
+6794:                 <DashboardView 
+6795:                   stats={stats} 
+6796:                   onSelectInvoice={handleInvoiceSelect} 
+6797:                   onDeleteInvoice={handleDeleteInvoice}
+6798:                   onExportExcel={exportInvoicesToExcel}
+6799:                   onBulkExport={() => setShowBulkExport(true)}
+6800:                   isExportingExcel={isExportingExcel}
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

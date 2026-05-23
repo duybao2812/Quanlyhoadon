@@ -1,0 +1,85 @@
+Created At: 2026-05-22T05:09:51Z
+Completed At: 2026-05-22T05:09:51Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8117
+Total Bytes: 396877
+Showing lines 2391 to 2490
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2391: const InlineField: React.FC<{
+2392:   tag: string;
+2393:   value: string;
+2394:   onChange: (val: string) => void;
+2395:   placeholder?: string;
+2396:   type?: 'text' | 'date' | 'select';
+2397:   options?: string[];
+2398:   onOpenSelector?: () => void;
+2399:   isCurrency?: boolean;
+2400:   className?: string;
+2401: }> = ({ tag, value, onChange, placeholder, type = 'text', options = [], onOpenSelector, isCurrency, className }) => {
+2402:   const [isFocused, setIsFocused] = useState(false);
+2403:   const friendlyLabel = placeholder || getFriendlyLabel(tag);
+2404: 
+2405:   const displayValue = value || friendlyLabel;
+2406:   const isPlaceholder = !value;
+2407:   
+2408:   // Calculate character width dynamically
+2409:   const charWidth = 7.5;
+2410:   const inputWidth = Math.max(displayValue.length * charWidth + (type === 'select' ? 20 : 12), 45);
+2411: 
+2412:   return (
+2413:     <span
+2414:       className={cn(
+2415:         "inline-flex items-center relative rounded transition-all duration-200 align-baseline mx-0.5 px-1 py-0.5",
+2416:         isFocused
+2417:           ? "bg-blue-100/90 ring-1 ring-blue-400 text-blue-950"
+2418:           : isPlaceholder
+2419:             ? "bg-amber-50/40 text-amber-600/70 border-b border-dashed border-amber-400 hover:bg-amber-100/40 hover:text-amber-700 cursor-pointer"
+2420:             : "text-blue-900 font-bold bg-blue-50/40 border-b border-blue-400 hover:bg-blue-100/30 hover:text-blue-950 cursor-pointer",
+2421:         className
+2422:       )}
+2423:     >
+2424:       {type === 'select' ? (
+2425:         <select
+2426
+<truncated 1627 bytes>
+-3 cursor-pointer text-blue-800" />
+2452:             <input
+2453:               type="date"
+2454:               className="absolute inset-0 opacity-0 cursor-pointer w-full h-full scale-125"
+2455:               onChange={(e) => {
+2456:                 if (e.target.value) {
+2457:                   onChange(formatVietnameseDateGlobal(e.target.value));
+2458:                 }
+2459:               }}
+2460:             />
+2461:           </span>
+2462:         </span>
+2463:       ) : (
+2464:         <span className="inline-flex items-center gap-0.5 align-baseline">
+2465:           <input
+2466:             type="text"
+2467:             value={isCurrency && value ? parseInt(value.replace(/\D/g, ''), 10).toLocaleString('vi-VN') : value}
+2468:             placeholder={friendlyLabel}
+2469:             onChange={(e) => {
+2470:               const val = e.target.value;
+2471:               if (isCurrency) {
+2472:                 onChange(val.replace(/\D/g, ''));
+2473:               } else {
+2474:                 onChange(val);
+2475:               }
+2476:             }}
+2477:             onFocus={() => setIsFocused(true)}
+2478:             onBlur={() => setIsFocused(false)}
+2479:             className="bg-transparent border-none p-0 font-bold text-xs text-blue-900 focus:ring-0 focus:outline-none outline-none font-serif leading-none h-auto min-h-0"
+2480:             style={{ width: `${inputWidth}px` }}
+2481:           />
+2482:           {onOpenSelector && (
+2483:             <button
+2484:               type="button"
+2485:               onClick={(e) => {
+2486:                 e.stopPropagation();
+2487:                 onOpenSelector();
+2488:               }}
+2489:               className="opacity-30 hover:opacity-100 transition-opacity p-0.5 self-center"
+2490:               title="Bóc tách từ hóa đơn"
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

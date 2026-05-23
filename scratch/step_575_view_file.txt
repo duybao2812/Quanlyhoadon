@@ -1,0 +1,22 @@
+Created At: 2026-05-22T04:59:28Z
+Completed At: 2026-05-22T04:59:28Z
+File Path: `file:///C:/Users/gunfi/.gemini/antigravity/brain/e946d253-0355-489b-8d49-b22d313858bb/task.md`
+Total Lines: 14
+Total Bytes: 1454
+Showing lines 1 to 14
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: # Task: Thiết kế giao diện Tạo Hợp Đồng dạng Word Document & Inline Fields
+2: 
+3: ## Danh sách công việc
+4: 
+5: - `[ ]` Bước 1: Nghiên cứu các tag và cấu trúc của 4 mẫu văn bản (HDNT, HDTC, HDCM, GDNTT) trong App.tsx
+6: - `[ ]` Bước 2: Thiết kế component `InlineField` hỗ trợ co giãn chiều rộng tự động và hiển thị trực tiếp trên dòng chữ
+7: - `[ ]` Bước 3: Thiết kế lại bảng đề nghị tạm ứng/thanh toán `GDNTableInput` theo phong cách Word trắng cổ điển
+8: - `[ ]` Bước 4: Tái cấu trúc giao diện `ContractView` cột phải: Mô phỏng tờ giấy A4 trắng (`bg-white`), căn lề, viền bóng đổ, font chữ Serif trang trọng
+9: - `[ ]` Bước 5: Cấu trúc hóa nội dung chi tiết dạng văn bản hành chính cho mẫu `GDNTT` (Giấy đề nghị thanh toán/tạm ứng)
+10: - `[ ]` Bước 6: Cấu trúc hóa nội dung chi tiết dạng hợp đồng thương mại cho các mẫu còn lại (`HDNT`, `HDTC`, `HDCM`)
+11: - `[ ]` Bước 7: Thực hiện liên kết dữ liệu hai chiều (Two-way Data Binding) giữa các InlineField với state `formData` của hệ thống
+12: - `[ ]` Bước 8: Kiểm tra hoạt động của nút Xuất Hợp Đồng (.docx) và chức năng Tự động bóc tách từ hóa đơn
+13: - `[ ]` Bước 9: Chạy `npm run build` để kiểm tra lỗi biên dịch và xác minh hệ thống hoạt động hoàn hảo
+14: 
+The above content shows the entire, complete file contents of the requested file.

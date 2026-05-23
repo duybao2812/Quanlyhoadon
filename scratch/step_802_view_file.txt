@@ -1,0 +1,19 @@
+Created At: 2026-05-22T05:11:48Z
+Completed At: 2026-05-22T05:11:48Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8117
+Total Bytes: 396877
+Showing lines 3400 to 3410
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3400:     });
+3401:   };
+3402: 
+3403:   const renderGdnDocument = () => {
+3404:     const getVal = (tag: string) => formData[tag] || '';
+3405:     const setVal = (tag: string, val: string) => handleFieldChange(tag, val);
+3406: 
+3407:     return (
+3408:       <div className="font-serif text-[#1a1a1a] text-xs leading-relaxed max-w-[800px] w-full mx-auto bg-white p-8 md:p-14 shadow-2xl rounded-sm border border-gray-200 my-4 text-left relative transition-all duration-300">
+3409:         {/* National Emblem & Admin Title */}
+3410:         <div className="grid grid-cols-2 gap-4 mb-6 font-serif">
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

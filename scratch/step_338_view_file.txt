@@ -1,0 +1,55 @@
+Created At: 2026-05-20T11:38:56Z
+Completed At: 2026-05-20T11:38:56Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8234
+Total Bytes: 400492
+Showing lines 7050 to 7150
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+7050:                   onBatchEdit={handleBatchPartnerEditStart}
+7051:                   onDelete={handleDeletePartner} 
+7052:                 />
+7053:               )}
+7054:               {activeTab === 'templates' && (
+7055:                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+7056:                   {[
+7057:                     { id: 'BB_CM', label: 'Biên bản Ca Máy', icon: HardHat, desc: 'Dành cho các hóa đơn thuê máy móc, thiết bị.' },
+7058:                     { id: 'BB_VT', label: 'Biên bản Vật Tư', icon: Box, desc: 'Dành cho các hóa đơn mua bán vật tư, hàng hóa.' },
+7059:                     { id: 'BB_TC', label: 'Biên bản Thi Công', icon: Construction, desc: 'Dành cho các hóa đơn dịch vụ xây dựng, lắp đặt.' },
+7060:                   ].map((t) => {
+7061:                     const isAvailableOnServer = availableTemplates.includes(t.id);
+7062:                     const isAvailableLocally = localTemplates.some(lt => lt.id === t.id);
+7063: 
+7064:                     return (
+7065:                       <div key={t.id} className="card p-8 flex flex-col items-center text-center group relative overflow-hidden transition-all hover:translate-y-[-4px]">
+7066:                         <div className="absolute top-0 right-0 size-24 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
+7067:                         {isAvailableLocally && !isAvailableOnServer && (
+7068:                           <div className="absolute top-4 right-4 flex items-center gap-1 bg-orange-500/10 text-orang
+<truncated 3706 bytes>
+ưu cục bộ.`, "success");
+7125:                                   } else {
+7126:                                     throw new Error("Upload failed");
+7127:                                   }
+7128:                                 } catch (err) {
+7129:                                   toast("Lỗi khi tải mẫu tài liệu lên máy chủ", "error");
+7130:                                 }
+7131:                               }}
+7132:                             />
+7133:                             <div className={cn(
+7134:                               "cursor-pointer py-2 px-4 rounded-lg text-xs font-bold transition-all border-2 border-dashed",
+7135:                               isAvailableOnServer 
+7136:                                 ? "bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20" 
+7137:                                 : "bg-sidebar-dark text-text-dim border-border-dark hover:border-primary/50 hover:text-primary"
+7138:                             )}>
+7139:                               {isAvailableOnServer ? 'Cập nhật Template (.docx)' : 'Tải lên Template (.docx)'}
+7140:                             </div>
+7141:                           </label>
+7142: 
+7143:                           {isAvailableLocally && !isAvailableOnServer && (
+7144:                             <button 
+7145:                               onClick={() => restoreTemplate(t.id)}
+7146:                               className="w-full py-1.5 px-4 bg-amber-100 text-amber-700 rounded-lg text-[10px] font-bold hover:bg-amber-200 transition-all flex items-center justify-center gap-1"
+7147:                             >
+7148:                               <CheckCircle2 className="size-3" />
+7149:                               Khôi phục từ bộ nhớ
+7150:                             </button>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,0 +1,59 @@
+Created At: 2026-05-20T11:36:51Z
+Completed At: 2026-05-20T11:36:51Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8264
+Total Bytes: 401878
+Showing lines 1595 to 1645
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1595: }) => {
+1596:   const { getRootProps, getInputProps, isDragActive } = useDropzone({
+1597:     onDrop: onUpload,
+1598:     accept: {
+1599:       'application/pdf': ['.pdf'],
+1600:       'application/xml': ['.xml'],
+1601:       'text/xml': ['.xml'],
+1602:       'application/octet-stream': ['.xml', '.pdf'],
+1603:       'text/plain': ['.xml'],
+1604:       'image/*': ['.png', '.jpg', '.jpeg']
+1605:     }
+1606:   } as any);
+1607: 
+1608:   return (
+1609:     <div className="space-y-6">
+1610:       <div className="card p-8">
+1611:         <div 
+1612:           {...getRootProps()} 
+1613:           className={cn(
+1614:             "border-2 border-dashed rounded-[32px] flex flex-col items-center justify-center p-12 transition-all cursor-pointer bg-sidebar-dark group",
+1615:             isDragActive ? "border-primary bg-primary/5" : "border-border-dark hover:border-primary/40 hover:bg-white/5"
+1616:           )}
+1617:         >
+1618:           <input {...getInputProps()} />
+1619:           <div className="size-20 bg-primary/10 text-primary rounded-[24px] flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-2xl shadow-primary/20">
+1620:             <UploadCloud className="size-10" />
+1621:           </div>
+1622:           <h3 className="text-xl font-black text-white mb-2 tracking-tighter uppercase">Kéo và thả hóa đơn vào đây</h3>
+1623:           <p className="text-text-dim text-[10px] mb-8 font-black uppercase tracking-[0.3em] opacity-60">Hỗ trợ định dạng PDF, XML và Hình ảnh (JPG, PNG)</p>
+1624:           <div className="flex gap-4">
+1625:             <button className="px-8 py-3 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:translate-y-[-2px] active:scale-95 transition-all">
+1626:               CHỌN TỆP TIN TỪ MÁY TÍNH
+1627:             </button>
+1628:           </div>
+1629:         </div>
+1630:       </div>
+1631: 
+1632:       {(queue.length > 0 || rejectedFiles.length > 0) && (
+1633:         <motion.div 
+1634:           initial={{ opacity: 0, y: 20 }}
+1635:           animate={{ opacity: 1, y: 0 }}
+1636:           className="bg-card-dark rounded-[40px] border border-border-dark overflow-hidden shadow-2xl relative"
+1637:         >
+1638:           {/* Header Status Bar */}
+1639:           <div className="p-8 border-b border-border-dark bg-white/[0.02] flex items-center justify-between relative overflow-hidden">
+1640:             {isProcessing && (
+1641:               <div className="absolute bottom-0 left-0 h-1 bg-primary animate-pulse shadow-[0_0_15px_rgba(249,115,22,0.5)] w-full transition-all" />
+1642:             )}
+1643:             
+1644:             <div className="flex items-center gap-5">
+1645:               <div className={cn(
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

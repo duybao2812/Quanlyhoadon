@@ -1,0 +1,88 @@
+Created At: 2026-05-22T05:00:24Z
+Completed At: 2026-05-22T05:00:24Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8225
+Total Bytes: 401168
+Showing lines 3255 to 3368
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3255:   useEffect(() => {
+3256:     forceUpdateAddresses();
+3257:   }, [dateValuesString, selectedPartyAId, selectedPartyBId, forceUpdateAddresses]);
+3258: 
+3259:   const getTagType = (tag: string) => {
+3260:     const u = tag.toUpperCase();
+3261:     if (u === 'BENA' || u === 'BENB' || u.includes('TEN_CTY') || u === 'BEN_A' || u === 'BEN_B') return 'company';
+3262:     if (u.includes('GIOI_TINH') || u.includes('GIOITINH')) return 'gender';
+3263:     if (u.includes('DAI_DIEN') || u.includes('DAIDIEN')) return 'rep';
+3264:     if (u.includes('CHUC_VU') || u.includes('CHUCVU')) return 'pos';
+3265:     if (u.includes('STK') || u.includes('SO_TAI_KHOAN') || u.includes('SOTAIKHOAN')) return 'stk';
+3266:     if (u === 'NH' || u.startsWith('NH_') || u.endsWith('_NH') || u.includes('_NH_') || u.includes('NGAN_HANG') || u.includes('NGANHANG')) return 'bank';
+3267:     if (u.includes('DIA_CHI') || u.includes('DIACHI')) return 'address';
+3268:     return 'other';
+3269:   };
+3270: 
+3271:   const renderCategorizedPartyTags = (sideTags: string[]) => {
+3272:     const groups: {
+3273:       company: string[],
+3274:       row2: { gender: string | null, rep: string | null, pos: string | null },
+3275:       row3: { stk: string | null, bank: string | null },
+3276:       others: string[],
+3277:       address: string[]
+3278:     } = {
+3279:       company: [],
+3280:       row2: { gender: null, rep: null, pos: null },
+3281:       row3: { stk: null, bank: null },
+3282:       others: [],
+3283:       address: []
+3284:     };
+3285: 
+3286:     sideTags.forEach(tag => {
+3287:       const 
+<truncated 1728 bytes>
+.row2.pos && (
+3324:               <div className={cn(
+3325:                 groups.row2.gender && groups.row2.rep ? "md:col-span-4" :
+3326:                 groups.row2.gender || groups.row2.rep ? "md:col-span-7" : "md:col-span-12"
+3327:               )}>
+3328:                 <TagRenderItem tag={groups.row2.pos} {...commonItemProps} />
+3329:               </div>
+3330:             )}
+3331:           </React.Fragment>
+3332:         )}
+3333: 
+3334:         {/* Row 3: STK, Bank */}
+3335:         {(groups.row3.stk || groups.row3.bank) && (
+3336:           <React.Fragment>
+3337:             {groups.row3.stk && (
+3338:               <div className={cn(groups.row3.bank ? "md:col-span-5" : "md:col-span-12")}>
+3339:                 <TagRenderItem tag={groups.row3.stk} {...commonItemProps} />
+3340:               </div>
+3341:             )}
+3342:             {groups.row3.bank && (
+3343:               <div className={cn(groups.row3.stk ? "md:col-span-7" : "md:col-span-12")}>
+3344:                 <TagRenderItem tag={groups.row3.bank} {...commonItemProps} />
+3345:               </div>
+3346:             )}
+3347:           </React.Fragment>
+3348:         )}
+3349: 
+3350:         {/* Others */}
+3351:         {groups.others.map(tag => (
+3352:           <div key={tag} className="md:col-span-6">
+3353:             <TagRenderItem tag={tag} {...commonItemProps} />
+3354:           </div>
+3355:         ))}
+3356: 
+3357:         {/* Address (Bottom) */}
+3358:         {groups.address.map(tag => (
+3359:           <div key={tag} className="md:col-span-12">
+3360:             <TagRenderItem tag={tag} {...commonItemProps} />
+3361:           </div>
+3362:         ))}
+3363:       </div>
+3364:     );
+3365:   };
+3366: 
+3367:   const handleGenerate = async () => {
+3368:     if (!templateBuffer || !selectedTemplate) return;
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

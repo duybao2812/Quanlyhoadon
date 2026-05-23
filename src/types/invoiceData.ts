@@ -1,6 +1,7 @@
 export interface InvoiceItem {
   id: string;
   invoiceNumber: string;
+  invoiceSymbol?: string;
   companyName: string;
   taxCode: string;
   buyerName: string;
@@ -12,6 +13,8 @@ export interface InvoiceItem {
   classification?: string;
   total: number;
   vat: number;
+  contractNumber?: string;
+  contractDate?: string;
   items: Array<{
     id: string;
     description: string;

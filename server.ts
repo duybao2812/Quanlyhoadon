@@ -9,6 +9,7 @@ import { Mistral } from '@mistralai/mistralai';
 import dotenv from 'dotenv';
 import axios from 'axios';
 import OpenAI from 'openai';
+import os from 'os';
 
 dotenv.config();
 
@@ -17,6 +18,10 @@ const PORT = 3000;
 
 // Increase limit for base64 payloads
 app.use(express.json({ limit: '50mb' }));
+app.use('/templates', express.static(path.join(process.cwd(), 'templates')));
+app.use('/templatesHopDong', express.static(path.join(process.cwd(), 'templatesHopDong')));
+app.use('/templates_muc_phu', express.static(path.join(process.cwd(), 'templates_muc_phu')));
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 const upload = multer({ dest: 'uploads/temp' });
 
@@ -151,6 +156,22 @@ function formatCompanyName(name: any) {
   }).join(' ');
 }
 
+function getNetworkAddress() {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    const ifaceArray = interfaces[name];
+    if (ifaceArray) {
+      for (const iface of ifaceArray) {
+        // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
+        if (iface.family === 'IPv4' && !iface.internal) {
+          return iface.address;
+        }
+      }
+    }
+  }
+  return null;
+}
+
 async function startServer() {
   if (!fs.existsSync('uploads/templates')) {
     fs.mkdirSync('uploads/templates', { recursive: true });
@@ -189,7 +210,49 @@ async function startServer() {
     }
   });
 
-  // NEW: Secure Extraction API (Backend proxy for Mistral)
+  // NEW: Google Apps Script Proxy to avoid CORS issues
+  app.post('/api/proxy-gas', async (req, res) => {
+    try {
+      const gasUrl = process.env.VITE_GAS_WEB_APP_URL;
+      if (!gasUrl) {
+        console.error("GAS Proxy Error: VITE_GAS_WEB_APP_URL is missing in .env");
+        return res.status(500).json({ error: 'VITE_GAS_WEB_APP_URL is not configured on server' });
+      }
+
+      console.log(`[PROXY] Forwarding request to GAS...`);
+      
+      // Node 18+ global fetch
+      const response = await fetch(gasUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(req.body)
+      });
+
+      const responseText = await response.text();
+      console.log(`[PROXY] GAS responded with status: ${response.status}`);
+
+      if (!response.ok) {
+        return res.status(response.status).send(responseText);
+      }
+
+      try {
+        const json = JSON.parse(responseText);
+        res.json(json);
+      } catch (e) {
+        res.send(responseText);
+      }
+    } catch (error: any) {
+      console.error("GAS Proxy Critical Error:", error);
+      res.status(500).json({ 
+        error: "Lỗi kết nối đến Google Script từ máy chủ (Proxy Error).",
+        details: error.message 
+      });
+    }
+  });
+
   // NEW: Cas AddressKit Proxy API
   app.post('/api/convert-address', async (req, res) => {
     try {
@@ -679,7 +742,10 @@ async function startServer() {
 
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { 
+        middlewareMode: true,
+        host: true 
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -691,8 +757,15 @@ async function startServer() {
     });
   }
 
+  const networkIP = getNetworkAddress();
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log('\n----------------------------------------');
+    console.log('  Server running:');
+    console.log(`  Local:   http://localhost:${PORT}`);
+    if (networkIP) {
+      console.log(`  Network: http://${networkIP}:${PORT}`);
+    }
+    console.log('----------------------------------------\n');
   });
 }
 

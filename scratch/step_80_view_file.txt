@@ -1,0 +1,59 @@
+Created At: 2026-05-20T11:28:06Z
+Completed At: 2026-05-20T11:28:06Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8256
+Total Bytes: 401523
+Showing lines 6745 to 6795
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+6745:           onSave={finalizeInvoice}
+6746:         />
+6747:       )}
+6748: 
+6749:       <Sidebar 
+6750:         activeTab={activeTab} 
+6751:         setActiveTab={handleTabChange} 
+6752:         user={user} 
+6753:         isPinned={isSidebarPinned} 
+6754:         setIsPinned={setIsSidebarPinned} 
+6755:       />
+6756:       
+6757:       <main className="flex-1 flex flex-col h-full overflow-hidden">
+6758:         <header className="h-[64px] bg-sidebar-dark border-b border-border-dark flex items-center justify-between px-6 shrink-0 shadow-sm">
+6759:           <div className="flex items-center gap-2 text-text-dim text-sm italic">
+6760:             <span>DocuForge AI</span>
+6761:             <span className="text-text-dim/50">/</span>
+6762:             <span className="text-white font-bold not-italic uppercase text-xs">
+6763:               {(() => {
+6764:                 switch(activeTab) {
+6765:                   case 'dashboard': return 'Bảng điều khiển';
+6766:                   case 'upload': return 'Tải lên hóa đơn';
+6767:                   case 'partners': return 'Đối tác';
+6768:                   case 'templates': return 'Mẫu tài liệu';
+6769:                   case 'docs': return 'Tài liệu đã tạo';
+6770:                   default: return activeTab;
+6771:                 }
+6772:               })()}
+6773:             </span>
+6774:           </div>
+6775:           <div className="flex items-center gap-6">
+6776:             <div className="flex items-center bg-white/5 rounded-2xl p-1.5 border border-border-dark gap-1">
+6777:               <button 
+6778:                 onClick={() => handleTabChange('upload')}
+6779:                 className="btn-primary py-3"
+6780:               >
+6781:                 <Plus className="size-5" />
+6782:                 <span>Bắt đầu lượt mới</span>
+6783:               </button>
+6784:             </div>
+6785:             <div className="size-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-black text-primary shadow-inner">
+6786:               {user?.displayName ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : "GA"}
+6787:             </div>
+6788:           </div>
+6789:         </header>
+6790: 
+6791:         <div className="flex-1 p-4 overflow-y-auto">
+6792:           <div className="h-full">
+6793:               {activeTab === 'dashboard' && !selectedInvoice && (
+6794:                 <DashboardView 
+6795:                   stats={stats} 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

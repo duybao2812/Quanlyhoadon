@@ -1,0 +1,49 @@
+Created At: 2026-05-20T11:41:49Z
+Completed At: 2026-05-20T11:41:49Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8264
+Total Bytes: 402388
+Showing lines 6760 to 6800
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+6760:             <span>DocuForge AI</span>
+6761:             <span className="text-text-dim/50">/</span>
+6762:             <span className="text-white font-bold not-italic uppercase text-xs">
+6763:               {(() => {
+6764:                 switch(activeTab) {
+6765:                   case 'dashboard': return 'Bảng điều khiển';
+6766:                   case 'upload': return 'Tải lên hóa đơn';
+6767:                   case 'partners': return 'Đối tác';
+6768:                   case 'templates': return 'Mẫu tài liệu';
+6769:                   case 'docs': return 'Tài liệu đã tạo';
+6770:                   default: return activeTab;
+6771:                 }
+6772:               })()}
+6773:             </span>
+6774:           </div>
+6775:           <div className="flex items-center gap-4">
+6776:             <div className="flex items-center bg-white/5 rounded-xl p-1 border border-border-dark gap-1">
+6777:               <button 
+6778:                 onClick={() => handleTabChange('upload')}
+6779:                 className="btn-primary py-1.5"
+6780:               >
+6781:                 <Plus className="size-4" />
+6782:                 <span>Bắt đầu lượt mới</span>
+6783:               </button>
+6784:             </div>
+6785:             <div className="size-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-black text-primary shadow-inner">
+6786:               {user?.displayName ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : "GA"}
+6787:             </div>
+6788:           </div>
+6789:         </header>
+6790: 
+6791:         <div className="flex-1 p-4 overflow-y-auto">
+6792:           <div className="h-full">
+6793:               {activeTab === 'dashboard' && !selectedInvoice && (
+6794:                 <div className="zoom-125">
+6795:                   <DashboardView 
+6796:                     stats={stats} 
+6797:                     onSelectInvoice={handleInvoiceSelect} 
+6798:                     onDeleteInvoice={handleDeleteInvoice}
+6799:                     onExportExcel={exportInvoicesToExcel}
+6800:                     onBulkExport={() => setShowBulkExport(true)}
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

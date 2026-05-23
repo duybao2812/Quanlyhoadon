@@ -1,0 +1,62 @@
+Created At: 2026-05-22T05:08:11Z
+Completed At: 2026-05-22T05:08:11Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8117
+Total Bytes: 396877
+Showing lines 3650 to 3740
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3650:                 <p>
+3651:                   <span className="font-bold">- Công trình: </span>
+3652:                   <InlineField tag="TEN_CONGTRINH" value={getVal('TEN_CONGTRINH') || getVal('TENCONGTRINH')} onChange={(v) => { setVal('TEN_CONGTRINH', v); setVal('TENCONGTRINH', v); }} placeholder="Nhập tên công trình..." className="w-[80%]" onOpenSelector={() => { setActiveInvoiceTag?.('TEN_CONGTRINH'); setIsInvoiceSelectorOpen?.(true); }} />
+3653:                 </p>
+3654:               )}
+3655:             </div>
+3656:           ) : (
+3657:             <p className="pl-4 italic text-gray-500">Phạm vi công việc được thực hiện đúng theo yêu cầu kỹ thuật và bản vẽ thiết kế đã được hai bên phê duyệt.</p>
+3658:           )}
+3659:         </div>
+3660: 
+3661:         {/* Section 2: Value */}
+3662:         <div className="space-y-1.5 mb-8 font-serif">
+3663:           <h3 className="font-bold uppercase text-[10px] border-b border-gray-300 pb-0.5">ĐIỀU 2: GIÁ TRỊ HỢP ĐỒNG</h3>
+3664:           <p className="pl-4">
+3665:             - Giá trị hợp đồng tạm tính là: <InlineField tag="GIATRIHOPDONG" value={getVal('GIATRIHOPDONG')} onChange={(v) => setVal('GIATRIHOPDONG', v)} placeholder="Nhập giá trị hợp đồng bằng số..." isCurrency onOpenSelector={() => { setActiveInvoiceTag?.('GIATRIHOPDONG'); setIsInvoiceSelectorOpen?.(true); }} /> <span className="font-bold">VNĐ</span>
+3666:           </p>
+3667:           <p className="pl-4 italic">
+3668:             - Bằng chữ: <InlineField tag="BANGCHU
+<truncated 2228 bytes>
+,
+3708:                   'HDTC': {},
+3709:                   'HDCM': {},
+3710:                   'GDNTT': {}
+3711:                 },
+3712:                 selectedPartyAId: '',
+3713:                 selectedPartyBId: '',
+3714:                 templateBuffer: null,
+3715:                 vtLinks: {}
+3716:               });
+3717:             }}
+3718:             className="px-3 py-1.5 text-xs font-medium text-text-dim hover:bg-white/5 hover:text-white rounded-lg transition-colors border border-border-dark"
+3719:           >
+3720:             Làm mới
+3721:           </button>
+3722:           {selectedTemplate && (
+3723:             <button
+3724:               onClick={handleGenerate}
+3725:               disabled={isGenerating}
+3726:               className="px-4 py-2 bg-primary/20 text-primary border border-primary/30 rounded-xl text-xs font-bold hover:bg-primary/30 transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50"
+3727:             >
+3728:               {isGenerating ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+3729:               {isGenerating ? 'Đang tạo...' : 'Xuất Hợp Đồng (.docx)'}
+3730:             </button>
+3731:           )}
+3732:         </div>
+3733:       </div>
+3734: 
+3735:       <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 flex-1 min-h-0">
+3736:         {/* Left Column: Template & Parties Selection */}
+3737:         <div className="lg:col-span-4 space-y-3 overflow-y-auto pr-1 custom-scrollbar">
+3738:           <div className="card bg-transparent border-none p-2 space-y-2">
+3739:             <h3 className="font-black text-white text-[10px] uppercase tracking-wider flex items-center gap-2">
+3740:               <div className="size-6 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

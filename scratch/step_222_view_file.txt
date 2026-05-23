@@ -1,0 +1,64 @@
+Created At: 2026-05-20T11:35:47Z
+Completed At: 2026-05-20T11:35:47Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8258
+Total Bytes: 401638
+Showing lines 6780 to 6835
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+6780:               >
+6781:                 <Plus className="size-4" />
+6782:                 <span>Bắt đầu lượt mới</span>
+6783:               </button>
+6784:             </div>
+6785:             <div className="size-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-black text-primary shadow-inner">
+6786:               {user?.displayName ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : "GA"}
+6787:             </div>
+6788:           </div>
+6789:         </header>
+6790: 
+6791:         <div className="flex-1 p-4 overflow-y-auto">
+6792:           <div className="h-full">
+6793:               {activeTab === 'dashboard' && !selectedInvoice && (
+6794:                 <div className="zoom-125">
+6795:                   <DashboardView 
+6796:                     stats={stats} 
+6797:                     onSelectInvoice={handleInvoiceSelect} 
+6798:                     onDeleteInvoice={handleDeleteInvoice}
+6799:                     onExportExcel={exportInvoicesToExcel}
+6800:                     onBulkExport={() => setShowBulkExport(true)}
+6801:                     isExportingExcel={isExportingExcel}
+6802:                     isLoadingData={isLoadingInvoices}
+6803:                     subTab={dashboardSubTab}
+6804:                     onSubTabChange={handleDashboardSubTabChange}
+6805:                     generatedDocs={generatedDocs}
+6806:                     contracts={contracts}
+6807:                     invoices={invoices}
+6808:                     partners={partners}
+6809:                     onDeleteDoc={handleDeleteDoc}
+6810:                     onBulkDeleteDocs={handleBulkDeleteDocs}
+6811:                     onDeleteAllDocs={handleDeleteAllDocs}
+6812:                     onDownloadDoc={downloadDoc}
+6813:                     onDeleteContract={handleDeleteContract}
+6814:                     onBulkDeleteContracts={handleBulkDeleteContracts}
+6815:                     onDownloadContract={downloadContract}
+6816:                     user={user}
+6817:                     rankMap={rankMap}
+6818:                   />
+6819:                 </div>
+6820:               )}
+6821:               {activeTab === 'dashboard' && selectedInvoice && (
+6822:                 <div className="grid grid-cols-12 gap-6 h-full min-h-[600px]">
+6823:                   {/* Left Panel: Extracted Source */}
+6824:                   <div className="col-span-4 flex flex-col card h-full">
+6825:                     <div className="p-4 border-b border-border-dark flex justify-between items-center bg-sidebar-dark">
+6826:                       <h3 className="font-bold text-sm text-white truncate mr-2">Nguồn: {selectedInvoice.fileName}</h3>
+6827:                       <button 
+6828:                         onClick={() => handleInvoiceSelect(null)}
+6829:                         className="text-xs text-text-dim hover:text-white"
+6830:                       >
+6831:                         Quay lại
+6832:                       </button>
+6833:                     </div>
+6834:                     <div className="flex-1 p-4 space-y-6 overflow-y-auto text-sm">
+6835:                       {(() => {
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

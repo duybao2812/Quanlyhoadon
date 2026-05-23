@@ -1,0 +1,65 @@
+Created At: 2026-05-22T05:12:45Z
+Completed At: 2026-05-22T05:12:45Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8641
+Total Bytes: 437338
+Showing lines 3900 to 4110
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3900:             </div>
+3901:           </div>
+3902: 
+3903:           {/* Article 7 */}
+3904:           <div>
+3905:             <h4 className="font-bold uppercase text-[10px]">ĐIỀU 7: ĐIỀU KHOẢN KHÁC</h4>
+3906:             <p className="pl-4 mt-1">
+3907:               Hai bên cam kết thực hiện đúng các điều khoản đã thống nhất trong hợp đồng. Trong quá trình thực hiện hợp đồng nếu có gì vướng mắc, phát sinh hay thay đổi, hai bên chủ động gặp nhau bàn bạc giải quyết. Trong trường hợp không giải quyết được sẽ đưa ra tòa án Kinh tế có thẩm quyền để phân xử. Quyết định của tòa án là phán quyết cuối cùng.
+3908:             </p>
+3909:             <p className="pl-4 mt-1">
+3910:               Hợp đồng này có hiệu lực kể từ ngày ký và hết hiệu lực khi các bên đã thực hiện xong các điều khoản của hợp đồng. Sau khi các bên hoàn thành đầy đủ nghĩa vụ của mình theo thỏa thuận trong hợp đồng thì hợp đồng được xem như thanh lý .
+3911:             </p>
+3912:             <p className="pl-4 mt-1">
+3913:               Hợp đồng được lập thành 4 bản có giá trị như nhau, Bên A giữ 02 bản, bên B giữ 02 bản và có giá trị pháp lý như nhau.
+3914:             </p>
+3915:           </div>
+3916:         </div>
+3917: 
+3918:         {/* Signatures */}
+3919:         <div className="grid grid-cols-2 gap-4 text-center font-bold mt-12 font-serif text-[10.5px]">
+3920:
+<truncated 12174 bytes>
+iceSelectorOpen?.(true); }} />).
+4077:             </p>
+4078:             <p className="pl-4 mt-1">
+4079:               - Giá trị trên là giá trị tạm tính.
+4080:             </p>
+4081:             <p className="pl-4 mt-1">
+4082:               - Giá trị thực tế tại công trường là giá trị thanh quyết toán.
+4083:             </p>
+4084:           </div>
+4085: 
+4086:           {/* Article 3 */}
+4087:           <div>
+4088:             <h4 className="font-bold uppercase text-[10px]">ĐIỀU 3: THỜI GIAN THỰC HIỆN HỢP ĐỒNG</h4>
+4089:             <p className="pl-4 mt-1">Thời gian thực hiện: kể từ ký hợp đồng.</p>
+4090:           </div>
+4091: 
+4092:           {/* Article 4 */}
+4093:           <div>
+4094:             <h4 className="font-bold uppercase text-[10px]">ĐIỀU 4: PHƯƠNG THỨC NGHIỆM THU KHỐI LƯỢNG</h4>
+4095:             <p className="pl-4 mt-1">
+4096:               Căn cứ vào khối lượng thực tế thi công tại công trình, Bên A và Bên B đo đạc, lập Biên bản xác nhận ca máy để làm cơ sở thanh toán.
+4097:             </p>
+4098:           </div>
+4099: 
+4100:           {/* Article 5 */}
+4101:           <div>
+4102:             <h4 className="font-bold uppercase text-[10px]">ĐIỀU 5: PHƯƠNG THỨC THANH TOÁN</h4>
+4103:             <p className="pl-4 mt-1">Thanh toán bằng chuyển khoản.</p>
+4104:             <p className="pl-4 mt-1">
+4105:               Căn cứ vào Biên bản xác nhận ca máy, Bên B xuất hóa đơn cho bên A và bên A sẽ thanh toán cho bên B 100% giá trị trong vòng 240 ngày kể từ ngày hai bên đối chiếu và xác nhận công nợ.
+4106:             </p>
+4107:           </div>
+4108: 
+4109:           {/* Article 6 */}
+4110:           <div>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,0 +1,49 @@
+Created At: 2026-05-20T11:29:19Z
+Completed At: 2026-05-20T11:29:19Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8256
+Total Bytes: 401522
+Showing lines 1320 to 1360
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1320:     }
+1321:   }, [user, partners]);
+1322: 
+1323:   const renderInvoiceList = (items: any[], placement: 'left' | 'right' = 'right') => {
+1324:     const sortedItems = [...items].sort((a, b) => {
+1325:         const dateA = a.extractedData?.invoice?.date || a.extractedData?.date || '';
+1326:         const dateB = b.extractedData?.invoice?.date || b.extractedData?.date || '';
+1327:         const tA = parseInvoiceDate(dateA);
+1328:         const tB = parseInvoiceDate(dateB);
+1329:         return tA - tB; // chronological oldest -> newest
+1330:     });
+1331: 
+1332:     return sortedItems.map((inv: any, index: number) => {
+1333:       const displayInvoiceNumber = inv.computedInvoiceNumber || '';
+1334:       const displaySymbol = inv.computedInvoiceSymbol || inv.extractedData?.invoice?.serial || '';
+1335:       const localRank = index + 1;
+1336:       const displayFullNumber = displaySymbol ? `${displaySymbol}-${displayInvoiceNumber}` : displayInvoiceNumber;
+1337:       const displayName = `${localRank}. Hóa đơn số: ${displayFullNumber || '---'}`;
+1338:       
+1339:       const rawDate = inv.extractedData?.invoice?.date || inv.extractedData?.date || '';
+1340:       const displayDate = rawDate ? formatDisplayDate(rawDate) : (inv.createdAt?.toDate ? new Date(inv.createdAt.toDate()).toLocaleDateString() : '');
+1341: 
+1342:       const seller = inv.extractedData?.seller;
+1343:       const buyer = inv.extractedData?.buyer;
+1344:       const itemsList = inv.extractedData?.items || [];
+1345: 
+1346:       return (
+1347:         <InvoiceItemComp 
+1348:           key={inv.id}
+1349:           displayName={displayName}
+1350:           placement={placement}
+1351:           invoice={{
+1352:             id: inv.id,
+1353:             invoiceNumber: displayInvoiceNumber || '---',
+1354:             invoiceSymbol: displaySymbol || undefined,
+1355:             companyName: inv.extractedData?.seller?.name || '---',
+1356:             taxCode: inv.extractedData?.seller?.taxCode || '---',
+1357:             buyerName: inv.extractedData?.buyer?.name || '---',
+1358:             buyerTaxCode: inv.extractedData?.buyer?.taxCode || '---',
+1359:             classification: typeof inv.extractedData?.classification === 'object' ? inv.extractedData.classification.type : (inv.extractedData?.classification || 'BB_VT'),
+1360:             address: inv.extractedData?.buyer?.address || '---',
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

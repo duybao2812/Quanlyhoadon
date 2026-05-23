@@ -1,0 +1,1 @@
+"- `[x]` Thêm class `.zoom-125` khôi phục tỷ lệ 100% trong `src/index.css`"

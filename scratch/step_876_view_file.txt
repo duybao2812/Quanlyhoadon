@@ -1,0 +1,78 @@
+Created At: 2026-05-22T05:14:23Z
+Completed At: 2026-05-22T05:14:23Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8628
+Total Bytes: 435739
+Showing lines 2650 to 2750
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2650:   contractForm,
+2651:   updateContractForm,
+2652:   onContractSaved,
+2653:   setIsInvoiceSelectorOpen,
+2654:   setActiveInvoiceTag,
+2655:   handleFieldChange
+2656: }: { 
+2657:   partners: Partner[], 
+2658:   user: User | null,
+2659:   contractForm: {
+2660:     selectedTemplate: string;
+2661:     tags: string[];
+2662:     templateFormData: Record<string, Record<string, string>>;
+2663:     selectedPartyAId: string;
+2664:     selectedPartyBId: string;
+2665:     templateBuffer: ArrayBuffer | null;
+2666:     vtLinks: Record<string, 'A' | 'B' | null>;
+2667:   },
+2668:   updateContractForm: (updates: any) => void,
+2669:   onContractSaved: (contractData: Omit<SmartContract, 'id' | 'ownerId' | 'createdAt'>) => Promise<void>,
+2670:   setIsInvoiceSelectorOpen?: (open: boolean) => void,
+2671:   setActiveInvoiceTag?: (tag: string | null) => void,
+2672:   handleFieldChange: (tag: string, val: string) => void
+2673: }) => {
+2674:   const { toast } = useToast();
+2675:   const dayRefs = useRef<Record<string, HTMLInputElement | null>>({});
+2676:   const monthRefs = useRef<Record<string, HTMLInputElement | null>>({});
+2677:   const yearRefs = useRef<Record<string, HTMLInputElement | null>>({});
+2678:   const { selectedTemplate, tags, templateFormData, selectedPartyAId, selectedPartyBId, templateBuffer, vtLinks } = contractForm;
+2679:   
+2680:   // Use data for current template
+2681:   const formData = useMemo(() => templateFormData[selectedTemplate] || {}, [templateFormData, selectedTemplate]);
+2682: 
+2683:   const setSelectedTemplate = (val: any) => updateContractForm((p
+<truncated 1935 bytes>
+16:     };
+2717: 
+2718:     // Detect related Day/Month/Year fields to group them
+2719:     const groups: Record<string, { day?: string, month?: string, year?: string }> = {};
+2720:     const dateTags = new Set<string>();
+2721: 
+2722:     tags.forEach(tag => {
+2723:       const upper = tag.toUpperCase();
+2724:       
+2725:       // Smart detection of date components
+2726:       // Patterns: NGAY_KY, THANG_KY, NAM_KY or DAY_CTR, MONTH_CTR, YEAR_CTR
+2727:       const datePatterns = [
+2728:         { key: 'day', regex: /^(NGAY|DAY)_?(.*)$/i },
+2729:         { key: 'month', regex: /^(THANG|MONTH)_?(.*)$/i },
+2730:         { key: 'year', regex: /^(NAM|YEAR)_?(.*)$/i }
+2731:       ];
+2732: 
+2733:       for (const pattern of datePatterns) {
+2734:         const match = upper.match(pattern.regex);
+2735:         if (match) {
+2736:           const suffix = match[2] || 'DEFAULT';
+2737:           if (!groups[suffix]) groups[suffix] = {};
+2738:           (groups[suffix] as any)[pattern.key] = tag;
+2739:           dateTags.add(tag);
+2740:           break;
+2741:         }
+2742:       }
+2743: 
+2744:       if (upper === 'BEN_DUOC_DE_NGHI_TITLE' || upper === 'BEN_DE_NGHI_TITLE' || upper === 'TAMUNG-THANHTOAN_TITLE') {
+2745:         // Skip derived uppercase tags from form categories
+2746:       } else if (upper.includes('BEN A') || upper.includes('BENA') || upper.includes('BEN_A') || upper.endsWith('_A') || upper.startsWith('A_') || upper.includes('BEN_DUOC_DE_NGHI')) {
+2747:         categories.partyA.push(tag);
+2748:       } else if (upper.includes('BEN B') || upper.includes('BENB') || upper.includes('BEN_B') || upper.endsWith('_B') || upper.startsWith('B_') || upper.includes('BEN_DE_NGHI') || (upper.includes('DE_NGHI') && !upper.includes('DUOC'))) {
+2749:         categories.partyB.push(tag);
+2750:       } else {
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

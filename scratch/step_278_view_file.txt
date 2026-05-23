@@ -1,0 +1,62 @@
+Created At: 2026-05-20T11:37:11Z
+Completed At: 2026-05-20T11:37:11Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8264
+Total Bytes: 402266
+Showing lines 4104 to 4185
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+4104:       {/* Address Converter Tool - 3 Parts Output */}
+4105:       <AnimatePresence>
+4106:         {showAddressTool && (
+4107:           <motion.div 
+4108:             initial={{ height: 0, opacity: 0 }}
+4109:             animate={{ height: 'auto', opacity: 1 }}
+4110:             exit={{ height: 0, opacity: 0 }}
+4111:             className="overflow-hidden"
+4112:           >
+4113:             <div className="card p-8 bg-sidebar-dark border-border-dark shadow-inner relative overflow-hidden">
+4114:               <div className="absolute top-0 right-0 size-32 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+4115:               <div className="flex items-center justify-between mb-6">
+4116:                 <div className="flex items-center gap-3">
+4117:                   <div className="size-10 bg-primary/10 rounded-xl flex items-center justify-center">
+4118:                     <MapPin className="size-5 text-primary" />
+4119:                   </div>
+4120:                   <div>
+4121:                     <h3 className="text-base font-black text-white uppercase tracking-widest">Chuyển đổi địa chỉ 2 cấp</h3>
+4122:                     <p className="text-text-dim text-[10px] font-bold uppercase tracking-widest mt-1">Chuẩn hóa dữ liệu theo nghị định mới nhất 2025</p>
+4123:                   </div>
+4124:                 </div>
+4125:               </div>
+4126: 
+4127:               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+4128:                 <div className="space-y-4">
+4129:                   <div cla
+<truncated 2437 bytes>
+:                         <div className="text-[9px] font-black text-orange-500 uppercase mb-2 tracking-widest">3. Kết quả đã chuyển đổi (Sang 2 cấp)</div>
+4160:                         <div className="text-base font-black text-white mb-3 leading-relaxed">{convResult.fullAddress}</div>
+4161:                         <div className="flex gap-2">
+4162:                           <div className={cn(
+4163:                             "rounded px-2 py-1 text-[10px] font-bold border uppercase tracking-tighter",
+4164:                             convResult.isConverted ? "bg-primary/20 text-primary border-primary/30" : "bg-white/5 text-text-dim border-border-dark"
+4165:                           )}>
+4166:                             {convResult.isConverted ? "Khớp bảng ánh xạ 2025" : "Chưa có dữ liệu chính xác"}
+4167:                           </div>
+4168:                         </div>
+4169:                       </div>
+4170:                     </div>
+4171:                   ) : (
+4172:                     <div className="h-40 border-2 border-dashed border-border-dark rounded-2xl flex flex-col items-center justify-center text-text-dim gap-2">
+4173:                       <MapPin className="size-8 opacity-20" />
+4174:                       <div className="text-xs font-bold uppercase tracking-widest opacity-40">Chờ nhập dữ liệu…</div>
+4175:                     </div>
+4176:                   )}
+4177:                 </div>
+4178:               </div>
+4179:             </div>
+4180:           </motion.div>
+4181:         )}
+4182:       </AnimatePresence>
+4183: 
+4184:       <div className="card overflow-hidden shadow-[0_30px_100px_rgba(0,0,0,0.4)] border border-white/10 bg-card-dark/80 backdrop-blur-xl rounded-[40px]">
+4185:         <div className="overflow-x-auto custom-scrollbar">
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

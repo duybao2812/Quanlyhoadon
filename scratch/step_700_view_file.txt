@@ -1,0 +1,65 @@
+Created At: 2026-05-22T05:08:23Z
+Completed At: 2026-05-22T05:08:23Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8117
+Total Bytes: 396877
+Showing lines 3300 to 3370
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3300:             rows = [{ stt: "1", noidung: "", donvi: "Đồng", giatri: "" }];
+3301:           }
+3302:           dataToRender[tag] = generateGdnDocxTable(rows);
+3303:         } else if (upper === 'TAMUNG-THANHTOAN_TITLE') {
+3304:           const tamungKey = Object.keys(formData).find(k => k.toUpperCase() === 'TAMUNG-THANHTOAN') || 'TAMUNG-THANHTOAN';
+3305:           dataToRender[tag] = (formData[tamungKey] || '').toUpperCase();
+3306:         } else if (upper === 'BEN_DUOC_DE_NGHI_TITLE' || upper === 'BEN_DE_NGHI_TITLE') {
+3307:           const baseKey = upper === 'BEN_DUOC_DE_NGHI_TITLE' ? 'BEN_DUOC_DE_NGHI' : 'BEN_DE_NGHI';
+3308:           const matchKey = Object.keys(formData).find(k => k.toUpperCase() === baseKey) || baseKey;
+3309:           dataToRender[tag] = (formData[matchKey] || '').toUpperCase();
+3310:         } else if (upper === 'BEN_DUOC_DE_NGHI' || upper === 'BEN_DE_NGHI') {
+3311:           dataToRender[tag] = toVietnameseTitleCase(formData[tag]) || "....................";
+3312:         } else {
+3313:           dataToRender[tag] = formData[tag] || (isTableTag ? "" : "....................");
+3314:         }
+3315:       });
+3316: 
+3317:       // Ensure TAMUNG-THANHTOAN_TITLE is in dataToRender
+3318:       const tamungKey = Object.keys(formData).find(k => k.toUpperCase() === 'TAMUNG-THANHTOAN') || 'TAMUNG-THANHTOAN';
+3319:       const tamungVal = formData[tamungKey] || '';
+3320:       dataToRender['TAMUNG-THANHTOAN_TITLE'] = tamungVal.toUpperCase();
+3321: 
+3322:       // Ensure all variations of company tags in the template are correctly mapped in their 
+<truncated 984 bytes>
+     dataToRender[tag] = toVietnameseTitleCase(benDeNghiVal) || "....................";
+3339:         }
+3340:       });
+3341: 
+3342:       // Double-safety for default exact casing if not captured above
+3343:       if (!dataToRender['BEN_DUOC_DE_NGHI_TITLE']) dataToRender['BEN_DUOC_DE_NGHI_TITLE'] = benDuocVal.toUpperCase();
+3344:       if (!dataToRender['BEN_DE_NGHI_TITLE']) dataToRender['BEN_DE_NGHI_TITLE'] = benDeNghiVal.toUpperCase();
+3345:       if (!dataToRender[benDuocKey]) dataToRender[benDuocKey] = toVietnameseTitleCase(benDuocVal) || "....................";
+3346:       if (!dataToRender[benDeNghiKey]) dataToRender[benDeNghiKey] = toVietnameseTitleCase(benDeNghiVal) || "....................";
+3347: 
+3348:       doc.render(dataToRender);
+3349:       const out = doc.getZip().generate({ type: 'blob', compression: 'DEFLATE' });
+3350:       const templateName = CONTRACT_TEMPLATES.find(t => t.id === selectedTemplate)?.name || 'HopDong';
+3351:       const fileName = `${templateName}_${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.docx`;
+3352:       
+3353:       saveAs(out, fileName);
+3354:       
+3355:       // Save metadata to Supabase
+3356:       await onContractSaved({
+3357:         templateId: selectedTemplate,
+3358:         partyAId: selectedPartyAId,
+3359:         partyBId: selectedPartyBId,
+3360:         formData: formData,
+3361:         fileName: fileName
+3362:       });
+3363: 
+3364:       toast("Đã tạo hợp đồng và lưu vào hệ thống!", "success");
+3365:     } catch (error: any) {
+3366:       console.error(error);
+3367:       const errorMessage = error.properties?.errors?.map((e: any) => e.message).join(', ') || error.message;
+3368:       toast('Lỗi khi tạo hợp đồng: ' + errorMessage, 'error');
+3369:     } finally {
+3370:       setIsGenerating(false);
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,0 +1,47 @@
+Created At: 2026-05-20T11:40:03Z
+Completed At: 2026-05-20T11:40:03Z
+File Path: `file:///C:/Users/gunfi/.gemini/antigravity/brain/e946d253-0355-489b-8d49-b22d313858bb/walkthrough.md`
+Total Lines: 56
+Total Bytes: 6809
+Showing lines 1 to 56
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: # Walkthrough: Thu nhỏ hệ thống 20% & Thiết kế lại Bố cục khoa học
+2: 
+3: Chúng tôi đã hoàn thành toàn bộ các thay đổi kỹ thuật để thu nhỏ diện tích giao diện, kích thước chữ, ô, khoảng cách và bo góc xuống **20%** (tương đương với mức zoom 80% trước đây). Thiết kế mới đảm bảo tính khoa học, logic, hiện đại và rất chuyên nghiệp khi xem ở mức zoom 100% gốc của trình duyệt.
+4: 
+5: ## Các thay đổi chính đã thực hiện
+6: 
+7: ### 1. Cấu hình Scale toàn hệ thống ([src/index.css](file:///d:/GitHub/Quanlyhoadon/src/index.css))
+8: *   **Root font-size scaling**: Thay đổi `html { font-size: 80%; }` làm tỷ lệ chuẩn. Vì TailwindCSS v4 sử dụng đơn vị `rem` (`calc(var(--spacing) * N)`) cho hầu hết các khoảng cách, kích thước chữ, bo góc và kích thước phần tử, thay đổi này tự động scale down chính xác **20%** cho khoảng 90% giao diện của toàn bộ hệ thống.
+9: *   **Body Base Text**: Tăng cỡ chữ cơ bản của body lên `text-base` để văn bản thường hiển thị ở mức `12.8px` (vừa vặn, cực kỳ rõ nét) thay vì bị thu nhỏ quá đà gây mỏi mắt.
+10: *   **Scrollbars & Component Classes**: Thu nhỏ thanh cuộn scrollbar xuống còn `5px` và tinh chỉnh bo góc tròn của các `.card`, `.stat-card` thành `rounded-3xl` (tự động co giãn theo rem).
+11: 
+12: ### 2. Tinh chỉnh Layout Sidebar & Header ([src/App.tsx](file://
+<truncated 3491 bytes>
+ nổi thu về `p-3` với icon `size-5`. Các nút câu hỏi gợi ý, khung chat tin nhắn, khoảng cách và cỡ chữ nhập liệu được thu gọn 20% giúp khung chat thanh thoát hơn nhiều.
+32: *   **Notifications ([Notifications.tsx](file:///d:/GitHub/Quanlyhoadon/src/components/Notifications.tsx))**: Vị trí thông báo dịch chuyển nhẹ về góc (`bottom-5 right-5`), độ rộng giảm về `max-w-sm` và padding thu nhỏ từ `p-4` xuống `p-3 rounded-xl` với icon cảnh báo gọn gàng `size-4`.
+33: 
+34: ---
+35: 
+36: ## Kết quả kiểm thử & Biên dịch (Validation)
+37: 
+38: Chúng tôi đã tiến hành biên dịch thử nghiệm dự án cho môi trường production bằng lệnh:
+39: ```bash
+40: npm run build
+41: ```
+42: 
+43: **Kết quả thành công xuất sắc:**
+44: *   **Thời gian build cực nhanh:** Hoàn tất chỉ trong **8.39 giây**.
+45: *   **Không phát sinh bất kỳ lỗi cú pháp hoặc styling:** Tổng cộng **2982 modules** được chuyển đổi và đóng gói hoàn hảo.
+46: *   **Tập tin CSS đầu ra ổn định:** `dist/assets/index-B8Y1J-1u.css` (97.70 kB) được tạo ra sạch sẽ và tối ưu hóa tối đa.
+47: 
+48: ---
+49: 
+50: ## Hướng dẫn kiểm tra thủ công cho Người dùng
+51: 
+52: 1.  Mở trình duyệt và truy cập hệ thống ở mức **Zoom 100%** mặc định.
+53: 2.  Quan sát Sidebar bên trái, Header bên trên và danh sách hóa đơn: Tất cả đã được bố trí thon gọn, sắc nét, mật độ thông tin hiển thị khoa học và hợp lý.
+54: 3.  Rê chuột (hover) vào một dòng hóa đơn để xem popup chi tiết: popup ôm sát hơn, chữ rõ ràng và không che lấp quá nhiều phần còn lại của màn hình.
+55: 4.  Mở Khung Chat AI Assistant hoặc xem một bảng chi tiết hóa đơn: Bố cục đã gọn gàng hơn 20%, nhìn rất hiện đại và tinh tế.
+56: 
+The above content shows the entire, complete file contents of the requested file.

@@ -1,0 +1,78 @@
+Created At: 2026-05-22T05:00:20Z
+Completed At: 2026-05-22T05:00:20Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8225
+Total Bytes: 401168
+Showing lines 3100 to 3200
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3100:   };
+3101: 
+3102:   const handlePartyChange = (partnerId: string, type: 'A' | 'B') => {
+3103:     if (type === 'A') setSelectedPartyAId(partnerId);
+3104:     else setSelectedPartyBId(partnerId);
+3105: 
+3106:     const partner = partners.find(p => p.id === partnerId);
+3107:     if (!partner) return;
+3108: 
+3109:     const newFormData = { ...formData };
+3110:     const mapping = getMappingForPartner(partner, type);
+3111: 
+3112:     // Chúng ta lặp qua danh sách tag từ template + các tag ảo để đảm bảo cập nhật đầy đủ
+3113:     const allTags = new Set([...tags, 'DIA_CHI_A', 'DIA_CHI_B', 'DIACHI_A', 'DIACHI_B', 'DIA_CHI_BEN_A', 'DIA_CHI_BEN_B']);
+3114:     
+3115:     allTags.forEach(tag => {
+3116:       const upperTag = tag.toUpperCase();
+3117:       // Try direct match from mapping
+3118:       if (mapping[upperTag]) {
+3119:         newFormData[tag] = mapping[upperTag]!;
+3120:       } else {
+3121:         // Try fuzzy matching for common patterns - use stricter checks
+3122:         const isSideA = upperTag.includes('BENA') || upperTag.includes('BEN_A') || upperTag.includes('BEN A') || upperTag.endsWith('_A') || upperTag.startsWith('A_') || upperTag.includes('BEN_DUOC_DE_NGHI');
+3123:         const isSideB = upperTag.includes('BENB') || upperTag.includes('BEN_B') || upperTag.includes('BEN B') || upperTag.endsWith('_B') || upperTag.startsWith('B_') || upperTag.includes('BEN_DE_NGHI') || (upperTag.includes('DE_NGHI') && !upperTag.includes('DUOC'));
+3124:         
+3125:         const isCorrectSide = (type === 'A' && isSideA) || (type === 'B' 
+<truncated 2078 bytes>
+: (type === 'B' ? partnerId : selectedPartyBId);
+3159:         const p = partners.find(ptr => ptr.id === targetPartnerId);
+3160:         if (p) {
+3161:           const uTag = tag.toUpperCase();
+3162:           if (uTag.includes('DIA_CHI') || uTag.includes('DIACHI')) {
+3163:             newFormData[tag] = getEffectiveAddressByCurrentDate(p);
+3164:           } else {
+3165:             newFormData[tag] = abbreviateCompanyName(p.name);
+3166:           }
+3167:         }
+3168:       }
+3169:     });
+3170: 
+3171:     setFormData(newFormData);
+3172:     toast(`Đã cập nhật thông tin Bên ${type}: ${partner.name}`, "success");
+3173:   };
+3174: 
+3175:   const forceUpdateAddresses = useCallback(() => {
+3176:     setFormData(prevFormData => {
+3177:       const newFormData = { ...prevFormData };
+3178:       let needsUpdateTotal = false;
+3179:       
+3180:       const parties: Array<{id: string, type: 'A' | 'B'}> = [
+3181:         { id: selectedPartyAId, type: 'A' },
+3182:         { id: selectedPartyBId, type: 'B' }
+3183:       ];
+3184: 
+3185:       parties.forEach(({id, type}) => {
+3186:         if (!id) return;
+3187:         const partner = partners.find(p => p.id === id);
+3188:         if (!partner) return;
+3189: 
+3190:         // Pass prevFormData to ensure we use current values in the calculation
+3191:         const effectiveAddress = getEffectiveAddressWithData(partner, prevFormData);
+3192:         
+3193:         const allPossibleTags = new Set([
+3194:           ...Object.keys(newFormData), 
+3195:           'DIA_CHI_A', 'DIA_CHI_B', 'DIACHI_A', 'DIACHI_B', 
+3196:           'DIA_CHI_BEN_A', 'DIA_CHI_BEN_B', 'DIA_CHI_BEN A', 'DIA_CHI_BEN B',
+3197:           'DAI_DIEN_A', 'DAI_DIEN_B', 'DAIDIEN_A', 'DAIDIEN_B',
+3198:           'DAI_DIEN_BEN_A', 'DAI_DIEN_BEN_B'
+3199:         ]);
+3200:         
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

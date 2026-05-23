@@ -1,0 +1,49 @@
+Created At: 2026-05-20T11:42:02Z
+Completed At: 2026-05-20T11:42:02Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8264
+Total Bytes: 402388
+Showing lines 7190 to 7230
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+7190:                             </div>
+7191:                           )}
+7192:                         </div>
+7193:                       </div>
+7194:                     );
+7195:                   })}
+7196:                 </div>
+7197:               )}
+7198:               {activeTab === 'docs' && (
+7199:                 <div className="zoom-125">
+7200:                   <DocsView 
+7201:                     items={generatedDocs} 
+7202:                     onDelete={handleDeleteDoc} 
+7203:                     onBulkDelete={handleBulkDeleteDocs}
+7204:                     onDeleteAll={handleDeleteAllDocs}
+7205:                     invoices={invoices}
+7206:                     partners={partners}
+7207:                   />
+7208:                 </div>
+7209:               )}
+7210:               {activeTab === 'contract' && (
+7211:                 <div className="zoom-125">
+7212:                   <ContractView
+7213:                     partners={partners}
+7214:                     user={user}
+7215:                     contractForm={contractForm}
+7216:                     updateContractForm={updateContractForm}
+7217:                     onContractSaved={handleContractSave}
+7218:                     setIsInvoiceSelectorOpen={setIsInvoiceSelectorOpen}
+7219:                     setActiveInvoiceTag={setActiveInvoiceTag}
+7220:                     handleFieldChange={handleContractFieldChange}
+7221:                   />
+7222:                 </div>
+7223:               )}
+7224:             </div>
+7225:         </div>
+7226: 
+7227:         <footer className="h-10 bg-sidebar-dark border-t border-border-dark px-6 flex items-center justify-between text-[10px] uppercase font-bold tracking-widest text-text-dim">
+7228:           <div className="flex items-center gap-6">
+7229:             <div className="flex items-center gap-2">
+7230:               <div className={`size-2 rounded-full ${isLoadingInvoices || isProcessing ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500'}`}></div>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

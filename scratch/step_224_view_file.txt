@@ -1,0 +1,39 @@
+Created At: 2026-05-20T11:35:49Z
+Completed At: 2026-05-20T11:35:49Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8258
+Total Bytes: 401638
+Showing lines 7050 to 7080
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+7050:                             <td className="border border-border-dark p-2 text-right">{formatVNNumber(selectedInvoice.extractedData?.totals?.vatAmount)}</td>
+7051:                           </tr>
+7052:                           <tr className="bg-primary/20 text-white font-bold">
+7053:                             <td colSpan={5} className="border border-border-dark p-2 text-right text-xs uppercase tracking-tight">Thành tiền (Sau thuế)</td>
+7054:                             <td className="border border-border-dark p-2 text-right text-xs">{formatVNNumber(selectedInvoice.extractedData?.totals?.grandTotal || selectedInvoice.extractedData?.totals?.grand_total)}</td>
+7055:                           </tr>
+7056:                         </tbody>
+7057:                       </table>
+7058:                     </div>
+7059:                   </div>
+7060:                 </div>
+7061:               )}
+7062:               {activeTab === 'upload' && (
+7063:                 <UploadView 
+7064:                   onUpload={handleFileUpload} 
+7065:                   queue={uploadQueue}
+7066:                   rejectedFiles={rejectedFiles}
+7067:                   onRemove={removeFromQueue}
+7068:                   onRemoveRejected={removeRejectedFile}
+7069:                   onProcess={processQueue}
+7070:                   isProcessing={isProcessing}
+7071:                   processingStatus={processingStatus}
+7072:                 />
+7073:               )}
+7074:               {activeTab === 'partners' && (
+7075:                 <PartnersView 
+7076:                   partners={partners} 
+7077:                   onEdit={(p) => handlePartnerEditSelect(p)} 
+7078:                   onBatchEdit={handleBatchPartnerEditStart}
+7079:                   onDelete={handleDeletePartner} 
+7080:                 />
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

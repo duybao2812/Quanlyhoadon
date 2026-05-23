@@ -25,7 +25,7 @@ export const InvoiceDetailTable: React.FC<Props> = ({ items }) => {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm text-left">
-        <thead className="text-xs text-gray-500 uppercase bg-gray-50">
+        <thead className="text-[10px] text-stone-500 uppercase bg-white/5 tracking-wider">
           <tr>
             <th className="px-3 py-2">Tên</th>
             <th className="px-3 py-2">ĐVT</th>
@@ -38,18 +38,18 @@ export const InvoiceDetailTable: React.FC<Props> = ({ items }) => {
           {filteredItems.map((item, i) => {
             const total = item.total ?? (item.quantity * item.price);
             return (
-              <tr key={i} className="border-b last:border-0 hover:bg-gray-50">
-                <td className="px-3 py-2 font-medium text-gray-900">{item.description}</td>
-                <td className="px-3 py-2 text-gray-600">
+              <tr key={i} className="border-b border-white/5 last:border-0 hover:bg-white/5">
+                <td className="px-3 py-2 font-medium text-white">{item.description}</td>
+                <td className="px-3 py-2 text-stone-400">
                   {(item.unit && !item.unit.match(/^[. -]+$/)) ? item.unit : ""}
                 </td>
-                <td className="px-3 py-2 text-gray-600">
+                <td className="px-3 py-2 text-stone-400">
                   {item.quantity !== 0 ? item.quantity : ""}
                 </td>
-                <td className="px-3 py-2 text-gray-600">
+                <td className="px-3 py-2 text-stone-400">
                   {item.price > 0 ? formatCurrencyVN(item.price) : ""}
                 </td>
-                <td className="px-3 py-2 font-semibold text-gray-900">
+                <td className="px-3 py-2 font-semibold text-emerald-400">
                   {total > 0 ? formatCurrencyVN(total) : "0 đ"}
                 </td>
               </tr>

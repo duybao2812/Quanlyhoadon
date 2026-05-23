@@ -1,0 +1,16 @@
+directories:
+  output: dist_electron
+  buildResources: build
+appId: com.duybao2812.quanlyhoadon
+productName: Quản Lý Hóa Đơn
+files:
+  - filter:
+      - dist/**/*
+      - electron/**/*
+      - package.json
+win:
+  target:
+    - target: portable
+      arch:
+        - x64
+electronVersion: 42.0.0

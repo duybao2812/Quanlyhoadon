@@ -1,0 +1,102 @@
+Created At: 2026-05-20T11:15:04Z
+Completed At: 2026-05-20T11:15:04Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8256
+Total Bytes: 401487
+Showing lines 1 to 800
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+2: import { 
+3:   LayoutDashboard, 
+4:   UploadCloud, 
+5:   Users, 
+6:   FileText, 
+7:   Files, 
+8:   Search, 
+9:   Plus, 
+10:   Download, 
+11:   MoreVertical, 
+12:   AlertCircle,
+13:   Clock,
+14:   Cpu,
+15:   Globe,
+16:   Zap,
+17:   CheckCircle2,
+18:   Loader2,
+19:   Trash2,
+20:   Edit2,
+21:   HardHat,
+22:   Box,
+23:   Construction,
+24:   Package,
+25:   ChevronLeft,
+26:   ChevronRight,
+27:   Layout,
+28:   PlusSquare,
+29:   List,
+30:   Code,
+31:   Check,
+32:   X,
+33:   ArrowRight,
+34:   MapPin,
+35:   Settings2,
+36:   ShieldCheck,
+37:   Calendar,
+38:   Database,
+39:   Library,
+40:   Briefcase,
+41:   DollarSign,
+42:   PenTool,
+43:   Info,
+44:   Layers,
+45:   ShoppingBag,
+46:   ExternalLink,
+47:   Building2,
+48:   UserSquare2,
+49:   Sparkles,
+50:   FileCode,
+51:   FileQuestion,
+52:   CreditCard,
+53:   UserCheck,
+54:   Hash,
+55:   History,
+56:   User as UserIcon,
+57:   Edit3,
+58:   Fingerprint,
+59:   Building,
+60:   Save
+61: } from 'lucide-react';
+62: import { motion, AnimatePresence } from 'framer-motion';
+63: import { useDropzone } from 'react-dropzone';
+64: import JSZip from 'jszip';
+65: import { saveAs } from 'file-saver';
+66: import { supabase } from './lib/supabaseClient';
+67: import type { User as SupabaseUser } from '@supabase/supabase-js';
+68: type User = SupabaseUser & { 
+69:   uid: string;
+70:   displayName?: string | null;
+71:   photoURL?: string | null;
+72: };
+73: import imageCompression from 'browser-image-compression';
+74: impor
+<truncated 34844 bytes>
+             <PlusSquare className="size-7" />
+783:               <h3 className="font-black text-lg uppercase tracking-[0.2em]">Tổng cộng quyết toán</h3>
+784:             </div>
+785:             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 p-8 bg-sidebar-dark rounded-[32px] border border-border-dark shadow-inner relative overflow-hidden">
+786:               <div className="absolute top-0 right-0 size-40 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+787:               <div>
+788:                 <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2">Tổng cộng tiền hàng</label>
+789:                 <div className="text-2xl font-black text-white">{formatVNNumber(edited.totals?.subtotal)} đ</div>
+790:               </div>
+791:               <div>
+792:                 <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2">
+793:                   Tiền thuế GTGT ({edited.invoice?.vatRate !== undefined ? edited.invoice.vatRate : (edited.totals?.subtotal > 0 ? Math.round((Math.abs((edited.totals?.grandTotal || (edited.totals?.subtotal + (edited.totals?.vatAmount || 0))) - edited.totals?.subtotal) / edited.totals?.subtotal) * 100) : 8)}%)
+794:                 </label>
+795:                 <div className="text-2xl font-black text-white">{formatVNNumber(edited.totals?.vatAmount)} đ</div>
+796:               </div>
+797:               <div>
+798:                 <label className="block text-[10px] font-black text-primary uppercase tracking-widest mb-2 px-3 border-l-2 border-primary">Tổng tiền thanh toán</label>
+799:                 <div className="text-4xl font-black text-primary tracking-tighter drop-shadow-2xl">{formatVNNumber(edited.totals?.grandTotal)} đ</div>
+800:               </div>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

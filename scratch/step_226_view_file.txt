@@ -1,0 +1,39 @@
+Created At: 2026-05-20T11:35:50Z
+Completed At: 2026-05-20T11:35:50Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8258
+Total Bytes: 401638
+Showing lines 7190 to 7220
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+7190:                         </div>
+7191:                       </div>
+7192:                     );
+7193:                   })}
+7194:                 </div>
+7195:               )}
+7196:               {activeTab === 'docs' && (
+7197:                 <DocsView 
+7198:                   items={generatedDocs} 
+7199:                   onDelete={handleDeleteDoc} 
+7200:                   onBulkDelete={handleBulkDeleteDocs}
+7201:                   onDeleteAll={handleDeleteAllDocs}
+7202:                   invoices={invoices}
+7203:                   partners={partners}
+7204:                 />
+7205:               )}
+7206:               {activeTab === 'contract' && (
+7207:                 <ContractView
+7208:                   partners={partners}
+7209:                   user={user}
+7210:                   contractForm={contractForm}
+7211:                   updateContractForm={updateContractForm}
+7212:                   onContractSaved={handleContractSave}
+7213:                   setIsInvoiceSelectorOpen={setIsInvoiceSelectorOpen}
+7214:                   setActiveInvoiceTag={setActiveInvoiceTag}
+7215:                   handleFieldChange={handleContractFieldChange}
+7216:                 />
+7217:               )}
+7218:             </div>
+7219:         </div>
+7220: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

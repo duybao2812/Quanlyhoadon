@@ -1,0 +1,69 @@
+Created At: 2026-05-22T05:09:54Z
+Completed At: 2026-05-22T05:09:54Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8117
+Total Bytes: 396877
+Showing lines 2490 to 2550
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2490:               title="Bóc tách từ hóa đơn"
+2491:             >
+2492:               <Layers className="size-3 text-blue-800" />
+2493:             </button>
+2494:           )}
+2495:         </span>
+2496:       )}
+2497:     </span>
+2498:   );
+2499: };
+2500: 
+2501: const GDNTableInputWordLike: React.FC<GDNTableInputProps> = ({ value, onChange }) => {
+2502:   const rows: GdnRow[] = useMemo(() => {
+2503:     try {
+2504:       if (value) {
+2505:         const parsed = JSON.parse(value);
+2506:         if (Array.isArray(parsed) && parsed.length > 0) {
+2507:           return parsed;
+2508:         }
+2509:       }
+2510:     } catch (e) {}
+2511:     return [{ stt: "1", noidung: "", donvi: "Đồng", giatri: "" }];
+2512:   }, [value]);
+2513: 
+2514:   const updateRows = (newRows: GdnRow[]) => {
+2515:     onChange(JSON.stringify(newRows));
+2516:   };
+2517: 
+2518:   const handleCellChange = (index: number, field: keyof GdnRow, val: string) => {
+2519:     const next = [...rows];
+2520:     if (field === 'giatri') {
+2521:       const rawDigits = val.replace(/\D/g, '');
+2522:       next[index][field] = rawDigits;
+2523:     } else {
+2524:       next[index][field] = val;
+2525:     }
+2526:     updateRows(next);
+2527:   };
+2528: 
+2529:   const handleAddRow = () => {
+2530:     const nextIndex = rows.length + 1;
+2531:     const next = [
+2532:       ...rows,
+2533:       { stt: nextIndex.toString(), noidung: "", donvi: rows[0]?.donvi || "Đồng", giatri: "" }
+2534:     ];
+2535:     updateRows(next);
+2536:   };
+2537: 
+2538:   const handleRemoveRow = (index: number) => {
+2539:     if (rows.length <= 1) {
+2540:       updateRows([{ stt: "1", noidung: "", donvi: "Đồng", giatri: "" }]);
+2541:       return;
+2542:     }
+2543:     const filtered = rows.filter((_, i) => i !== index);
+2544:     const next = filtered.map((row, i) => ({
+2545:       ...row,
+2546:       stt: (i + 1).toString()
+2547:     }));
+2548:     updateRows(next);
+2549:   };
+2550: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,0 +1,39 @@
+Created At: 2026-05-20T11:41:59Z
+Completed At: 2026-05-20T11:41:59Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8264
+Total Bytes: 402388
+Showing lines 6980 to 7010
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+6980:                               contractDate: selectedInvoice.contractDate
+6981:                             });
+6982: 
+6983:                             const url = window.URL.createObjectURL(blob);
+6984:                             const a = document.createElement('a');
+6985:                             a.href = url;
+6986:                             a.download = `${tType}_${selectedInvoice.fileName.split('.')[0]}.docx`;
+6987:                             a.click();
+6988: 
+6989:                             await supabase.from('generated_docs').insert({
+6990:                               invoice_id: selectedInvoice.id,
+6991:                               template_type: tType,
+6992:                               file_name: `${tType}_${selectedInvoice.fileName.split('.')[0]}.docx`,
+6993:                               owner_id: user.uid
+6994:                             });
+6995:                           } catch (err: any) {
+6996:                             alert(err.message || "Generation failed.");
+6997:                           } finally {
+6998:                             setIsProcessing(false);
+6999:                           }
+7000:                         }}
+7001:                         className="btn-primary"
+7002:                       >
+7003:                         {isProcessing ? 'Đang tạo...' : 'Tạo docx'}
+7004:                       </button>
+7005:                     </div>
+7006:                     <div className="flex-1 overflow-auto p-4">
+7007:                       <table className="w-full border-collapse border border-border-dark text-[11px]">
+7008:                         <thead>
+7009:                           <tr className="bg-sidebar-dark font-bold text-text-dim">
+7010:                             <th className="border border-border-dark p-2 w-8">Stt</th>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

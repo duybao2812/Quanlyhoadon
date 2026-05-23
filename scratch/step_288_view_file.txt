@@ -1,0 +1,49 @@
+Created At: 2026-05-20T11:37:25Z
+Completed At: 2026-05-20T11:37:25Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8272
+Total Bytes: 402525
+Showing lines 4330 to 4370
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+4330:                         >
+4331:                           <Trash2 className="size-4" />
+4332:                         </button>
+4333:                       </div>
+4334:                     </td>
+4335:                   </tr>
+4336:                 ))
+4337:               )}
+4338:             </tbody>
+4339:           </table>
+4340:         </div>
+4341:       </div>
+4342: 
+4343:       {/* Context Menu Thật sự - Được gắn vào body hoặc container riêng để tránh bị cắt bởi table overflow */}
+4344:       <AnimatePresence>
+4345:         {contextMenu && (
+4346:           <motion.div 
+4347:             initial={{ opacity: 0, scale: 0.9 }}
+4348:             animate={{ opacity: 1, scale: 1 }}
+4349:             exit={{ opacity: 0, scale: 0.9 }}
+4350:             className="fixed z-[9999] bg-card-dark border border-border-dark shadow-2xl rounded-xl py-2 w-44 overflow-hidden"
+4351:             style={{ left: contextMenu.x, top: contextMenu.y }}
+4352:             onClick={(e) => e.stopPropagation()}
+4353:           >
+4354:             <div className="px-3 py-1.5 border-b border-border-dark mb-1">
+4355:               <div className="text-[9px] font-bold text-text-dim uppercase truncate" title={contextMenu.partner?.name}>
+4356:                 {contextMenu.partner?.name}
+4357:               </div>
+4358:             </div>
+4359:             <button 
+4360:               onClick={() => {
+4361:                 if (contextMenu.partner) onEdit(contextMenu.partner);
+4362:                 closeContextMenu();
+4363:               }}
+4364:               className="w-full text-left px-4 py-2 text-sm text-white hover:bg-primary/20 hover:text-primary flex items-center gap-3 transition-colors font-medium"
+4365:             >
+4366:               <Edit2 className="size-4" />
+4367:               Chỉnh sửa
+4368:             </button>
+4369:             <button 
+4370:               onClick={() => {
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

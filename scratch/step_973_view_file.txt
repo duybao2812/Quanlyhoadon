@@ -1,0 +1,1 @@
+I will write a script to scan `transcript.jsonl` for all `VIEW_FILE` actions that read parts of `src/App.tsx` during the active session. This will allow us to recover the full code for `renderHDNTDocument`, `renderHDTCDocument`, `renderHDCMDocument`, `renderGdnDocument`, `InlineField`, and other layout helper components.

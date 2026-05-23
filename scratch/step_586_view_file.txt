@@ -1,0 +1,44 @@
+Created At: 2026-05-22T04:59:37Z
+Completed At: 2026-05-22T04:59:37Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8227
+Total Bytes: 401174
+Showing lines 3950 to 3985
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3950:                   <div className="size-8 rounded-xl bg-primary/20 border border-primary/30 text-primary flex items-center justify-center font-black text-sm shadow-md">3</div>
+3951:                   <div>
+3952:                     <h3 className="font-black text-xs text-white tracking-tight">Soạn thảo văn bản trực quan</h3>
+3953:                     <p className="text-[9px] text-text-dim uppercase tracking-wider">Mô phỏng tài liệu in ấn thực tế (A4 layout)</p>
+3954:                   </div>
+3955:                 </div>
+3956:                 <div className="flex items-center gap-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider shadow-sm">
+3957:                   <Check className="size-3" /> Auto-Save
+3958:                 </div>
+3959:               </div>
+3960: 
+3961:               {/* A4 Workspace */}
+3962:               <div className="flex-1 overflow-y-auto bg-stone-900/60 p-4 md:p-6 custom-scrollbar flex flex-col justify-start">
+3963:                 {selectedTemplate === 'GDNTT' ? renderGdnDocument() : renderContractDocument()}
+3964:               </div>
+3965: 
+3966:               {/* Footer */}
+3967:               <div className="bg-card-dark border-t border-border-dark p-2 flex items-center justify-between text-[9px] text-text-dim">
+3968:                  <div className="flex items-center gap-1.5 uppercase font-black tracking-widest">
+3969:                    <ShieldCheck className="size-3 text-emerald-500" /> Hệ thống bảo mật
+3970:                  </div>
+3971:                  <div className="italic">Dữ liệu trống mặc định: <span className="text-primary font-bold">"............"</span></div>
+3972:               </div>
+3973:             </div>
+3974:           )}
+3975:         </div>
+3976:       </div>
+3977:     </div>
+3978:   );
+3979: };
+3980: 
+3981: };
+3982: 
+3983: const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: { 
+3984:   partners: Partner[], 
+3985:   onEdit: (p: Partner) => void, 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

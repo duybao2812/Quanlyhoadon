@@ -1,0 +1,83 @@
+Created At: 2026-05-20T11:42:18Z
+Completed At: 2026-05-20T11:42:18Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8262
+Total Bytes: 402272
+Showing lines 6700 to 7250
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+6700:               const r = data.classification;
+6701:               const t = typeof r === 'object' ? r.type : (r || 'BB_VT');
+6702:               switch(t) {
+6703:                 case 'BB_VT': return 'Vật tư';
+6704:                 case 'BB_CM': return 'Ca máy';
+6705:                 case 'BB_TC': return 'Thi công';
+6706:                 default: return t;
+6707:               }
+6708:             })(),
+6709:             'Tên tệp': inv.fileName
+6710:           };
+6711:         });
+6712: 
+6713:       const worksheet = XLSX.utils.json_to_sheet(excelData);
+6714:       const workbook = XLSX.utils.book_new();
+6715:       XLSX.utils.book_append_sheet(workbook, worksheet, "Danh sách hóa đơn");
+6716:       
+6717:       // Auto-size columns
+6718:       const maxWidths = Object.keys(excelData[0] || {}).map(key => ({ wch: 20 }));
+6719:       worksheet['!cols'] = maxWidths;
+6720: 
+6721:       XLSX.writeFile(workbook, `Danh_sach_hoa_don_${new Date().getTime()}.xlsx`);
+6722:       toast("Đã xuất file Excel thành công", "success");
+6723:     } catch (err) {
+6724:       console.error("Excel export error:", err);
+6725:       toast("Lỗi khi xuất file Excel", "error");
+6726:     } finally {
+6727:       setIsExportingExcel(false);
+6728:     }
+6729:   };
+6730: 
+6731:   const stats = {
+6732:     pending: invoices.filter(i => i.status === 'processing').length,
+6733:     partners: partners.length,
+6734:     invoices: invoices.length,
+6735:     recentInvoices: invoices
+6736:   };
+6737: 
+6738:   return (
+6739:     <div className="flex h-screen w-full fo
+<truncated 31731 bytes>
+                 setActiveInvoiceTag={setActiveInvoiceTag}
+7218:                     handleFieldChange={handleContractFieldChange}
+7219:                   />
+7220:                 </div>
+7221:               )}
+7222:             </div>
+7223:         </div>
+7224: 
+7225:         <footer className="h-10 bg-sidebar-dark border-t border-border-dark px-6 flex items-center justify-between text-[10px] uppercase font-bold tracking-widest text-text-dim">
+7226:           <div className="flex items-center gap-6">
+7227:             <div className="flex items-center gap-2">
+7228:               <div className={`size-2 rounded-full ${isLoadingInvoices || isProcessing ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500'}`}></div>
+7229:               <span>AI MODEL: MISTRAL-LARGE-LATEST (PREMIUM)</span>
+7230:             </div>
+7231:             <div className="flex items-center gap-2">
+7232:               <Globe className="size-3" />
+7233:               <span>AI REGION: ASIA-SOUTHEAST1 (SINGAPORE)</span>
+7234:             </div>
+7235:             <div className="flex items-center gap-2">
+7236:               <Zap className="size-3" />
+7237:               <span>API STATUS: HEALTHY | REQUESTS: {requestCount}</span>
+7238:             </div>
+7239:           </div>
+7240:           <div className="flex items-center gap-4">
+7241:             <span className="flex items-center gap-1"><Cpu className="size-3" /> GAS SERVICE: CONNECTED</span>
+7242:             <span className="text-border-dark">|</span>
+7243:             <span>© 2026 SMARTINVOICE PRO</span>
+7244:           </div>
+7245:         </footer>
+7246:       </main>
+7247: 
+7248:       {/* Token Limit Countdown Modal */}
+7249:       {isTokenLimited && (
+7250:         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

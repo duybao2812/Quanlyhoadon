@@ -1,0 +1,21 @@
+Created At: 2026-05-20T11:35:38Z
+Completed At: 2026-05-20T11:35:38Z
+File Path: `file:///C:/Users/gunfi/.gemini/antigravity/brain/e946d253-0355-489b-8d49-b22d313858bb/task.md`
+Total Lines: 13
+Total Bytes: 1058
+Showing lines 1 to 13
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: # Task Progress: Phân tách tỷ lệ layout (100% & 80%) & Tái thiết kế các tab con
+2: 
+3: ## Danh sách công việc
+4: 
+5: - `[x]` Thêm class `.zoom-125` khôi phục tỷ lệ 100% trong `src/index.css`
+6: - `[ ]` Khôi phục tỷ lệ 100% cho tab Bảng điều khiển (`activeTab === 'dashboard'`) bao gồm cả phần xem chi tiết hóa đơn `selectedInvoice` trong `src/App.tsx`
+7: - `[ ]` Khôi phục tỷ lệ 100% cho tab Tạo hợp đồng (`activeTab === 'contract'`) trong `src/App.tsx`
+8: - `[ ]` Khôi phục tỷ lệ 100% cho tab Tài liệu đã tạo (`activeTab === 'docs'`) trong `src/App.tsx`
+9: - `[ ]` Tái thiết kế giao diện UploadView (`activeTab === 'upload'`) sắc nét, logic và hiện đại
+10: - `[ ]` Tái thiết kế giao diện PartnersView (`activeTab === 'partners'`) sắc nét, logic và hiện đại
+11: - `[ ]` Tái thiết kế giao diện Templates View (`activeTab === 'templates'`) sắc nét, logic và hiện đại
+12: - `[ ]` Biên dịch và chạy thử hệ thống để xác thực thành công (`npm run build`)
+13: 
+The above content shows the entire, complete file contents of the requested file.

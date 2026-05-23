@@ -1,0 +1,71 @@
+Created At: 2026-05-20T11:36:04Z
+Completed At: 2026-05-20T11:36:04Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8258
+Total Bytes: 401638
+Showing lines 4012 to 4150
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+4012: const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: { 
+4013:   partners: Partner[], 
+4014:   onEdit: (p: Partner) => void, 
+4015:   onBatchEdit: () => void,
+4016:   onDelete: (id: string) => void 
+4017: }) => {
+4018:   const { toast } = useToast();
+4019:   const [searchTerm, setSearchTerm] = useState('');
+4020:   const [showAddressTool, setShowAddressTool] = useState(false);
+4021:   const [convInput, setConvInput] = useState('');
+4022:   const [convResult, setConvResult] = useState<any>(null);
+4023: 
+4024:   // State cho Context Menu
+4025:   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, partner: Partner | null } | null>(null);
+4026: 
+4027:   const filteredPartners = partners.filter(p => 
+4028:     p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+4029:     p.taxCode.includes(searchTerm) ||
+4030:     (p.representative && p.representative.toLowerCase().includes(searchTerm.toLowerCase()))
+4031:   );
+4032: 
+4033:   const handleContextMenu = (e: React.MouseEvent, partner: Partner) => {
+4034:     e.preventDefault();
+4035:     setContextMenu({ x: e.clientX, y: e.clientY, partner });
+4036:   };
+4037: 
+4038:   const closeContextMenu = () => setContextMenu(null);
+4039: 
+4040:   const handleConvert = (val: string) => {
+4041:     setConvInput(val);
+4042:     if (val.trim().length > 5) {
+4043:       setConvResult(smartConvertAddress(val));
+4044:     } else {
+4045:       setConvResult(null);
+4046:     }
+4047:   };
+4048: 
+4049:   return (
+4050:     <div className="space-y-6" onClick={closeContextMenu}>
+4051:    
+<truncated 4485 bytes>
+ chỉ cần phân tách</div>
+4130:                   <textarea 
+4131:                     value={convInput}
+4132:                     onChange={(e) => handleConvert(e.target.value)}
+4133:                     placeholder="Ví dụ: Ấp 5, Phạm Văn Hai, Bình Chánh, TP.HCM..."
+4134:                     className="w-full px-4 py-4 bg-white/5 border border-border-dark rounded-xl text-sm outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all min-h-[120px] resize-none text-white"
+4135:                   />
+4136:                 </div>
+4137: 
+4138:                 <div className="space-y-4">
+4139:                   <div className="text-[10px] font-black text-text-dim uppercase tracking-widest px-1">Phân tách thông minh (Real-time)</div>
+4140:                   {convResult ? (
+4141:                     <div className="space-y-4">
+4142:                       <div className="grid grid-cols-2 gap-4">
+4143:                         <div className="p-4 bg-white/5 border border-border-dark rounded-2xl">
+4144:                           <div className="text-[9px] font-bold text-text-dim uppercase mb-2">1. Xã/Phường gốc</div>
+4145:                           <div className="text-sm font-black text-white">{convResult.oldWard}</div>
+4146:                         </div>
+4147:                         <div className="p-4 bg-white/5 border border-border-dark rounded-2xl">
+4148:                           <div className="text-[9px] font-bold text-text-dim uppercase mb-2">2. Địa chỉ cũ (3 cấp)</div>
+4149:                           <div className="text-xs font-bold text-text-dim leading-relaxed">
+4150:                             {convResult.oldFullAddress || `${convResult.detail ? convResult.detail + ', ' : ''}${convResult.oldWard}, ${convResult.oldDistrict}, ${convResult.province}`}
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

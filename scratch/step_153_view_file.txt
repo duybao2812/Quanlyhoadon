@@ -1,0 +1,75 @@
+Created At: 2026-05-20T11:29:54Z
+Completed At: 2026-05-20T11:29:54Z
+File Path: `file:///C:/Users/gunfi/.gemini/antigravity/brain/e946d253-0355-489b-8d49-b22d313858bb/implementation_plan.md`
+Total Lines: 100
+Total Bytes: 4323
+Showing lines 1 to 100
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: # Giảm kích thước giao diện 20% - Thiết kế lại bố cục chuyên nghiệp
+2: 
+3: ## Bối cảnh
+4: Hệ thống hiện tại được thiết kế cho zoom 100% nhưng chỉ trông ổn ở 80% zoom. Cần giảm toàn bộ kích thước (font, padding, margin, kích thước element) xuống ~80% và tái bố trí cho dễ nhìn, chuyên nghiệp.
+5: 
+6: ## Chiến lược
+7: 
+8: Dự án dùng **TailwindCSS v4** với hầu hết styling qua Tailwind classes trong JSX. File App.tsx có **8256 dòng** nên cần chiến lược hiệu quả:
+9: 
+10: ### Phương pháp: CSS Root-Level Scaling + Targeted Adjustments
+11: 
+12: Thay vì sửa hàng ngàn class riêng lẻ, sử dụng:
+13: 
+14: 1. **Root font-size scaling**: Đặt `html { font-size: 80% }` (thay vì default 16px → ~12.8px). Vì TailwindCSS v4 dùng `rem` cho hầu hết kích thước, điều này tự động scale 80% tất cả font-size, padding, margin, gap, rounded, width/height sử dụng rem units.
+15: 
+16: 2. **Điều chỉnh các component class** trong `index.css` để cân đối lại proportions.
+17: 
+18: 3. **Sửa các giá trị hardcoded pixel** trong App.tsx (sidebar width `256`→`208`, `80`→`64`, icon sizes, v.v.)
+19: 
+20: 4. **Tối ưu layout** cho compact hơn nhưng vẫn dễ đọc.
+21: 
+22: ## Proposed Changes
+23: 
+24: ### CSS Root Level ([index.css](file:///d:/GitHub/Quanlyhoadon/src/index.css))
+25: 
+26: #### [MODIFY] [index.css](file:///d:/GitHub/Quanlyhoadon/src/index.css)
+27: 
+28: - Thêm `html { font-size: 8
+<truncated 1194 bytes>
+ p-4)
+64: - Icon sizes (size-12 → size-10, size-6 → size-5)
+65: - Rounded corners thu nhỏ
+66: 
+67: ---
+68: 
+69: ### Dashboard Stats & Cards
+70: 
+71: - Stat value sizes: text-3xl → text-2xl
+72: - Stat card padding: p-6 → p-4
+73: - Card rounded: rounded-[24px] → rounded-[20px]
+74: - Section gaps giảm
+75: 
+76: ---
+77: 
+78: ### Component Files
+79: 
+80: #### [MODIFY] [InvoiceCardContent.tsx](file:///d:/GitHub/Quanlyhoadon/src/components/Invoice/InvoiceCardContent.tsx)
+81: #### [MODIFY] [InvoiceHoverCard.tsx](file:///d:/GitHub/Quanlyhoadon/src/components/Invoice/InvoiceHoverCard.tsx)
+82: #### [MODIFY] [InvoiceItemComp.tsx](file:///d:/GitHub/Quanlyhoadon/src/components/Invoice/InvoiceItemComp.tsx)
+83: #### [MODIFY] [InvoiceTapCard.tsx](file:///d:/GitHub/Quanlyhoadon/src/components/Invoice/InvoiceTapCard.tsx)
+84: #### [MODIFY] [InvoiceResponsiveCard.tsx](file:///d:/GitHub/Quanlyhoadon/src/components/Invoice/InvoiceResponsiveCard.tsx)
+85: #### [MODIFY] [InvoiceSummary.tsx](file:///d:/GitHub/Quanlyhoadon/src/components/Invoice/InvoiceSummary.tsx)
+86: #### [MODIFY] [AIChatBox.tsx](file:///d:/GitHub/Quanlyhoadon/src/components/AIChatBox.tsx)
+87: #### [MODIFY] [Notifications.tsx](file:///d:/GitHub/Quanlyhoadon/src/components/Notifications.tsx)
+88: 
+89: > [!IMPORTANT]
+90: > **Phương pháp root font-size 80%** là cách hiệu quả nhất vì TailwindCSS v4 sử dụng `rem` units cho mọi kích thước. Điều này tự động scale ~80% toàn bộ: font, padding, margin, gap, width, height, rounded corners. Chỉ cần sửa thêm các giá trị pixel hardcoded (sidebar width, icon size pixel values).
+91: 
+92: ## Verification Plan
+93: 
+94: ### Automated Tests
+95: - `npm run build` - kiểm tra build thành công
+96: - `npm run dev` - chạy dev server kiểm tra giao diện
+97: 
+98: ### Manual Verification  
+99: - Yêu cầu user test ở zoom 100% xem giao diện có tương đương zoom 80% trước đây không
+100: 
+The above content shows the entire, complete file contents of the requested file.

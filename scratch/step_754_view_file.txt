@@ -1,0 +1,80 @@
+Created At: 2026-05-22T05:09:56Z
+Completed At: 2026-05-22T05:09:56Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8117
+Total Bytes: 396877
+Showing lines 2550 to 2650
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2550: 
+2551:   const grandTotal = useMemo(() => {
+2552:     return rows.reduce((sum, row) => {
+2553:       const num = parseInt(row.giatri, 10) || 0;
+2554:       return sum + num;
+2555:     }, 0);
+2556:   }, [rows]);
+2557: 
+2558:   return (
+2559:     <div className="w-full my-4 font-serif text-[#1a1a1a]">
+2560:       <table className="w-full text-[11px] border-collapse border border-black">
+2561:         <thead>
+2562:           <tr className="bg-gray-100 border border-black">
+2563:             <th className="border border-black px-2 py-1.5 text-center font-bold uppercase w-12">STT</th>
+2564:             <th className="border border-black px-2 py-1.5 text-left font-bold uppercase">Nội dung đề nghị</th>
+2565:             <th className="border border-black px-2 py-1.5 text-center font-bold uppercase w-20">Đơn vị</th>
+2566:             <th className="border border-black px-2 py-1.5 text-right font-bold uppercase w-32">Số tiền</th>
+2567:             <th className="border-0 px-2 py-1.5 text-center w-10 bg-white"></th>
+2568:           </tr>
+2569:         </thead>
+2570:         <tbody>
+2571:           {rows.map((row, idx) => (
+2572:             <tr key={idx} className="border border-black group/row">
+2573:               <td className="border border-black px-2 py-1 text-center font-bold font-mono">
+2574:                 <input
+2575:                   type="text"
+2576:                   value={row.stt}
+2577:                   onChange={(e) => handleCellChange(idx, 'stt', e.target.value)}
+2578:                   className="w-full text-center bg-transparent bo
+<truncated 1860 bytes>
+="button"
+2610:                   onClick={() => handleRemoveRow(idx)}
+2611:                   className="opacity-0 group-hover/row:opacity-100 p-0.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-all"
+2612:                   title="Xóa dòng"
+2613:                 >
+2614:                   <Trash2 className="size-3" />
+2615:                 </button>
+2616:               </td>
+2617:             </tr>
+2618:           ))}
+2619:           <tr className="border border-black font-bold bg-gray-50">
+2620:             <td colSpan={2} className="border border-black px-3 py-2 text-center uppercase text-[10px]">
+2621:               Tổng số tiền đề nghị thanh toán / tạm ứng
+2622:             </td>
+2623:             <td className="border border-black px-3 py-2 text-center text-[10px]">
+2624:               {rows[0]?.donvi || 'Đồng'}
+2625:             </td>
+2626:             <td className="border border-black px-3 py-2 text-right font-mono text-[11px] text-emerald-800 font-black">
+2627:               {grandTotal.toLocaleString('vi-VN')}
+2628:             </td>
+2629:             <td className="border-0 bg-white"></td>
+2630:           </tr>
+2631:         </tbody>
+2632:       </table>
+2633:       <div className="mt-2 text-left">
+2634:         <button
+2635:           type="button"
+2636:           onClick={handleAddRow}
+2637:           className="inline-flex items-center gap-1 px-2.5 py-1 text-[9px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded transition-colors active:scale-95"
+2638:         >
+2639:           <Plus className="size-3" /> THÊM DÒNG MỚI
+2640:         </button>
+2641:       </div>
+2642:     </div>
+2643:   );
+2644: };
+2645: 
+2646: 
+2647: const ContractView = ({ 
+2648:   partners, 
+2649:   user,
+2650:   contractForm,
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

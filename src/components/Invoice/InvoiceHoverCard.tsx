@@ -20,10 +20,10 @@ export const InvoiceHoverCard: React.FC<Props> = ({ invoice, children, onGenerat
         <HoverCard.Content 
           side="right"
           sideOffset={5}
-          className="z-[9999] bg-white shadow-xl border border-gray-100 rounded-2xl overflow-hidden p-4"
+          className="z-[9999] bg-[#1e1e1e] shadow-2xl shadow-black/50 border border-white/10 rounded-2xl overflow-hidden p-1 backdrop-blur-xl"
         >
           <InvoiceCardContent invoice={invoice} onGenerateDoc={onGenerateDoc} />
-          <HoverCard.Arrow className="fill-white" height={10} width={20} />
+          <HoverCard.Arrow className="fill-[#1e1e1e]" height={10} width={20} />
         </HoverCard.Content>
       </HoverCard.Portal>
     </HoverCard.Root>

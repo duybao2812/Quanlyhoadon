@@ -1,0 +1,79 @@
+Created At: 2026-05-20T11:34:39Z
+Completed At: 2026-05-20T11:34:39Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8256
+Total Bytes: 401522
+Showing lines 1577 to 1660
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1577: const UploadView = ({ 
+1578:   onUpload, 
+1579:   queue, 
+1580:   rejectedFiles,
+1581:   onRemove, 
+1582:   onRemoveRejected,
+1583:   onProcess, 
+1584:   isProcessing,
+1585:   processingStatus
+1586: }: { 
+1587:   onUpload: (accepted: File[], rejected: any[]) => void, 
+1588:   queue: File[], 
+1589:   rejectedFiles: {file: File, reason: string}[],
+1590:   onRemove: (name: string) => void,
+1591:   onRemoveRejected: (name: string) => void,
+1592:   onProcess: () => void,
+1593:   isProcessing: boolean,
+1594:   processingStatus: string
+1595: }) => {
+1596:   const { getRootProps, getInputProps, isDragActive } = useDropzone({
+1597:     onDrop: onUpload,
+1598:     accept: {
+1599:       'application/pdf': ['.pdf'],
+1600:       'application/xml': ['.xml'],
+1601:       'text/xml': ['.xml'],
+1602:       'application/octet-stream': ['.xml', '.pdf'],
+1603:       'text/plain': ['.xml'],
+1604:       'image/*': ['.png', '.jpg', '.jpeg']
+1605:     }
+1606:   } as any);
+1607: 
+1608:   return (
+1609:     <div className="space-y-6">
+1610:       <div className="card p-8">
+1611:         <div 
+1612:           {...getRootProps()} 
+1613:           className={cn(
+1614:             "border-2 border-dashed rounded-[32px] flex flex-col items-center justify-center p-12 transition-all cursor-pointer bg-sidebar-dark group",
+1615:             isDragActive ? "border-primary bg-primary/5" : "border-border-dark hover:border-primary/40 hover:bg-white/5"
+1616:           )}
+1617:         >
+1618:           <input {...getInputProps()} />
+1619:           <div className="size-20 bg-primary
+<truncated 1092 bytes>
+     initial={{ opacity: 0, y: 20 }}
+1635:           animate={{ opacity: 1, y: 0 }}
+1636:           className="bg-card-dark rounded-[40px] border border-border-dark overflow-hidden shadow-2xl relative"
+1637:         >
+1638:           {/* Header Status Bar */}
+1639:           <div className="p-8 border-b border-border-dark bg-white/[0.02] flex items-center justify-between relative overflow-hidden">
+1640:             {isProcessing && (
+1641:               <div className="absolute bottom-0 left-0 h-1 bg-primary animate-pulse shadow-[0_0_15px_rgba(249,115,22,0.5)] w-full transition-all" />
+1642:             )}
+1643:             
+1644:             <div className="flex items-center gap-5">
+1645:               <div className={cn(
+1646:                 "size-12 rounded-2xl flex items-center justify-center transition-all duration-500",
+1647:                 isProcessing ? "bg-primary/20 text-primary animate-pulse" : "bg-white/5 text-text-dim"
+1648:               )}>
+1649:                 {isProcessing ? <Loader2 className="size-6 animate-spin" /> : <List className="size-6" />}
+1650:               </div>
+1651:               <div>
+1652:                 <div className="flex items-center gap-3">
+1653:                   <span className="text-sm font-black uppercase tracking-[0.2em] text-white">Hàng chờ hệ thống</span>
+1654:                   <div className="px-3 py-0.5 bg-primary/20 text-primary rounded-full text-[10px] font-black tracking-widest border border-primary/30">
+1655:                     {queue.length} TỆP SẴN SÀNG
+1656:                   </div>
+1657:                 </div>
+1658:                 {isProcessing && processingStatus ? (
+1659:                   <div className="flex items-center gap-2 mt-1.5">
+1660:                     <div className="size-1.5 rounded-full bg-primary animate-ping" />
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

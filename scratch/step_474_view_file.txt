@@ -1,0 +1,24 @@
+Created At: 2026-05-20T12:56:31Z
+Completed At: 2026-05-20T12:56:32Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8256
+Total Bytes: 402034
+Showing lines 150 to 165
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+150: }
+151: 
+152: // --- Components ---
+153: 
+154: import { 
+155:   formatThousands, 
+156:   numberToVietnameseWords 
+157: } from './lib/contractUtils';
+158: 
+159: const Sidebar = ({ 
+160:   activeTab, 
+161:   setActiveTab, 
+162:   user, 
+163:   isPinned, 
+164:   setIsPinned 
+165: }: { 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

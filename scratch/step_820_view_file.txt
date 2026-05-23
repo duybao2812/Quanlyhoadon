@@ -1,0 +1,73 @@
+Created At: 2026-05-22T05:12:47Z
+Completed At: 2026-05-22T05:12:47Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8641
+Total Bytes: 437338
+Showing lines 4212 to 4300
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+4212: 
+4213:   return (
+4214:     <div className="flex flex-col h-full gap-1">
+4215:       {/* Top Header Section */}
+4216:       <div className="flex flex-col md:flex-row gap-2 items-start md:items-center justify-between bg-card-dark p-2 rounded-2xl shadow-sm border border-border-dark">
+4217:         <div className="space-y-0 text-left">
+4218:           <h2 className="text-lg font-bold text-white flex items-center gap-2">
+4219:             <PlusSquare className="size-5 text-primary" />
+4220:             Tạo Hợp Đồng Chuyên Nghiệp
+4221:           </h2>
+4222:           <p className="text-[11px] text-text-dim">Soạn thảo hợp đồng nhanh chóng với mẫu có sẵn</p>
+4223:         </div>
+4224:         <div className="flex items-center gap-2">
+4225:           <button
+4226:             onClick={() => {
+4227:               updateContractForm({
+4228:                 selectedTemplate: '',
+4229:                 tags: [],
+4230:                 templateFormData: {
+4231:                   'HDNT': {},
+4232:                   'HDTC': {},
+4233:                   'HDCM': {},
+4234:                   'GDNTT': {}
+4235:                 },
+4236:                 selectedPartyAId: '',
+4237:                 selectedPartyBId: '',
+4238:                 templateBuffer: null,
+4239:                 vtLinks: {}
+4240:               });
+4241:             }}
+4242:             className="px-3 py-1.5 text-xs font-medium text-text-dim hover:bg-white/5 hover:text-white rounded-lg transition-colors border border-border-dark"
+4243:           >
+4244:             Làm mới
+4245
+<truncated 1557 bytes>
+ <button
+4272:                   key={t.id}
+4273:                   onClick={() => handleTemplateChange(t.id)}
+4274:                   className={cn(
+4275:                     "w-full text-left p-2 rounded-xl border transition-all flex items-center justify-between group",
+4276:                     selectedTemplate === t.id 
+4277:                       ? "bg-primary/10 border-primary/50 shadow-sm" 
+4278:                       : "bg-white/5 border-border-dark hover:border-primary/50 hover:bg-white/10"
+4279:                   )}
+4280:                 >
+4281:                   <div className="flex items-center gap-2.5">
+4282:                     <div className={cn(
+4283:                        "size-8 rounded-lg flex items-center justify-center border",
+4284:                        selectedTemplate === t.id ? "bg-primary text-white border-primary" : "bg-white/5 text-text-dim group-hover:bg-primary/10 group-hover:text-primary border-border-dark"
+4285:                     )}>
+4286:                       <FileText className="size-4" />
+4287:                     </div>
+4288:                     <div className="flex flex-col">
+4289:                       <span className={cn("text-xs font-black leading-tight", selectedTemplate === t.id ? "text-primary" : "text-white")}>{t.name}</span>
+4290:                       <span className="text-[9px] text-text-dim font-mono">{t.file}</span>
+4291:                     </div>
+4292:                   </div>
+4293:                   {selectedTemplate === t.id && (
+4294:                     <div className="size-4 bg-primary rounded-full flex items-center justify-center">
+4295:                       <Check className="size-2.5 text-white" />
+4296:                     </div>
+4297:                   )}
+4298:                 </button>
+4299:               ))}
+4300:             </div>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

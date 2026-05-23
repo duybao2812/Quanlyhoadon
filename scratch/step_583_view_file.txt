@@ -1,0 +1,59 @@
+Created At: 2026-05-22T04:59:35Z
+Completed At: 2026-05-22T04:59:36Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8227
+Total Bytes: 401174
+Showing lines 3980 to 4030
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3980: 
+3981: };
+3982: 
+3983: const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: { 
+3984:   partners: Partner[], 
+3985:   onEdit: (p: Partner) => void, 
+3986:   onBatchEdit: () => void,
+3987:   onDelete: (id: string) => void 
+3988: }) => {
+3989:   const { toast } = useToast();
+3990:   const [searchTerm, setSearchTerm] = useState('');
+3991:   const [showAddressTool, setShowAddressTool] = useState(false);
+3992:   const [convInput, setConvInput] = useState('');
+3993:   const [convResult, setConvResult] = useState<any>(null);
+3994: 
+3995:   // State cho Context Menu
+3996:   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, partner: Partner | null } | null>(null);
+3997: 
+3998:   const filteredPartners = partners.filter(p => 
+3999:     p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+4000:     p.taxCode.includes(searchTerm) ||
+4001:     (p.representative && p.representative.toLowerCase().includes(searchTerm.toLowerCase()))
+4002:   );
+4003: 
+4004:   const handleContextMenu = (e: React.MouseEvent, partner: Partner) => {
+4005:     e.preventDefault();
+4006:     setContextMenu({ x: e.clientX, y: e.clientY, partner });
+4007:   };
+4008: 
+4009:   const closeContextMenu = () => setContextMenu(null);
+4010: 
+4011:   const handleConvert = (val: string) => {
+4012:     setConvInput(val);
+4013:     if (val.trim().length > 5) {
+4014:       setConvResult(smartConvertAddress(val));
+4015:     } else {
+4016:       setConvResult(null);
+4017:     }
+4018:   };
+4019: 
+4020:   return (
+4021:     <div className="space-y-4" onClick={closeContextMenu}>
+4022:       <div className="flex justify-between items-center bg-card-dark p-4 px-5 rounded-2xl border border-border-dark shadow-2xl">
+4023:         <div className="flex items-center gap-3">
+4024:           <div className="size-9 bg-primary/10 rounded-xl flex items-center justify-center">
+4025:             <Users className="size-4.5 text-primary" />
+4026:           </div>
+4027:           <div>
+4028:             <h2 className="text-base font-black text-white tracking-tighter uppercase">Đối tác & Khách hàng</h2>
+4029:             <div className="text-[9px] font-black text-text-dim uppercase tracking-[0.2em] mt-0.5">
+4030:               {partners.length} Công ty liên kết
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

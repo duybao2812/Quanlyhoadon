@@ -1,0 +1,71 @@
+Created At: 2026-05-20T11:37:05Z
+Completed At: 2026-05-20T11:37:05Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8264
+Total Bytes: 401857
+Showing lines 4048 to 4110
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+4048: 
+4049:   return (
+4050:     <div className="space-y-6" onClick={closeContextMenu}>
+4051:       <div className="flex justify-between items-center bg-card-dark p-6 rounded-[24px] border border-border-dark shadow-2xl">
+4052:         <div className="flex items-center gap-4">
+4053:           <div className="size-10 bg-primary/10 rounded-xl flex items-center justify-center">
+4054:             <Users className="size-5 text-primary" />
+4055:           </div>
+4056:           <div>
+4057:             <h2 className="text-xl font-black text-white tracking-tighter uppercase">Đối tác & Khách hàng</h2>
+4058:             <div className="text-[10px] font-black text-text-dim uppercase tracking-[0.2em] mt-1">
+4059:               {partners.length} Công ty liên kết
+4060:             </div>
+4061:           </div>
+4062:         </div>
+4063:         <div className="flex items-center gap-4">
+4064:           <div className="relative">
+4065:             <Search className="size-4 absolute left-4 top-1/2 -translate-y-1/2 text-text-dim" />
+4066:             <input 
+4067:               type="text" 
+4068:               placeholder="Tìm kiếm đối tác..." 
+4069:               value={searchTerm}
+4070:               onChange={(e) => setSearchTerm(e.target.value)}
+4071:               className="pl-11 pr-4 py-2.5 bg-sidebar-dark border border-border-dark rounded-2xl text-sm focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all w-72 text-white placeholder:text-text-dim"
+4072:             />
+4073:           </div>
+4074:           <div className="w-px h-8 bg-border-dark" />
+4075:           <button 
+4076:             onClick={() => setShowAddressTool(!showAddressTool)}
+4077:             className={cn(
+4078:               "flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border shadow-sm",
+4079:               showAddressTool 
+4080:               ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" 
+4081:               : "bg-white/5 border-border-dark text-text-dim hover:text-white hover:bg-white/10"
+4082:             )}
+4083:           >
+4084:             <MapPin className="size-4" />
+4085:             AI Address
+4086:           </button>
+4087:           <button 
+4088:             onClick={() => onEdit({ id: 'new', name: '', taxCode: '', address: '' })}
+4089:             className="btn-primary"
+4090:           >
+4091:             <Plus className="size-4" />
+4092:             THÊM MỚI
+4093:           </button>
+4094:           <button 
+4095:             onClick={onBatchEdit}
+4096:             className="btn-secondary"
+4097:           >
+4098:             <Edit2 className="size-4" />
+4099:             CHỈNH SỬA
+4100:           </button>
+4101:         </div>
+4102:       </div>
+4103: 
+4104:       {/* Address Converter Tool - 3 Parts Output */}
+4105:       <AnimatePresence>
+4106:         {showAddressTool && (
+4107:           <motion.div 
+4108:             initial={{ height: 0, opacity: 0 }}
+4109:             animate={{ height: 'auto', opacity: 1 }}
+4110:             exit={{ height: 0, opacity: 0 }}
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

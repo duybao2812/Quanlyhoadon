@@ -1,0 +1,1 @@
+"- `[x]` Biên dịch kiểm tra lỗi bằng lệnh build (`npm run build`)"

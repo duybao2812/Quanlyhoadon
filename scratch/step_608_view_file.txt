@@ -1,0 +1,69 @@
+Created At: 2026-05-22T05:00:07Z
+Completed At: 2026-05-22T05:00:07Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8225
+Total Bytes: 401168
+Showing lines 3360 to 3420
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3360:             <TagRenderItem tag={tag} {...commonItemProps} />
+3361:           </div>
+3362:         ))}
+3363:       </div>
+3364:     );
+3365:   };
+3366: 
+3367:   const handleGenerate = async () => {
+3368:     if (!templateBuffer || !selectedTemplate) return;
+3369:     setIsGenerating(true);
+3370:     try {
+3371:       const zip = new PizZip(templateBuffer);
+3372:       
+3373:       let docXml = zip.file("word/document.xml")?.asText() || "";
+3374:       if (docXml.includes('[BANG_GDN]')) {
+3375:         docXml = docXml.replace(/\[BANG_GDN\]/g, '[@BANG_GDN]');
+3376:         zip.file("word/document.xml", docXml);
+3377:       }
+3378: 
+3379:       const doc = new Docxtemplater(zip, { 
+3380:         paragraphLoop: true, 
+3381:         linebreaks: true, 
+3382:         delimiters: { start: "[", end: "]" } 
+3383:       });
+3384:       
+3385:       const dataToRender: Record<string, string> = {};
+3386:       Object.keys(formData).forEach(tag => {
+3387:         const upper = tag.toUpperCase();
+3388:         // Skip dots for common table-related tags if empty
+3389:         const isTableTag = upper.includes('NOI_DUNG') || 
+3390:                            upper.includes('DVT') || 
+3391:                            upper.includes('SOLUONG') || 
+3392:                            upper.includes('SL') || 
+3393:                            upper.includes('DON_GIA') ||
+3394:                            upper.includes('DONGIA') ||
+3395:                            upper.includes('THANHTIEN') ||
+3396:                            upper.includes('THANH_TIEN');
+3397:                            
+3398:         if (upper === 'BANG_GDN') {
+3399:           let rows: GdnRow[] = [];
+3400:           try {
+3401:             if (formData[tag]) {
+3402:               rows = JSON.parse(formData[tag]);
+3403:             }
+3404:           } catch (e) {
+3405:             console.error("Failed to parse BANG_GDN for rendering", e);
+3406:           }
+3407:           if (!Array.isArray(rows) || rows.length === 0) {
+3408:             rows = [{ stt: "1", noidung: "", donvi: "Đồng", giatri: "" }];
+3409:           }
+3410:           dataToRender[tag] = generateGdnDocxTable(rows);
+3411:         } else if (upper === 'TAMUNG-THANHTOAN_TITLE') {
+3412:           const tamungKey = Object.keys(formData).find(k => k.toUpperCase() === 'TAMUNG-THANHTOAN') || 'TAMUNG-THANHTOAN';
+3413:           dataToRender[tag] = (formData[tamungKey] || '').toUpperCase();
+3414:         } else if (upper === 'BEN_DUOC_DE_NGHI_TITLE' || upper === 'BEN_DE_NGHI_TITLE') {
+3415:           const baseKey = upper === 'BEN_DUOC_DE_NGHI_TITLE' ? 'BEN_DUOC_DE_NGHI' : 'BEN_DE_NGHI';
+3416:           const matchKey = Object.keys(formData).find(k => k.toUpperCase() === baseKey) || baseKey;
+3417:           dataToRender[tag] = (formData[matchKey] || '').toUpperCase();
+3418:         } else if (upper === 'BEN_DUOC_DE_NGHI' || upper === 'BEN_DE_NGHI') {
+3419:           dataToRender[tag] = toVietnameseTitleCase(formData[tag]) || "....................";
+3420:         } else {
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

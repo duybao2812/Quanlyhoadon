@@ -1,0 +1,70 @@
+Created At: 2026-05-22T04:56:50Z
+Completed At: 2026-05-22T04:56:50Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8256
+Total Bytes: 402066
+Showing lines 3460 to 4259
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3460:           dataToRender[tag] = toVietnameseTitleCase(benDeNghiVal) || "....................";
+3461:         }
+3462:       });
+3463: 
+3464:       // Double-safety for default exact casing if not captured above
+3465:       if (!dataToRender['BEN_DUOC_DE_NGHI_TITLE']) dataToRender['BEN_DUOC_DE_NGHI_TITLE'] = benDuocVal.toUpperCase();
+3466:       if (!dataToRender['BEN_DE_NGHI_TITLE']) dataToRender['BEN_DE_NGHI_TITLE'] = benDeNghiVal.toUpperCase();
+3467:       if (!dataToRender[benDuocKey]) dataToRender[benDuocKey] = toVietnameseTitleCase(benDuocVal) || "....................";
+3468:       if (!dataToRender[benDeNghiKey]) dataToRender[benDeNghiKey] = toVietnameseTitleCase(benDeNghiVal) || "....................";
+3469: 
+3470:       doc.render(dataToRender);
+3471:       const out = doc.getZip().generate({ type: 'blob', compression: 'DEFLATE' });
+3472:       const templateName = CONTRACT_TEMPLATES.find(t => t.id === selectedTemplate)?.name || 'HopDong';
+3473:       const fileName = `${templateName}_${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.docx`;
+3474:       
+3475:       saveAs(out, fileName);
+3476:       
+3477:       // Save metadata to Supabase
+3478:       await onContractSaved({
+3479:         templateId: selectedTemplate,
+3480:         partyAId: selectedPartyAId,
+3481:         partyBId: selectedPartyBId,
+3482:         formData: formData,
+3483:         fileName: fileName
+3484:       });
+3485: 
+3486:       toast("Đã tạo hợp đồng và lưu vào hệ thống!", "success");
+3487:     } catch (error: any) {
+3488:       console.error(error);
+<truncated 45282 bytes>
+:                 <th className="px-5 py-4 text-[10px] font-black text-primary uppercase tracking-[0.25em] w-[15%]">
+4200:                   <div className="flex items-center gap-1.5">
+4201:                     <CreditCard className="size-3.5 opacity-70" /> Tài khoản thanh toán
+4202:                   </div>
+4203:                 </th>
+4204:                 <th className="px-5 py-4 text-[10px] font-black text-primary uppercase tracking-[0.25em] w-[18%]">
+4205:                   <div className="flex items-center gap-1.5">
+4206:                     <UserCheck className="size-3.5 opacity-70" /> Đại diện pháp luật
+4207:                   </div>
+4208:                 </th>
+4209:                 <th className="py-4 pl-5 pr-[40px] text-[10px] font-black text-primary uppercase tracking-[0.25em] text-right w-[10%]">Hành động</th>
+4210:               </tr>
+4211:             </thead>
+4212:             <tbody className="divide-y divide-white/5">
+4213:               {filteredPartners.length === 0 ? (
+4214:                 <tr>
+4215:                   <td colSpan={5} className="px-5 py-12 text-center">
+4216:                     <div className="flex flex-col items-center gap-3 opacity-20">
+4217:                       <Users className="size-12 text-white" />
+4218:                       <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Chưa có dữ liệu đối tác</p>
+4219:                     </div>
+4220:                   </td>
+4221:                 </tr>
+4222:               ) : (
+4223:                 filteredPartners.map((partner) => (
+4224:                   <tr 
+4225:                     key={partner.id} 
+4226:                     onContextMenu={(e) => handleContextMenu(e, partner)}
+4227:                     className="hover:bg-primary/5 transition-all duration-300 group relative"
+4228:        
+<truncated 2974 bytes>
+
+NOTE: The output was truncated because it was too long. Use a more targeted query or a smaller range to get the information you need.

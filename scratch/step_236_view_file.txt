@@ -1,0 +1,28 @@
+Created At: 2026-05-20T11:35:59Z
+Completed At: 2026-05-20T11:35:59Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8258
+Total Bytes: 401638
+Showing lines 1781 to 1800
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1781:                           </div>
+1782:                         </div>
+1783:                       </div>
+1784:                       <button 
+1785:                         onClick={() => onRemoveRejected(item.file.name)}
+1786:                         className="size-10 flex items-center justify-center text-red-500/40 hover:text-white hover:bg-red-500 rounded-xl transition-all"
+1787:                       >
+1788:                         <X className="size-5" />
+1789:                       </button>
+1790:                     </div>
+1791:                   ))
+1792:                 )}
+1793:               </div>
+1794:             </div>
+1795:           </div>
+1796:         </motion.div>
+1797:       )}
+1798:     </div>
+1799:   );
+1800: };
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

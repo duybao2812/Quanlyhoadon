@@ -1,0 +1,24 @@
+Created At: 2026-05-22T04:59:39Z
+Completed At: 2026-05-22T04:59:39Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8227
+Total Bytes: 401174
+Showing lines 2640 to 2655
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2640:         </button>
+2641:       </div>
+2642:     </div>
+2643:   );
+2644: };
+2645: 
+2646: 
+2647: const ContractView = ({ 
+2648:   partners, 
+2649:   user,
+2650:   contractForm,
+2651:   updateContractForm,
+2652:   onContractSaved,
+2653:   setIsInvoiceSelectorOpen,
+2654:   setActiveInvoiceTag,
+2655:   handleFieldChange
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

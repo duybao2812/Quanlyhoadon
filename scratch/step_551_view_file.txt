@@ -1,0 +1,29 @@
+Created At: 2026-05-22T04:58:10Z
+Completed At: 2026-05-22T04:58:10Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8256
+Total Bytes: 402066
+Showing lines 4000 to 4020
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+4000:                    <ShieldCheck className="size-3 text-emerald-500" /> Hệ thống bảo mật
+4001:                  </div>
+4002:                  <div className="italic">Dữ liệu trống mặc định: <span className="text-primary">"............"</span></div>
+4003:               </div>
+4004:             </div>
+4005:           )}
+4006:         </div>
+4007:       </div>
+4008:     </div>
+4009:   );
+4010: };
+4011: 
+4012: const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: { 
+4013:   partners: Partner[], 
+4014:   onEdit: (p: Partner) => void, 
+4015:   onBatchEdit: () => void,
+4016:   onDelete: (id: string) => void 
+4017: }) => {
+4018:   const { toast } = useToast();
+4019:   const [searchTerm, setSearchTerm] = useState('');
+4020:   const [showAddressTool, setShowAddressTool] = useState(false);
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

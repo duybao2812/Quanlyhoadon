@@ -1,0 +1,60 @@
+Created At: 2026-05-20T11:39:18Z
+Completed At: 2026-05-20T11:39:18Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8234
+Total Bytes: 400516
+Showing lines 4150 to 4210
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+4150:                             {convResult.oldFullAddress || `${convResult.detail ? convResult.detail + ', ' : ''}${convResult.oldWard}, ${convResult.oldDistrict}, ${convResult.province}`}
+4151:                           </div>
+4152:                         </div>
+4153:                       </div>
+4154: 
+4155:                             <div className="overflow-x-auto custom-scrollbar">
+4156:           <table className="w-full text-left border-collapse">
+4157:             <thead>
+4158:               <tr className="bg-white/5 border-b border-white/10">
+4159:                 <th className="px-5 py-4 text-[10px] font-black text-primary uppercase tracking-[0.25em] w-[22%]">
+4160:                   <div className="flex items-center gap-1.5">
+4161:                     <Building2 className="size-3.5 opacity-70" /> Thông tin công ty
+4162:                   </div>
+4163:                 </th>
+4164:                 <th className="px-5 py-4 text-[10px] font-black text-primary uppercase tracking-[0.25em] w-[35%]">
+4165:                   <div className="flex items-center gap-1.5">
+4166:                     <MapPin className="size-3.5 opacity-70" /> Địa chỉ liên hệ
+4167:                   </div>
+4168:                 </th>
+4169:                 <th className="px-5 py-4 text-[10px] font-black text-primary uppercase tracking-[0.25em] w-[15%]">
+4170:                   <div className="flex items-center gap-1.5">
+4171:                     <CreditCard className="size-3.5 opacity-70" /> Tài khoản thanh toán
+4172:                   </div>
+4173:                 </th>
+417
+<truncated 751 bytes>
+ className="px-5 py-12 text-center">
+4186:                     <div className="flex flex-col items-center gap-3 opacity-20">
+4187:                       <Users className="size-12 text-white" />
+4188:                       <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Chưa có dữ liệu đối tác</p>
+4189:                     </div>
+4190:                   </td>
+4191:                 </tr>
+4192:               ) : (
+4193:                 filteredPartners.map((partner) => (
+4194:                   <tr 
+4195:                     key={partner.id} 
+4196:                     onContextMenu={(e) => handleContextMenu(e, partner)}
+4197:                     className="hover:bg-primary/5 transition-all duration-300 group relative"
+4198:                   >
+4199:                     <td className="px-5 py-5 relative">
+4200:                       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+4201:                       <div className="relative z-10">
+4202:                         <div className="font-bold text-white group-hover:text-primary transition-colors text-xs tracking-tight leading-tight mb-1.5">
+4203:                           {partner.name}
+4204:                         </div>
+4205:                         <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-white/5 border border-white/10 rounded-md group-hover:border-primary/30 transition-all">
+4206:                           <Hash className="size-2.5 text-primary/60" />
+4207:                           <span className="text-[9px] font-black text-text-dim uppercase tracking-widest">MST: {partner.taxCode}</span>
+4208:                         </div>
+4209:                       </div>
+4210:                     </td>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

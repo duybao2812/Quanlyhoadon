@@ -1,0 +1,77 @@
+Created At: 2026-05-22T05:12:59Z
+Completed At: 2026-05-22T05:12:59Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8641
+Total Bytes: 437338
+Showing lines 3250 to 3452
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3250:       if (g.year) keys.push(formData[g.year] || '');
+3251:     });
+3252:     return keys.join('|');
+3253:   }, [dateGroups, formData]);
+3254: 
+3255:   useEffect(() => {
+3256:     forceUpdateAddresses();
+3257:   }, [dateValuesString, selectedPartyAId, selectedPartyBId, forceUpdateAddresses]);
+3258: 
+3259:   const handleGenerate = async () => {
+3260:     if (!templateBuffer || !selectedTemplate) return;
+3261:     setIsGenerating(true);
+3262:     try {
+3263:       const zip = new PizZip(templateBuffer);
+3264:       
+3265:       let docXml = zip.file("word/document.xml")?.asText() || "";
+3266:       if (docXml.includes('[BANG_GDN]')) {
+3267:         docXml = docXml.replace(/\[BANG_GDN\]/g, '[@BANG_GDN]');
+3268:         zip.file("word/document.xml", docXml);
+3269:       }
+3270: 
+3271:       const doc = new Docxtemplater(zip, { 
+3272:         paragraphLoop: true, 
+3273:         linebreaks: true, 
+3274:         delimiters: { start: "[", end: "]" } 
+3275:       });
+3276:       
+3277:       const dataToRender: Record<string, string> = {};
+3278:       Object.keys(formData).forEach(tag => {
+3279:         const upper = tag.toUpperCase();
+3280:         // Skip dots for common table-related tags if empty
+3281:         const isTableTag = upper.includes('NOI_DUNG') || 
+3282:                            upper.includes('DVT') || 
+3283:                            upper.includes('SOLUONG') || 
+3284:                            upper.includes('SL') || 
+3285:                            upper.includes('DON_GIA') ||
+3286:                            upper.includes('DONGIA') |
+<truncated 11046 bytes>
+setVal('NGANHANGBENB', v); setVal('NH_B', v); }} placeholder="Tên ngân hàng..." />.
+3423:           </p>
+3424:           <p>
+3425:             Rất mong được <span className="font-bold">{getVal('BEN_DUOC_DE_NGHI') || '....................'}</span> xem xét, chấp thuận và thực hiện <span className="font-bold text-blue-900">{getVal('TAMUNG-THANHTOAN') || '....................'}</span> để tạo điều kiện hỗ trợ chi phí cho Công ty.
+3426:           </p>
+3427:           <p>Xin chân thành cảm ơn !</p>
+3428:         </div>
+3429: 
+3430:         {/* Signatures block */}
+3431:         <div className="mt-12 font-serif">
+3432:           <div className="grid grid-cols-2 gap-4 text-center font-bold text-[10.5px]">
+3433:             <div className="text-left font-normal">
+3434:               <span className="font-bold">Nơi nhận:</span>
+3435:               <div className="text-[9.5px] mt-1 space-y-0.5 text-gray-600">
+3436:                 <p>- Như kính gửi;</p>
+3437:                 <p>- Lưu PKT.KT.</p>
+3438:               </div>
+3439:             </div>
+3440:             <div>
+3441:               <div className="uppercase">
+3442:                 <InlineField tag="BEN_DE_NGHI_TITLE" value={getVal('BEN_DE_NGHI_TITLE') || getVal('BEN_DE_NGHI').toUpperCase()} onChange={(v) => setVal('BEN_DE_NGHI_TITLE', v)} placeholder="BÊN ĐỀ NGHỊ" className="font-bold uppercase" />
+3443:               </div>
+3444:               <div className="font-normal italic text-[9.5px] text-gray-500 mt-1">Giám đốc</div>
+3445:               <div className="mt-24 text-blue-900 font-bold">{getVal('DAI_DIEN_BEN_DE_NGHI') || getVal('DAIDIENBENB') || '....................'}</div>
+3446:             </div>
+3447:           </div>
+3448:         </div>
+3449:       </div>
+3450:     );
+3451:   };
+3452: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

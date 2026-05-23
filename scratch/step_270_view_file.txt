@@ -1,0 +1,64 @@
+Created At: 2026-05-20T11:36:59Z
+Completed At: 2026-05-20T11:37:00Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8264
+Total Bytes: 401880
+Showing lines 1695 to 1805
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1695:                 {queue.length === 0 && (
+1696:                   <div className="py-12 text-center border border-dashed border-border-dark rounded-xl opacity-30">
+1697:                     <FileQuestion className="size-8 mx-auto mb-2 text-text-dim" />
+1698:                     <p className="text-[9px] text-text-dim italic font-black uppercase tracking-widest">Không có tệp nào trong hàng đợi</p>
+1699:                   </div>
+1700:                 )}
+1701:                 
+1702:                 {queue.map((file, idx) => {
+1703:                   const isXml = file.name.toLowerCase().endsWith('.xml');
+1704:                   return (
+1705:                     <div key={file.name + '-' + file.size} className="group relative">
+1706:                       <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-[24px]" />
+1707:                       <div className="relative flex items-center justify-between bg-white/[0.03] p-5 rounded-[24px] border border-border-dark group-hover:border-emerald-500/30 transition-all">
+1708:                         <div className="flex items-center gap-5 min-w-0">
+1709:                           <div className={cn(
+1710:                             "size-14 rounded-2xl flex items-center justify-center shadow-2xl transition-transform group-hover:scale-110 duration-500",
+1711:                             isXml ? "bg-amber-500/10 text-amber-500" : "bg-red-500/10 text-red-500"
+1712:                           )}>
+1713:                             {i
+<truncated 3879 bytes>
+order-red-500/10 group hover:border-red-500/30 transition-all shadow-sm">
+1771:                       <div className="flex items-center gap-5 min-w-0">
+1772:                         <div className="size-14 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-500 shadow-inner">
+1773:                           <AlertCircle className="size-7" />
+1774:                         </div>
+1775:                         <div className="min-w-0">
+1776:                           <p className="text-sm font-black text-red-400 truncate leading-tight uppercase tracking-tighter">{item.file.name}</p>
+1777:                           <div className="flex items-center gap-2 mt-1.5">
+1778:                             <span className="px-2 py-0.5 bg-red-500/10 rounded-md text-[9px] font-black text-red-500 uppercase tracking-widest border border-red-500/20">
+1779:                               Lý do: {item.reason}
+1780:                             </span>
+1781:                           </div>
+1782:                         </div>
+1783:                       </div>
+1784:                       <button 
+1785:                         onClick={() => onRemoveRejected(item.file.name)}
+1786:                         className="size-10 flex items-center justify-center text-red-500/40 hover:text-white hover:bg-red-500 rounded-xl transition-all"
+1787:                       >
+1788:                         <X className="size-5" />
+1789:                       </button>
+1790:                     </div>
+1791:                   ))
+1792:                 )}
+1793:               </div>
+1794:             </div>
+1795:           </div>
+1796:         </motion.div>
+1797:       )}
+1798:     </div>
+1799:   );
+1800: };
+1801: 
+1802: // --- View: Partners ---
+1803: // --- View: Contract ---
+1804: interface GdnRow {
+1805:   stt: string;
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

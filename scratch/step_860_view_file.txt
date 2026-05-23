@@ -1,0 +1,68 @@
+Created At: 2026-05-22T05:13:51Z
+Completed At: 2026-05-22T05:13:51Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8663
+Total Bytes: 438087
+Showing lines 4170 to 4240
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+4170:             <p className="pl-4 mt-1">
+4171:               Hợp đồng được lập thành 4 bản có giá trị như nhau, Bên A giữ 02 bản, bên B giữ 02 bản và có giá trị pháp lý như nhau.
+4172:             </p>
+4173:           </div>
+4174:         </div>
+4175: 
+4176:         {/* Signatures */}
+4177:         <div className="grid grid-cols-2 gap-4 text-center font-bold mt-12 font-serif text-[10.5px]">
+4178:           <div>
+4179:             ĐẠI DIỆN BÊN A
+4180:             <div className="font-normal italic text-[8.5px] text-gray-500 mt-1">(Ký tên, đóng dấu)</div>
+4181:             <div className="mt-20 text-blue-900 font-bold">{getVal('DAIDIENBENA') || '....................'}</div>
+4182:           </div>
+4183:           <div>
+4184:             ĐẠI DIỆN BÊN B
+4185:             <div className="font-normal italic text-[8.5px] text-gray-500 mt-1">(Ký tên, đóng dấu)</div>
+4186:             <div className="mt-20 text-blue-900 font-bold">{getVal('DAIDIENBENB') || '....................'}</div>
+4187:           </div>
+4188:         </div>
+4189:       </div>
+4190:     );
+4191:   };
+4192: 
+4193:   const renderContractDocument = () => {
+4194:     if (selectedTemplate === 'HDNT') return renderHDNTDocument();
+4195:     if (selectedTemplate === 'HDTC') return renderHDTCDocument();
+4196:     if (selectedTemplate === 'HDCM') return renderHDCMDocument();
+4197:     return null;
+4198:   };('TEN_CONGTRINH', v); setVal('TENCONGTRINH', v); }} placeholder="Nhập tên công trình..." className="w-[80%]" onOpenSelector={() => { setAct
+<truncated 988 bytes>
+iveInvoiceTag?.('GIATRIHOPDONG'); setIsInvoiceSelectorOpen?.(true); }} /> <span className="font-bold">VNĐ</span>
+4212:           </p>
+4213:           <p className="pl-4 italic">
+4214:             - Bằng chữ: <InlineField tag="BANGCHUGIATRI" value={getVal('BANGCHUGIATRI')} onChange={(v) => setVal('BANGCHUGIATRI', v)} placeholder="Nhập giá trị hợp đồng bằng chữ..." className="w-[80%]" onOpenSelector={() => { setActiveInvoiceTag?.('BANGCHUGIATRI'); setIsInvoiceSelectorOpen?.(true); }} />
+4215:           </p>
+4216:         </div>
+4217: 
+4218:         {/* Signatures */}
+4219:         <div className="grid grid-cols-2 gap-4 text-center font-bold mt-12 font-serif text-[10.5px]">
+4220:           <div>
+4221:             ĐẠI DIỆN BÊN A
+4222:             <div className="font-normal italic text-[8.5px] text-gray-500 mt-1">(Ký tên, đóng dấu)</div>
+4223:             <div className="mt-20 text-blue-900 font-bold">{getVal('DAI_DIEN_A') || '....................'}</div>
+4224:           </div>
+4225:           <div>
+4226:             ĐẠI DIỆN BÊN B
+4227:             <div className="font-normal italic text-[8.5px] text-gray-500 mt-1">(Ký tên, đóng dấu)</div>
+4228:             <div className="mt-20 text-blue-900 font-bold">{getVal('DAI_DIEN_B') || '....................'}</div>
+4229:           </div>
+4230:         </div>
+4231:       </div>
+4232:     );
+4233:   };
+4234: 
+4235:   return (
+4236:     <div className="flex flex-col h-full gap-1">
+4237:       {/* Top Header Section */}
+4238:       <div className="flex flex-col md:flex-row gap-2 items-start md:items-center justify-between bg-card-dark p-2 rounded-2xl shadow-sm border border-border-dark">
+4239:         <div className="space-y-0 text-left">
+4240:           <h2 className="text-lg font-bold text-white flex items-center gap-2">
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

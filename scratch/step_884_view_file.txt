@@ -1,0 +1,80 @@
+Created At: 2026-05-22T05:15:26Z
+Completed At: 2026-05-22T05:15:26Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8628
+Total Bytes: 435739
+Showing lines 5710 to 5850
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+5710:       }));
+5711:     }
+5712:   };
+5713: 
+5714:   const handleContractInvoiceIntegration = (invoiceIds: string[]) => {
+5715:     if (!activeInvoiceTag) return;
+5716:     
+5717:     const selectedDatas = invoices.filter(inv => invoiceIds.includes(inv.id));
+5718:     if (selectedDatas.length === 0) return;
+5719: 
+5720:     const template = contractForm.selectedTemplate;
+5721:     const isSpecialContract = template === 'HDNT' || template === 'HDCM';
+5722: 
+5723:     // --- Smart Extraction from Invoice Content ---
+5724:     const allItems: any[] = [];
+5725:     selectedDatas.forEach(inv => {
+5726:       const data = inv.extractedData || {};
+5727:       const items = data.items || data.lineItems || inv.lineItems || [];
+5728:       allItems.push(...items);
+5729:     });
+5730:     const allDescriptions = allItems.map(item => (item.description || item.name || '')).join(' ');
+5731:     
+5732:     if (allDescriptions && !isSpecialContract) {
+5733:       const smartUpdates: Record<string, string> = {};
+5734:       const currentTags = contractForm.tags || [];
+5735: 
+5736:       // 0. RESET LOGIC: Identify and reset all autofill-capable tags first
+5737:       const autofillKeys = [
+5738:         'TENCONGTRINH', 'TEN_CONGTRINH',
+5739:         'GOITHAU', 'GOI_THAU', 
+5740:         'DIADIEM', 'DIA_DIEM',
+5741:         'SO_HD', 'SO_HOPDONG', 'SOHOPDONG', 'SOHD'
+5742:       ];
+5743:       
+5744:       currentTags.forEach(tag => {
+5745:         const u = tag.toUpperCase();
+5746:         const isDateContract = (u.startsWith('NGAY') || u.startsWith('DAY') || u.startsWit
+<truncated 4204 bytes>
+
+5818:            const monthTag = currentTags.find(t => {
+5819:              const u = t.toUpperCase();
+5820:              return (u.startsWith('THANG') || u.startsWith('MONTH')) && (u.includes('KY') || u.includes('HD') || u.includes('HOPDONG') || u.endsWith('KY'));
+5821:            });
+5822:            const yearTag = currentTags.find(t => {
+5823:              const u = t.toUpperCase();
+5824:              return (u.startsWith('NAM') || u.startsWith('YEAR')) && (u.includes('KY') || u.includes('HD') || u.includes('HOPDONG') || u.endsWith('KY'));
+5825:            });
+5826:            
+5827:            if (dayTag) smartUpdates[dayTag] = d.padStart(2, '0');
+5828:            if (monthTag) smartUpdates[monthTag] = m.padStart(2, '0');
+5829:            if (yearTag) smartUpdates[yearTag] = y;
+5830:          }
+5831:       }
+5832: 
+5833:       // If we are selecting a new invoice, we ALREADY reset all possible smart-tags in smartUpdates above.
+5834:       // So regardless of whether we found a match, the setContractFormData will clear old values.
+5835:       setContractFormData(prev => ({ ...prev, ...smartUpdates }));
+5836:     }
+5837:     // --- End Smart Extraction ---
+5838: 
+5839:     const upperTag = activeInvoiceTag.toUpperCase();
+5840:     const isTableTag = upperTag.includes('BANG');
+5841:     
+5842:     if (isTableTag) {
+5843:       // Create Professional Markdown Table for goods/services
+5844:       let markdownTable = "| STT | Nội dung hàng hóa, dịch vụ | ĐVT | Số lượng | Đơn giá | Thành tiền |\n";
+5845:       markdownTable += "|:---:|:---|:---:|---:|---:|---:|\n";
+5846:       
+5847:       const safeParse = (v: any) => {
+5848:         if (typeof v === 'number') return v;
+5849:         const s = String(v || '0').replace(/[^0-9]/g, '');
+5850:         return parseInt(s, 10) || 0;
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

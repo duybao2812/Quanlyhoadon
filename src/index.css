@@ -4,6 +4,16 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Times New Roman", Times, serif;
+
+  /* Color Palette - Spark Pixel Theme */
+  --color-primary: #f97316; /* Orange */
+  --color-primary-hover: #ea580c;
+  --color-bg-dark: #0f0f0f;
+  --color-card-dark: #1a1a1a;
+  --color-sidebar-dark: #141414;
+  --color-border-dark: rgba(255, 255, 255, 0.08);
+  --color-text-dim: #a1a1aa;
 
   /* Custom Font Sizes and Line Heights from User Guidelines */
   --font-size-xs: 12px;
@@ -30,64 +40,64 @@
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 antialiased font-sans text-sm font-normal;
+    @apply bg-bg-dark text-white antialiased font-sans text-sm font-normal;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium text-sm transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2;
+    @apply px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg font-medium text-sm transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2;
   }
   
   .btn-secondary {
-    @apply px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg font-medium text-sm transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2;
+    @apply px-4 py-2 bg-white/5 border border-border-dark hover:bg-white/10 text-white rounded-lg font-medium text-sm transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2;
   }
 
   .card {
-     @apply bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden;
+     @apply bg-card-dark border border-border-dark rounded-xl shadow-sm overflow-hidden;
   }
 
   .card-title {
-    @apply text-base font-semibold text-slate-900;
+    @apply text-base font-semibold text-white;
   }
 
   .section-title {
-    @apply text-xl font-semibold text-slate-900;
+    @apply text-xl font-semibold text-white;
   }
 
   .page-title {
-    @apply text-3xl font-bold text-slate-900;
+    @apply text-3xl font-bold text-white;
   }
 
   .modal-title {
-    @apply text-lg font-semibold text-slate-900;
+    @apply text-lg font-semibold text-white;
   }
 
   .input-field {
-    @apply w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm font-normal;
+    @apply w-full px-3 py-2 bg-white/5 border border-border-dark text-white rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-sm font-normal;
   }
   
   .sidebar-link {
-    @apply flex items-center gap-3 px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-all text-sm font-medium;
+    @apply flex items-center gap-3 px-3 py-2 text-text-dim hover:bg-white/10 hover:text-white rounded-lg transition-all text-sm font-medium;
   }
   
   .sidebar-link-active {
-    @apply bg-indigo-600/10 text-indigo-400 font-semibold;
+    @apply bg-primary/10 text-primary font-semibold;
   }
 
   .secondary-text {
-    @apply text-[13px] leading-[20px] font-normal text-slate-500;
+    @apply text-[13px] leading-[20px] font-normal text-text-dim;
   }
 
   .caption-text {
-    @apply text-[12px] leading-[18px] font-normal text-slate-400;
+    @apply text-[12px] leading-[18px] font-normal text-text-dim/80;
   }
 
   .table-cell {
-    @apply text-[13px] leading-[20px] font-normal;
+    @apply text-[13px] leading-[20px] font-normal text-white;
   }
 
   .table-head {
-    @apply text-[12px] leading-[18px] font-semibold uppercase tracking-wider;
+    @apply text-[12px] leading-[18px] font-semibold uppercase tracking-wider text-text-dim;
   }
 }

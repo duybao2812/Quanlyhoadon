@@ -1,0 +1,44 @@
+Created At: 2026-05-20T11:35:01Z
+Completed At: 2026-05-20T11:35:01Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8256
+Total Bytes: 401522
+Showing lines 6790 to 6825
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+6790: 
+6791:         <div className="flex-1 p-4 overflow-y-auto">
+6792:           <div className="h-full">
+6793:               {activeTab === 'dashboard' && !selectedInvoice && (
+6794:                 <DashboardView 
+6795:                   stats={stats} 
+6796:                   onSelectInvoice={handleInvoiceSelect} 
+6797:                   onDeleteInvoice={handleDeleteInvoice}
+6798:                   onExportExcel={exportInvoicesToExcel}
+6799:                   onBulkExport={() => setShowBulkExport(true)}
+6800:                   isExportingExcel={isExportingExcel}
+6801:                   isLoadingData={isLoadingInvoices}
+6802:                   subTab={dashboardSubTab}
+6803:                   onSubTabChange={handleDashboardSubTabChange}
+6804:                   generatedDocs={generatedDocs}
+6805:                   contracts={contracts}
+6806:                   invoices={invoices}
+6807:                   partners={partners}
+6808:                   onDeleteDoc={handleDeleteDoc}
+6809:                   onBulkDeleteDocs={handleBulkDeleteDocs}
+6810:                   onDeleteAllDocs={handleDeleteAllDocs}
+6811:                   onDownloadDoc={downloadDoc}
+6812:                   onDeleteContract={handleDeleteContract}
+6813:                   onBulkDeleteContracts={handleBulkDeleteContracts}
+6814:                   onDownloadContract={downloadContract}
+6815:                   user={user}
+6816:                   rankMap={rankMap}
+6817:                 />
+6818:               )}
+6819:               {activeTab === 'dashboard' && selectedInvoice && (
+6820:                 <div className="grid grid-cols-12 gap-6 h-full min-h-[600px]">
+6821:                   {/* Left Panel: Extracted Source */}
+6822:                   <div className="col-span-4 flex flex-col card h-full">
+6823:                     <div className="p-4 border-b border-border-dark flex justify-between items-center bg-sidebar-dark">
+6824:                       <h3 className="font-bold text-sm text-white truncate mr-2">Nguồn: {selectedInvoice.fileName}</h3>
+6825:                       <button 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

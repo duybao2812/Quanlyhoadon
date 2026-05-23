@@ -1,0 +1,41 @@
+Created At: 2026-05-22T05:00:55Z
+Completed At: 2026-05-22T05:00:55Z
+File Path: `file:///C:/Users/gunfi/.gemini/antigravity/brain/e946d253-0355-489b-8d49-b22d313858bb/walkthrough.md`
+Total Lines: 33
+Total Bytes: 2110
+Showing lines 1 to 33
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: # Walkthrough: Đồng bộ tỷ lệ thu nhỏ 20% cho toàn bộ 6 tab hệ thống
+2: 
+3: Chúng tôi đã hoàn thành việc khôi phục điều chỉnh tỷ lệ thu nhỏ 20% (chạy ở mức zoom 80% dựa trên rem) cho 3 tab chính cuối cùng bao gồm: **Bảng điều khiển (Dashboard)**, **Tạo hợp đồng (Create Contract)**, và **Tài liệu đã tạo (Generated Documents)**.
+4: 
+5: Các tab đã được căn chỉnh chi tiết và tối ưu hóa trước đó (**Upload**, **Đối tác**, **Mẫu tài liệu**) cùng với **Sidebar** và **Header** được giữ nguyên hoàn hảo không có sự thay đổi nào.
+6: 
+7: ---
+8: 
+9: ## Các thay đổi chính
+10: 
+11: ### 1. File điều khiển chính ([src/App.tsx](file:///d:/GitHub/Quanlyhoadon/src/App.tsx))
+12: *   **Chi tiết hóa đơn trong Bảng điều khiển**: Loại bỏ `<div className="zoom-125">` bao bọc bên ngoài khung hiển thị chi tiết hóa đơn `selectedInvoice` (dòng 6820 cũ và 7060 cũ).
+13: *   **Tab Tài liệu đã tạo**: Loại bỏ wrapper `<div className="zoom-125">` quanh component `<DocsView />` (dòng 7197 cũ và 7206 cũ).
+14: *   **Tab Tạo hợp đồng**: Loại bỏ wrapper `<div className="zoom-125">` quanh component `<ContractView />` (dòng 7209 cũ và 7220 cũ).
+15: 
+16: ### 2. File CSS toàn cục ([src/index.css](file:///d:/GitHub/Quanlyhoadon/src/index.css))
+17: *   Xóa bỏ hoàn toàn định nghĩa của class `.zoom-125` (dòng 94-100 cũ) để giữ tệp CSS luôn gọn gàng và không chứa code rác/không sử dụng.
+18: 
+19: ---
+20: 
+21: ## Kết quả kiểm thử & Xác thực
+22: 
+23: Chúng tôi đã chạy thành công trình biên dịch production để đảm bảo mã nguồn hoàn hảo và không bị lỗi cú pháp:
+24: 
+25: ```bash
+26: npm run build
+27: ```
+28: 
+29: **Kết quả đầu ra:**
+30: *   Vite đã dịch thành công 2982 modules mà không có bất kỳ cảnh báo lỗi nghiêm trọng nào.
+31: *   Tệp CSS và JS đóng gói thành công (`dist/assets/index-fbohedWL.css` và `dist/assets/index-B76tlIx_.js`).
+32: *   Toàn bộ cấu trúc giao diện JSX/TSX hoạt động chính xác và an toàn.
+33: 
+The above content shows the entire, complete file contents of the requested file.

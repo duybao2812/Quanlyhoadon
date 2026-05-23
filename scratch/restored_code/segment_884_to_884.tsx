@@ -1,0 +1,1 @@
+                   <li>Xác lập lập Biên bản xác nhận khối lượng thi công thực tế để làm cơ sở thanh toán.</li>

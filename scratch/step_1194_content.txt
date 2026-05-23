@@ -1,0 +1,47 @@
+Created At: 2026-05-22T05:23:24Z
+Completed At: 2026-05-22T05:23:24Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/scratch/find_hdnt.js`
+Total Lines: 39
+Total Bytes: 1463
+Showing lines 1 to 39
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: import fs from 'fs';
+2: import path from 'path';
+3: import { fileURLToPath } from 'url';
+4: 
+5: const __filename = fileURLToPath(import.meta.url);
+6: const __dirname = path.dirname(__filename);
+7: 
+8: const logPath = 'C:\\Users\\gunfi\\.gemini\\antigravity\\brain\\e946d253-0355-489b-8d49-b22d313858bb\\.system_generated\\logs\\transcript.jsonl';
+9: const outputPath = path.join(__dirname, 'hdnt_search.txt');
+10: 
+11: try {
+12:   const fileContent = fs.readFileSync(logPath, 'utf8');
+13:   const lines = fileContent.split('\n');
+14:   const results = [];
+15:   
+16:   for (let idx = 0; idx < lines.length; idx++) {
+17:     const line = lines[idx];
+18:     if (!line.trim()) continue;
+19:     if (line.includes('renderHDNTDocument')) {
+20:       results.push(`Line ${idx} contains renderHDNTDocument`);
+21:       try {
+22:         const obj = JSON.parse(line);
+23:         results.push(`  Step: ${obj.step_index}, Source: ${obj.source}, Type: ${obj.type}`);
+24:         // Let's write the full text of the line to a separate file so we can analyze it
+25:         const stepOut = path.join(__dirname, `step_${obj.step_index}.json`);
+26:         fs.writeFileSync(stepOut, JSON.stringify(obj, null, 2), 'utf8');
+27:         results.push(`  Saved step to step_${obj.step_index}.json`);
+28:       } catch (e) {
+29:         results.push(`  Failed to parse JSON: ${e.message}`);
+30:       }
+31:     }
+32:   }
+33:   
+34:   fs.writeFileSync(outputPath, results.join('\n'), 'utf8');
+35:   console.log('Search complete. Results:', results.join('\n'));
+36: } catch (err) {
+37:   console.error('Error:', err);
+38: }
+39: 
+The above content shows the entire, complete file contents of the requested file.

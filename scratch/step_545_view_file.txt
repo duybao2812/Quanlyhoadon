@@ -1,0 +1,84 @@
+Created At: 2026-05-22T04:57:42Z
+Completed At: 2026-05-22T04:57:42Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8256
+Total Bytes: 402066
+Showing lines 2600 to 2675
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2600:             placeholder={`Nhập ${friendlyLabel.toLowerCase()}...`}
+2601:             rows={value && value.length > 50 ? 3 : (isWords ? 2 : 1)}
+2602:             onInput={(e) => {
+2603:               const target = e.target as HTMLTextAreaElement;
+2604:               target.style.height = 'auto';
+2605:               target.style.height = target.scrollHeight + 'px';
+2606:             }}
+2607:           />
+2608:         </div>
+2609:       )}
+2610:     </motion.div>
+2611:   );
+2612: };
+2613: 
+2614: const TagRenderItem = ({ 
+2615:   tag, 
+2616:   formData, 
+2617:   vtLinks, 
+2618:   setFormData, 
+2619:   setVtLinks, 
+2620:   setActiveInvoiceTag, 
+2621:   setIsInvoiceSelectorOpen, 
+2622:   selectedPartyAId, 
+2623:   selectedPartyBId, 
+2624:   partners, 
+2625:   toast,
+2626:   handleFieldChange,
+2627:   getEffectiveAddressByCurrentDate,
+2628:   hideWrapperStyle
+2629: }: any) => (
+2630:   <TagInput 
+2631:     tag={tag} 
+2632:     value={formData[tag] || ''} 
+2633:     activeParty={vtLinks[tag]}
+2634:     onChange={(val) => handleFieldChange(tag, val)}
+2635:     hideWrapperStyle={hideWrapperStyle}
+2636:     onOpenSelector={() => {
+2637:       setActiveInvoiceTag?.(tag);
+2638:       setIsInvoiceSelectorOpen?.(true);
+2639:     }}
+2640:     onAutoFill={(party) => {
+2641:       const partnerId = party === 'A' ? selectedPartyAId : selectedPartyBId;
+2642:       const partner = partners.find(p => p.id === partnerId);
+2643:       if (partner) {
+2644:         const upperTag = tag.toUpperCase();
+2645:         let val = '';
+2646:         if (upperTag.includes('DIA_CHI') || upperTag.includes('DIACHI')) {
+2647:           val = getEffectiveAddressByCurrentDate(partner);
+2648:         } else {
+2649:           val = abbreviateCompanyName(partner.name);
+2650:         }
+2651:         setFormData((p: Record<string, string>) => ({ ...p, [tag]: val }));
+2652:         setVtLinks((p: any) => ({ ...p, [tag]: party }));
+2653:         toast(`Đã cập nhật ${getFriendlyLabel(tag)} từ Bên ${party}`, "success");
+2654:       } else {
+2655:         toast(`Vui lòng chọn đối tác Bên ${party} trước`, "error");
+2656:       }
+2657:     }}
+2658:   />
+2659: );
+2660: 
+2661: const ContractView = ({ 
+2662:   partners, 
+2663:   user,
+2664:   contractForm,
+2665:   updateContractForm,
+2666:   onContractSaved,
+2667:   setIsInvoiceSelectorOpen,
+2668:   setActiveInvoiceTag,
+2669:   handleFieldChange
+2670: }: { 
+2671:   partners: Partner[], 
+2672:   user: User | null,
+2673:   contractForm: {
+2674:     selectedTemplate: string;
+2675:     tags: string[];
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

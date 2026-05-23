@@ -1,0 +1,1 @@
+"  const renderContractDocument = () => {\n    if (selectedTemplate === 'HDNT') return renderHDNTDocument();\n    if (selectedTemplate === 'HDTC') return renderHDTCDocument();\n    if (selectedTemplate === 'HDCM') return renderHDCMDocument();\n    return null;\n  };"

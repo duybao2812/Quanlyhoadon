@@ -1,0 +1,44 @@
+Created At: 2026-05-20T11:38:03Z
+Completed At: 2026-05-20T11:38:03Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8233
+Total Bytes: 400363
+Showing lines 4290 to 4325
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+4290:                           title="Xóa đối tác"
+4291:                         >
+4292:                           <Trash2 className="size-4" />
+4293:                         </button>
+4294:                       </div>
+4295:                     </td>
+4296:                   </tr>
+4297:                 ))
+4298:               )}
+4299:             </tbody>
+4300:           </table>
+4301:         </div>
+4302:       </div>
+4303: 
+4304:       {/* Context Menu Thật sự - Được gắn vào body hoặc container riêng để tránh bị cắt bởi table overflow */}
+4305:       <AnimatePresence>
+4306:         {contextMenu && (
+4307:           <motion.div 
+4308:             initial={{ opacity: 0, scale: 0.9 }}
+4309:             animate={{ opacity: 1, scale: 1 }}
+4310:             exit={{ opacity: 0, scale: 0.9 }}
+4311:             className="fixed z-[9999] bg-card-dark border border-border-dark shadow-2xl rounded-xl py-2 w-44 overflow-hidden"
+4312:             style={{ left: contextMenu.x, top: contextMenu.y }}
+4313:             onClick={(e) => e.stopPropagation()}
+4314:           >
+4315:             <div className="px-3 py-1.5 border-b border-border-dark mb-1">
+4316:               <div className="text-[9px] font-bold text-text-dim uppercase truncate" title={contextMenu.partner?.name}>
+4317:                 {contextMenu.partner?.name}
+4318:               </div>
+4319:             </div>
+4320:             <button 
+4321:               onClick={() => {
+4322:                 if (contextMenu.partner) onEdit(contextMenu.partner);
+4323:                 closeContextMenu();
+4324:               }}
+4325:               className="w-full text-left px-4 py-2 text-sm text-white hover:bg-primary/20 hover:text-primary flex items-center gap-3 transition-colors font-medium"
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

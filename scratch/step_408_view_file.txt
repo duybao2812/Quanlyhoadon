@@ -1,0 +1,44 @@
+Created At: 2026-05-20T11:42:00Z
+Completed At: 2026-05-20T11:42:01Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8264
+Total Bytes: 402388
+Showing lines 6920 to 6955
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+6920:                                 }
+6921:                               }}
+6922:                               className="w-full px-4 py-3 bg-card-dark border-2 border-border-dark text-white rounded-xl text-base font-bold outline-none focus:ring-8 focus:ring-primary/10 focus:border-primary transition-all shadow-sm placeholder:text-text-dim"
+6923:                             />
+6924:                           </div>
+6925:                         </div>
+6926:                       </div>
+6927: 
+6928:                       <div className="p-4 bg-sidebar-dark rounded-xl text-[11px] text-primary overflow-x-auto shadow-inner">
+6929:                         <div className="text-text-dim font-bold mb-2 opacity-70">DỮ LIỆU JSON GỐC://</div>
+6930:                         {JSON.stringify(selectedInvoice.extractedData, null, 2)}
+6931:                       </div>
+6932:                     </div>
+6933:                   </div>
+6934: 
+6935:                   {/* Right Panel: Template Logic */}
+6936:                   <div className="col-span-8 flex flex-col card h-full">
+6937:                     <div className="p-4 border-b border-border-dark flex justify-between items-center bg-sidebar-dark">
+6938:                       <div className="flex items-center gap-3">
+6939:                         <div className="flex items-center gap-2 px-3 py-1 bg-primary/20 text-primary rounded-full border border-primary/30">
+6940:                           <HardHat className="size-3.5" />
+6941:                           <span className="text-xs font-bold uppercase tracking-wider">
+6942:                             {(() => {
+6943:                               const raw = selectedInvoice.extractedData?.classification;
+6944:                               const type = typeof raw === 'object' ? raw.type : (raw || 'BB_CM');
+6945:                               switch(type) {
+6946:                                 case 'BB_CM': return 'Phân loại: Ca Máy';
+6947:                                 case 'BB_VT': return 'Phân loại: Vật Tư';
+6948:                                 case 'BB_TC': return 'Phân loại: Thi Công';
+6949:                                 default: return `Phân loại: ${type}`;
+6950:                               }
+6951:                             })()}
+6952:                           </span>
+6953:                         </div>
+6954:                       </div>
+6955:                       <button 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

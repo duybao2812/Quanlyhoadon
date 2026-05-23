@@ -1,0 +1,114 @@
+Created At: 2026-05-22T04:57:01Z
+Completed At: 2026-05-22T04:57:01Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8256
+Total Bytes: 402066
+Showing lines 2000 to 2660
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2000:   <w:tblGrid>
+2001:     ${columns.map(c => `<w:gridCol w:w="${c.width}"/>`).join('')}
+2002:   </w:tblGrid>
+2003:   ${headerRowXml}
+2004:   ${dataRowsXml}
+2005:   ${totalRowXml}
+2006: </w:tbl>`;
+2007: };
+2008: 
+2009: interface GDNTableInputProps {
+2010:   value: string;
+2011:   onChange: (val: string) => void;
+2012: }
+2013: 
+2014: const GDNTableInput: React.FC<GDNTableInputProps> = ({ value, onChange }) => {
+2015:   const rows: GdnRow[] = useMemo(() => {
+2016:     try {
+2017:       if (value) {
+2018:         const parsed = JSON.parse(value);
+2019:         if (Array.isArray(parsed) && parsed.length > 0) {
+2020:           return parsed;
+2021:         }
+2022:       }
+2023:     } catch (e) {
+2024:       // Ignore
+2025:     }
+2026:     return [{ stt: "1", noidung: "", donvi: "Đồng", giatri: "" }];
+2027:   }, [value]);
+2028: 
+2029:   const updateRows = (newRows: GdnRow[]) => {
+2030:     onChange(JSON.stringify(newRows));
+2031:   };
+2032: 
+2033:   const handleCellChange = (index: number, field: keyof GdnRow, val: string) => {
+2034:     const next = [...rows];
+2035:     if (field === 'giatri') {
+2036:       const rawDigits = val.replace(/\D/g, '');
+2037:       next[index][field] = rawDigits;
+2038:     } else {
+2039:       next[index][field] = val;
+2040:     }
+2041:     updateRows(next);
+2042:   };
+2043: 
+2044:   const handleAddRow = () => {
+2045:     const nextIndex = rows.length + 1;
+2046:     const next = [
+2047:       ...rows,
+2048:       { stt: nextIndex.toString(), noidung: "", donvi: rows[0]?.donvi || "Đồng", giatri: "" }
+2049:     ]
+<truncated 30202 bytes>
+6:             }}
+2607:           />
+2608:         </div>
+2609:       )}
+2610:     </motion.div>
+2611:   );
+2612: };
+2613: 
+2614: const TagRenderItem = ({ 
+2615:   tag, 
+2616:   formData, 
+2617:   vtLinks, 
+2618:   setFormData, 
+2619:   setVtLinks, 
+2620:   setActiveInvoiceTag, 
+2621:   setIsInvoiceSelectorOpen, 
+2622:   selectedPartyAId, 
+2623:   selectedPartyBId, 
+2624:   partners, 
+2625:   toast,
+2626:   handleFieldChange,
+2627:   getEffectiveAddressByCurrentDate,
+2628:   hideWrapperStyle
+2629: }: any) => (
+2630:   <TagInput 
+2631:     tag={tag} 
+2632:     value={formData[tag] || ''} 
+2633:     activeParty={vtLinks[tag]}
+2634:     onChange={(val) => handleFieldChange(tag, val)}
+2635:     hideWrapperStyle={hideWrapperStyle}
+2636:     onOpenSelector={() => {
+2637:       setActiveInvoiceTag?.(tag);
+2638:       setIsInvoiceSelectorOpen?.(true);
+2639:     }}
+2640:     onAutoFill={(party) => {
+2641:       const partnerId = party === 'A' ? selectedPartyAId : selectedPartyBId;
+2642:       const partner = partners.find(p => p.id === partnerId);
+2643:       if (partner) {
+2644:         const upperTag = tag.toUpperCase();
+2645:         let val = '';
+2646:         if (upperTag.includes('DIA_CHI') || upperTag.includes('DIACHI')) {
+2647:           val = getEffectiveAddressByCurrentDate(partner);
+2648:         } else {
+2649:           val = abbreviateCompanyName(partner.name);
+2650:         }
+2651:         setFormData((p: Record<string, string>) => ({ ...p, [tag]: val }));
+2652:         setVtLinks((p: any) => ({ ...p, [tag]: party }));
+2653:         toast(`Đã cập nhật ${getFriendlyLabel(tag)} từ Bên ${party}`, "success");
+2654:       } else {
+2655:         toast(`Vui lòng chọn đối tác Bên ${party} trước`, "error");
+2656:       }
+2657:     }}
+2658:   />
+2659: );
+2660: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

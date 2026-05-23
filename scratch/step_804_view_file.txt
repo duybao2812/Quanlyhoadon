@@ -1,0 +1,24 @@
+Created At: 2026-05-22T05:11:50Z
+Completed At: 2026-05-22T05:11:50Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8117
+Total Bytes: 396877
+Showing lines 3680 to 3695
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3680:             ĐẠI DIỆN BÊN B
+3681:             <div className="font-normal italic text-[8.5px] text-gray-500 mt-1">(Ký tên, đóng dấu)</div>
+3682:             <div className="mt-20 text-blue-900 font-bold">{getVal('DAI_DIEN_B') || '....................'}</div>
+3683:           </div>
+3684:         </div>
+3685:       </div>
+3686:     );
+3687:   };
+3688: 
+3689:   return (
+3690:     <div className="flex flex-col h-full gap-1">
+3691:       {/* Top Header Section */}
+3692:       <div className="flex flex-col md:flex-row gap-2 items-start md:items-center justify-between bg-card-dark p-2 rounded-2xl shadow-sm border border-border-dark">
+3693:         <div className="space-y-0 text-left">
+3694:           <h2 className="text-lg font-bold text-white flex items-center gap-2">
+3695:             <PlusSquare className="size-5 text-primary" />
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

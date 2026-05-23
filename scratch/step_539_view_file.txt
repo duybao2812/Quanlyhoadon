@@ -1,0 +1,31 @@
+Created At: 2026-05-22T04:57:22Z
+Completed At: 2026-05-22T04:57:22Z
+File Path: `file:///C:/Users/gunfi/.gemini/antigravity/brain/e946d253-0355-489b-8d49-b22d313858bb/task.md`
+Total Lines: 23
+Total Bytes: 1209
+Showing lines 1 to 23
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: # Task: Tái cấu trúc thư mục Frontend
+2: 
+3: ## Danh sách công việc
+4: 
+5: - `[x]` Bước 1: Tạo các thư mục mới (assets, hooks, context, services, utils)
+6: - `[x]` Bước 2: Di chuyển files API/Service từ lib/ → services/
+7:   - `[x]` lib/mistral.ts → services/mistral.ts
+8:   - `[x]` lib/supabaseClient.ts → services/supabaseClient.ts
+9: - `[x]` Bước 3: Di chuyển files Utility từ lib/ → utils/
+10:   - `[x]` lib/addressConverter.ts → utils/addressConverter.ts
+11:   - `[x]` lib/addressData.ts → utils/addressData.ts
+12:   - `[x]` lib/contractUtils.ts → utils/contractUtils.ts
+13:   - `[x]` lib/docxGenerator.ts → utils/docxGenerator.ts
+14:   - `[x]` lib/formatter.ts → utils/formatter.ts
+15:   - `[x]` lib/storage.ts → utils/storage.ts
+16:   - `[x]` lib/utils.ts → utils/utils.ts
+17:   - `[x]` lib/xmlParser.ts → utils/xmlParser.ts
+18: - `[x]` Bước 4: Cập nhật import paths trong App.tsx (static + dynamic imports)
+19: - `[x]` Bước 5: Cập nhật import paths trong components/Notifications.tsx
+20: - `[x]` Bước 6: Cập nhật import paths trong components/Invoice/*.tsx (5 files)
+21: - `[x]` Bước 7: Xóa thư mục lib/ cũ
+22: - `[x]` Bước 8: Chạy npm run build → ✅ 2982 modules, built in 7.64s
+23: 
+The above content shows the entire, complete file contents of the requested file.

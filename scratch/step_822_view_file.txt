@@ -1,0 +1,54 @@
+Created At: 2026-05-22T05:12:49Z
+Completed At: 2026-05-22T05:12:49Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8641
+Total Bytes: 437338
+Showing lines 3600 to 3900
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3600:               - Giá trị thực tế tại công trường là giá trị thanh quyết toán.
+3601:             </p>
+3602:           </div>
+3603: 
+3604:           {/* Article 3 */}
+3605:           <div>
+3606:             <h4 className="font-bold uppercase text-[10px]">ĐIỀU 3: THỜI GIAN THỰC HIỆN HỢP ĐỒNG</h4>
+3607:             <p className="pl-4 mt-1">Thời gian thực hiện: kể từ ký hợp đồng.</p>
+3608:           </div>
+3609: 
+3610:           {/* Article 4 */}
+3611:           <div>
+3612:             <h4 className="font-bold uppercase text-[10px]">ĐIỀU 4: PHƯƠNG THỨC NGHIỆM THU KHỐI LƯỢNG</h4>
+3613:             <p className="pl-4 mt-1">
+3614:               Căn cứ vào khối lượng bàn giao vật tư thực tế tại công trình, Bên A và Bên B đo đạc, lập Biên bản xác nhận khối lượng vật tư để làm cơ sở thanh toán.
+3615:             </p>
+3616:           </div>
+3617: 
+3618:           {/* Article 5 */}
+3619:           <div>
+3620:             <h4 className="font-bold uppercase text-[10px]">ĐIỀU 5: PHƯƠNG THỨC THANH TOÁN</h4>
+3621:             <p className="pl-4 mt-1">Thanh toán bằng chuyển khoản.</p>
+3622:             <p className="pl-4 mt-1">
+3623:               Căn cứ vào Biên bản xác nhận khối lượng vật tư, Bên B xuất hóa đơn cho bên A và bên A sẽ thanh toán cho bên B 100% giá trị trong vòng 240 ngày kể từ ngày hai bên đối chiếu và xác nhận công nợ.
+3624:             </p>
+3625:           </div>
+3626: 
+3627:  
+<truncated 20167 bytes>
+884:                   <li>Xác lập lập Biên bản xác nhận khối lượng thi công thực tế để làm cơ sở thanh toán.</li>
+3885:                   <li>Thanh toán kinh phí cho bên B như Điều 5.</li>
+3886:                 </ul>
+3887:               </div>
+3888:               <div>
+3889:                 <p className="font-bold">- Trách nhiệm của Bên B:</p>
+3890:                 <ul className="list-disc pl-4 space-y-0.5 mt-0.5 text-gray-700 text-[11px] text-justify">
+3891:                   <li>Lập tiến độ và phương án tổ chức thi công gửi bên A sau 07 ngày để bên A theo dõi kiểm tra trong thi công;</li>
+3892:                   <li>Phối hợp cùng bên A nhận bàn giao mặt bằng thi công, quản lý thống nhất mặt bằng thi công sau khi được bàn giao;</li>
+3893:                   <li>Thi công theo đúng Hồ sơ thiết kế, chất lượng đúng quy trình quy phạm hiện hành;</li>
+3894:                   <li>Trong quá trình thi công phải đảm bảo vệ sinh môi trường chung, các vật liệu thừa phải thu dọn vận chuyển ngay đi nơi khác theo chỉ dẫn của tư vấn giám sát;</li>
+3895:                   <li>Chịu trách nhiệm về an toàn lao động, phòng chống cháy nổ, đảm bảo giao thông, an toàn giao thông trong suốt quá trình thi công tại công trường. Nếu để xảy ra sự cố bên B phải chịu xử lý theo luật định;</li>
+3896:                   <li>Cùng bên B lập Biên bản xác nhận khối lượng thi công thực tế để làm cơ sở thanh toán và thanh lý hợp đồng.</li>
+3897:                   <li>Xuất hóa đơn thuế GTGT cho bên A .</li>
+3898:                 </ul>
+3899:               </div>
+3900:             </div>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

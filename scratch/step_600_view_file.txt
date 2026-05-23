@@ -1,0 +1,39 @@
+Created At: 2026-05-22T05:00:01Z
+Completed At: 2026-05-22T05:00:01Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8225
+Total Bytes: 401168
+Showing lines 3260 to 3290
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3260:     const u = tag.toUpperCase();
+3261:     if (u === 'BENA' || u === 'BENB' || u.includes('TEN_CTY') || u === 'BEN_A' || u === 'BEN_B') return 'company';
+3262:     if (u.includes('GIOI_TINH') || u.includes('GIOITINH')) return 'gender';
+3263:     if (u.includes('DAI_DIEN') || u.includes('DAIDIEN')) return 'rep';
+3264:     if (u.includes('CHUC_VU') || u.includes('CHUCVU')) return 'pos';
+3265:     if (u.includes('STK') || u.includes('SO_TAI_KHOAN') || u.includes('SOTAIKHOAN')) return 'stk';
+3266:     if (u === 'NH' || u.startsWith('NH_') || u.endsWith('_NH') || u.includes('_NH_') || u.includes('NGAN_HANG') || u.includes('NGANHANG')) return 'bank';
+3267:     if (u.includes('DIA_CHI') || u.includes('DIACHI')) return 'address';
+3268:     return 'other';
+3269:   };
+3270: 
+3271:   const renderCategorizedPartyTags = (sideTags: string[]) => {
+3272:     const groups: {
+3273:       company: string[],
+3274:       row2: { gender: string | null, rep: string | null, pos: string | null },
+3275:       row3: { stk: string | null, bank: string | null },
+3276:       others: string[],
+3277:       address: string[]
+3278:     } = {
+3279:       company: [],
+3280:       row2: { gender: null, rep: null, pos: null },
+3281:       row3: { stk: null, bank: null },
+3282:       others: [],
+3283:       address: []
+3284:     };
+3285: 
+3286:     sideTags.forEach(tag => {
+3287:       const type = getTagType(tag);
+3288:       if (type === 'company') groups.company.push(tag);
+3289:       else if (type === 'gender') groups.row2.gender = tag;
+3290:       else if (type === 'rep') groups.row2.rep = tag;
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

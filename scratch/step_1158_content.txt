@@ -1,0 +1,57 @@
+Created At: 2026-05-22T05:22:39Z
+Completed At: 2026-05-22T05:22:39Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/scratch/step_826_file_content.txt`
+Total Lines: 61
+Total Bytes: 4120
+Showing lines 1 to 61
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: Created At: 2026-05-22T05:12:54Z
+2: Completed At: 2026-05-22T05:12:55Z
+3: File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+4: Total Lines: 8641
+5: Total Bytes: 437338
+6: Showing lines 3440 to 3600
+7: The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+8: 3440:             <div>
+9: 3441:               <div className="uppercase">
+10: 3442:                 <InlineField tag="BEN_DE_NGHI_TITLE" value={getVal('BEN_DE_NGHI_TITLE') || getVal('BEN_DE_NGHI').toUpperCase()} onChange={(v) => setVal('BEN_DE_NGHI_TITLE', v)} placeholder="BÊN ĐỀ NGHỊ" className="font-bold uppercase" />
+11: 3443:               </div>
+12: 3444:               <div className="font-normal italic text-[9.5px] text-gray-500 mt-1">Giám đốc</div>
+13: 3445:               <div className="mt-24 text-blue-900 font-bold">{getVal('DAI_DIEN_BEN_DE_NGHI') || getVal('DAIDIENBENB') || '....................'}</div>
+14: 3446:             </div>
+15: 3447:           </div>
+16: 3448:         </div>
+17: 3449:       </div>
+18: 3450:     );
+19: 3451:   };
+20: 3452: 
+21: 3453:   const renderHDNTDocument = () => {
+22: 3454:     const getVal = (tag: string) => formData[tag] || '';
+23: 3455:     const setVal = (tag: string, val: string) => handleFieldChange(tag, val);
+24: 3456: 
+25: 3457:     const contractNumber = getVal('SO_HOPDONG') || getVal('SO_HD') || getVal('SOHOPDONG') || getVal('SOHD');
+26: 3458:     const 
+<truncated 786 bytes>
+          </p>
+41: 3582:             <div className="pl-4 mt-2">
+42: 3583:               <InlineField tag="BANGGIATRIHOPDONG" value={getVal('BANGGIATRIHOPDONG')} onChange={(v) => setVal('BANGGIATRIHOPDONG', v)} placeholder="Nhập bảng hoặc nội dung danh mục vật tư..." className="w-full min-h-[50px] block" />
+43: 3584:             </div>
+44: 3585:           </div>
+45: 3586: 
+46: 3587:           {/* Article 2 */}
+47: 3588:           <div>
+48: 3589:             <h4 className="font-bold uppercase text-[10px]">ĐIỀU 2: GIÁ TRỊ HỢP ĐỒNG</h4>
+49: 3590:             <p className="pl-4 mt-1">
+50: 3591:               - Tổng giá trị hợp đồng là: <InlineField tag="GIATRIHOPDONG" value={getVal('GIATRIHOPDONG')} onChange={(v) => setVal('GIATRIHOPDONG', v)} placeholder="Nhập giá trị hợp đồng..." isCurrency onOpenSelector={() => { setActiveInvoiceTag?.('GIATRIHOPDONG'); setIsInvoiceSelectorOpen?.(true); }} /> <span className="font-bold">đ</span> (đã bao gồm thuế GTGT).
+51: 3592:             </p>
+52: 3593:             <p className="pl-4 italic mt-1">
+53: 3594:               (Bằng chữ: <InlineField tag="BANGCHUGIATRI" value={getVal('BANGCHUGIATRI')} onChange={(v) => setVal('BANGCHUGIATRI', v)} placeholder="Nhập số tiền bằng chữ..." className="w-[80%]" onOpenSelector={() => { setActiveInvoiceTag?.('BANGCHUGIATRI'); setIsInvoiceSelectorOpen?.(true); }} />).
+54: 3595:             </p>
+55: 3596:             <p className="pl-4 mt-1">
+56: 3597:               - Giá trị trên là giá trị tạm tính.
+57: 3598:             </p>
+58: 3599:             <p className="pl-4 mt-1">
+59: 3600:               - Giá trị thực tế tại công trường là giá trị thanh quyết toán.
+60: The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.
+61: 
+The above content shows the entire, complete file contents of the requested file.

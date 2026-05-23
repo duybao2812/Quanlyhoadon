@@ -1,0 +1,69 @@
+Created At: 2026-05-22T05:08:08Z
+Completed At: 2026-05-22T05:08:08Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8117
+Total Bytes: 396877
+Showing lines 2980 to 3040
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2980:   const handleTemplateChange = async (templateId: string) => {
+2981:     setSelectedTemplate(templateId);
+2982:     const template = CONTRACT_TEMPLATES.find(t => t.id === templateId);
+2983:     if (!template) return;
+2984: 
+2985:     try {
+2986:       let basePath = (import.meta as any).env?.BASE_URL || './';
+2987:       if (basePath === './') {
+2988:         const pathSegments = window.location.pathname.split('/');
+2989:         basePath = pathSegments.slice(0, -1).join('/') + '/';
+2990:       }
+2991:       if (!basePath.endsWith('/')) basePath += '/';
+2992:       
+2993:       const folderName = templateId === 'GDNTT' ? 'templates_muc_phu' : 'templatesHopDong';
+2994:       const finalPath = `${basePath}${folderName}/${template.file}`.replace(/\/+/g, '/');
+2995:       const response = await fetch(finalPath);
+2996:       if (!response.ok) throw new Error('Không thể tải template');
+2997:       const buffer = await response.arrayBuffer();
+2998:       setTemplateBuffer(buffer);
+2999:       const extractedTags = extractTags(buffer);
+3000:       
+3001:       // Smart substitution: if template has BEN_DUOC_DE_NGHI_TITLE or BEN_DE_NGHI_TITLE,
+3002:       // ensure we have the base versions in finalTags for input forms, and remove the _TITLE versions.
+3003:       let finalTags: string[] = [];
+3004:       let hasBenDuoc = false;
+3005:       let hasBenDeNghi = false;
+3006:       
+3007:       extractedTags.forEach(tag => {
+3008:         const u = tag.toUpperCase();
+3009:         if (u === 'BEN_DUOC_DE_NGHI_TITLE' || u === 'BEN_DUOC_DE_NGHI') {
+3010:           hasBenDuoc = true;
+3011:         } else if (u === 'BEN_DE_NGHI_TITLE' || u === 'BEN_DE_NGHI') {
+3012:           hasBenDeNghi = true;
+3013:         } else if (u !== 'TAMUNG-THANHTOAN_TITLE') {
+3014:           finalTags.push(tag);
+3015:         }
+3016:       });
+3017:       
+3018:       if (hasBenDuoc) {
+3019:         finalTags.push('BEN_DUOC_DE_NGHI');
+3020:       }
+3021:       if (hasBenDeNghi) {
+3022:         finalTags.push('BEN_DE_NGHI');
+3023:       }
+3024:       
+3025:       // HDTC needs DIADIEM field even if not in template tags
+3026:       if (templateId === 'HDTC' && !finalTags.some(t => {
+3027:         const u = t.toUpperCase();
+3028:         return u === 'DIA_DIEM' || u === 'DIADIEM' || u === 'DIA DIEM';
+3029:       })) {
+3030:         finalTags.push('DIADIEM');
+3031:       }
+3032:       
+3033:       setTags(finalTags);
+3034:       
+3035:       // When switching templates, we only initialize missing tags for the NEW template's specific data
+3036:       setFormData((oldDataForThisTemplate: Record<string, string>) => {
+3037:         const next = { ...oldDataForThisTemplate };
+3038:         finalTags.forEach(tag => {
+3039:           if (next[tag] === undefined) next[tag] = '';
+3040:         });
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

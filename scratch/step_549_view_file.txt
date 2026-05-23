@@ -1,0 +1,44 @@
+Created At: 2026-05-22T04:58:07Z
+Completed At: 2026-05-22T04:58:07Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8256
+Total Bytes: 402066
+Showing lines 3500 to 3535
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3500:     if (!dateStr) {
+3501:       setFormData(prev => {
+3502:         const next = { ...prev };
+3503:         if (group.day) next[group.day] = '';
+3504:         if (group.month) next[group.month] = '';
+3505:         if (group.year) next[group.year] = '';
+3506:         return next;
+3507:       });
+3508:       return;
+3509:     }
+3510: 
+3511:     const date = new Date(dateStr);
+3512:     const d = date.getDate().toString();
+3513:     const m = (date.getMonth() + 1).toString();
+3514:     const y = date.getFullYear().toString();
+3515: 
+3516:     setFormData(prev => {
+3517:       const next = { ...prev };
+3518:       if (group.day) next[group.day] = d;
+3519:       if (group.month) next[group.month] = m;
+3520:       if (group.year) next[group.year] = y;
+3521:       return next;
+3522:     });
+3523:   };
+3524: 
+3525:   return (
+3526:     <div className="flex flex-col h-full gap-1">
+3527:       {/* Top Header Section */}
+3528:       <div className="flex flex-col md:flex-row gap-2 items-start md:items-center justify-between bg-card-dark p-2 rounded-2xl shadow-sm border border-border-dark">
+3529:         <div className="space-y-0 text-left">
+3530:           <h2 className="text-lg font-bold text-white flex items-center gap-2">
+3531:             <PlusSquare className="size-5 text-primary" />
+3532:             Tạo Hợp Đồng Chuyên Nghiệp
+3533:           </h2>
+3534:           <p className="text-[11px] text-text-dim">Soạn thảo hợp đồng nhanh chóng với mẫu có sẵn</p>
+3535:         </div>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

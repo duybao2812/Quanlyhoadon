@@ -1,0 +1,70 @@
+Created At: 2026-05-20T11:37:33Z
+Completed At: 2026-05-20T11:37:33Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8239
+Total Bytes: 400508
+Showing lines 4250 to 4330
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+4250:                       <div className="flex flex-col gap-1">
+4251:                         <div className="flex items-center gap-2">
+4252:                           <div className="size-7 rounded-full bg-gradient-to-tr from-white/10 to-white/5 border border-white/10 flex items-center justify-center shadow-lg group-hover:border-primary/30 transition-all">
+4253:                             <UserIcon className="size-3.5 text-text-dim group-hover:text-primary" />
+4254:                           </div>
+4255:                           <div>
+4256:                             <div className="text-white font-black text-xs flex items-center gap-1">
+4257:                               <span className="text-primary/60">
+4258:                                 {(() => {
+4259:                                   const g = partner.gender?.toLowerCase();
+4260:                                   if (g === 'nam' || g === 'm' || g === 'male' || g === 'ông') return 'Ông.';
+4261:                                   if (g === 'nữ' || g === 'f' || g === 'female' || g === 'bà') return 'Bà.';
+4262:                          </div>
+4263:                     </td>
+4264:                   </tr>
+4265:                 ))
+4266:               )}
+4267:             </tbody>
+4268:           </table>
+4269:         </div>
+4270:       </div>ve || '---'}
+4271:                             </div>
+4272:                             <div className="text-[10px] text-text-dim font-black uppercase mt-1 italic tracking-wider opacity-60">
+4273:                               {partner.position || 'Giám đốc'}
+4
+<truncated 1320 bytes>
+ssName="size-11 bg-red-500/5 border border-red-500/10 text-text-dim rounded-2xl flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 transition-all shadow-xl active:scale-90"
+4296:                           title="Xóa đối tác"
+4297:                         >
+4298:                           <Trash2 className="size-4" />
+4299:                         </button>
+4300:                       </div>
+4301:                     </td>
+4302:                   </tr>
+4303:                 ))
+4304:               )}
+4305:             </tbody>
+4306:           </table>
+4307:         </div>
+4308:       </div>
+4309: 
+4310:       {/* Context Menu Thật sự - Được gắn vào body hoặc container riêng để tránh bị cắt bởi table overflow */}
+4311:       <AnimatePresence>
+4312:         {contextMenu && (
+4313:           <motion.div 
+4314:             initial={{ opacity: 0, scale: 0.9 }}
+4315:             animate={{ opacity: 1, scale: 1 }}
+4316:             exit={{ opacity: 0, scale: 0.9 }}
+4317:             className="fixed z-[9999] bg-card-dark border border-border-dark shadow-2xl rounded-xl py-2 w-44 overflow-hidden"
+4318:             style={{ left: contextMenu.x, top: contextMenu.y }}
+4319:             onClick={(e) => e.stopPropagation()}
+4320:           >
+4321:             <div className="px-3 py-1.5 border-b border-border-dark mb-1">
+4322:               <div className="text-[9px] font-bold text-text-dim uppercase truncate" title={contextMenu.partner?.name}>
+4323:                 {contextMenu.partner?.name}
+4324:               </div>
+4325:             </div>
+4326:             <button 
+4327:               onClick={() => {
+4328:                 if (contextMenu.partner) onEdit(contextMenu.partner);
+4329:                 closeContextMenu();
+4330:               }}
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

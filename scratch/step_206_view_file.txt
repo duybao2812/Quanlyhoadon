@@ -1,0 +1,31 @@
+Created At: 2026-05-20T11:35:03Z
+Completed At: 2026-05-20T11:35:03Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8256
+Total Bytes: 401522
+Showing lines 7040 to 7062
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+7040:                                 const rate = selectedInvoice.extractedData?.invoice?.vatRate;
+7041:                                 if (rate !== undefined && rate !== null) return rate;
+7042:                                 const sub = selectedInvoice.extractedData?.totals?.subtotal;
+7043:                                 const total = selectedInvoice.extractedData?.totals?.grandTotal || selectedInvoice.extractedData?.totals?.grand_total;
+7044:                                 if (sub > 0 && total > 0) return Math.round((Math.abs(total - sub) / sub) * 100);
+7045:                                 return 8;
+7046:                               })()}%)
+7047:                             </td>
+7048:                             <td className="border border-border-dark p-2 text-right">{formatVNNumber(selectedInvoice.extractedData?.totals?.vatAmount)}</td>
+7049:                           </tr>
+7050:                           <tr className="bg-primary/20 text-white font-bold">
+7051:                             <td colSpan={5} className="border border-border-dark p-2 text-right text-xs uppercase tracking-tight">Thành tiền (Sau thuế)</td>
+7052:                             <td className="border border-border-dark p-2 text-right text-xs">{formatVNNumber(selectedInvoice.extractedData?.totals?.grandTotal || selectedInvoice.extractedData?.totals?.grand_total)}</td>
+7053:                           </tr>
+7054:                         </tbody>
+7055:                       </table>
+7056:                     </div>
+7057:                   </div>
+7058:                 </div>
+7059:               )}
+7060:               {activeTab === 'upload' && (
+7061:                 <UploadView 
+7062:                   onUpload={handleFileUpload} 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

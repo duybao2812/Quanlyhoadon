@@ -1,0 +1,59 @@
+Created At: 2026-05-22T05:07:03Z
+Completed At: 2026-05-22T05:07:03Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8117
+Total Bytes: 396877
+Showing lines 3512 to 3650
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3512:   const renderContractDocument = () => {
+3513:     const getVal = (tag: string) => formData[tag] || '';
+3514:     const setVal = (tag: string, val: string) => handleFieldChange(tag, val);
+3515: 
+3516:     // Common tags for day/month/year of signing
+3517:     const dayTag = dateGroups[0]?.day || 'NGAY_KY';
+3518:     const monthTag = dateGroups[0]?.month || 'THANG_KY';
+3519:     const yearTag = dateGroups[0]?.year || 'NAM_KY';
+3520: 
+3521:     const contractNumber = getVal('SO_HD') || getVal('SO_HOPDONG') || getVal('SOHOPDONG') || getVal('SOHD');
+3522:     const setContractNumber = (v: string) => {
+3523:       setVal('SO_HD', v);
+3524:       setVal('SO_HOPDONG', v);
+3525:       setVal('SOHOPDONG', v);
+3526:       setVal('SOHD', v);
+3527:     };
+3528: 
+3529:     const templateName = CONTRACT_TEMPLATES.find(t => t.id === selectedTemplate)?.name || 'Hợp Đồng';
+3530: 
+3531:     return (
+3532:       <div className="font-serif text-[#1a1a1a] text-xs leading-relaxed max-w-[800px] w-full mx-auto bg-white p-8 md:p-14 shadow-2xl rounded-sm border border-gray-200 my-4 text-left relative transition-all duration-300">
+3533:         {/* National Emblem */}
+3534:         <div className="text-center space-y-0.5 mb-6 font-serif">
+3535:           <div className="font-bold text-[10.5px] uppercase tracking-wide">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+3536:           <div className="font-bold text-[9.5px]">Độc lập - Tự do - Hạnh phúc</div>
+3537:           <div className="font-bold text-[9px] tracking-widest text-gray-400 mt-1">---o0o---</div>
+3538:     
+<truncated 7294 bytes>
+der="Chức vụ..." />
+3629:           </p>
+3630:           <p className="pl-4">
+3631:             <span className="font-bold">Số tài khoản: </span>
+3632:             <InlineField tag="STK_B" value={getVal('STK_B')} onChange={(v) => setVal('STK_B', v)} placeholder="Số tài khoản ngân hàng..." />
+3633:             <span className="ml-4 font-bold">Tại ngân hàng: </span>
+3634:             <InlineField tag="NH_B" value={getVal('NH_B') || getVal('NGAN_HANG_B')} onChange={(v) => { setVal('NH_B', v); setVal('NGAN_HANG_B', v); }} placeholder="Tên ngân hàng..." />
+3635:           </p>
+3636:         </div>
+3637: 
+3638:         {/* Section 1: Scope */}
+3639:         <div className="space-y-1.5 mb-6 font-serif">
+3640:           <h3 className="font-bold uppercase text-[10px] border-b border-gray-300 pb-0.5">ĐIỀU 1: PHẠM VI CÔNG VIỆC</h3>
+3641:           {(tags.some(t => t.toUpperCase() === 'GOI_THAU' || t.toUpperCase() === 'GOITHAU') || tags.some(t => t.toUpperCase() === 'TEN_CONGTRINH' || t.toUpperCase() === 'TENCONGTRINH')) ? (
+3642:             <div className="pl-4 space-y-1.5">
+3643:               {tags.some(t => t.toUpperCase() === 'GOI_THAU' || t.toUpperCase() === 'GOITHAU') && (
+3644:                 <p>
+3645:                   <span className="font-bold">- Gói thầu: </span>
+3646:                   <InlineField tag="GOI_THAU" value={getVal('GOI_THAU') || getVal('GOITHAU')} onChange={(v) => { setVal('GOI_THAU', v); setVal('GOITHAU', v); }} placeholder="Nhập tên gói thầu..." className="w-[80%]" onOpenSelector={() => { setActiveInvoiceTag?.('GOI_THAU'); setIsInvoiceSelectorOpen?.(true); }} />
+3647:                 </p>
+3648:               )}
+3649:               {tags.some(t => t.toUpperCase() === 'TEN_CONGTRINH' || t.toUpperCase() === 'TENCONGTRINH') && (
+3650:                 <p>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

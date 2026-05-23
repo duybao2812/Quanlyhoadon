@@ -1,0 +1,75 @@
+Created At: 2026-05-20T11:34:10Z
+Completed At: 2026-05-20T11:34:10Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8256
+Total Bytes: 401522
+Showing lines 7050 to 7220
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+7050:                           <tr className="bg-primary/20 text-white font-bold">
+7051:                             <td colSpan={5} className="border border-border-dark p-2 text-right text-xs uppercase tracking-tight">Thành tiền (Sau thuế)</td>
+7052:                             <td className="border border-border-dark p-2 text-right text-xs">{formatVNNumber(selectedInvoice.extractedData?.totals?.grandTotal || selectedInvoice.extractedData?.totals?.grand_total)}</td>
+7053:                           </tr>
+7054:                         </tbody>
+7055:                       </table>
+7056:                     </div>
+7057:                   </div>
+7058:                 </div>
+7059:               )}
+7060:               {activeTab === 'upload' && (
+7061:                 <UploadView 
+7062:                   onUpload={handleFileUpload} 
+7063:                   queue={uploadQueue}
+7064:                   rejectedFiles={rejectedFiles}
+7065:                   onRemove={removeFromQueue}
+7066:                   onRemoveRejected={removeRejectedFile}
+7067:                   onProcess={processQueue}
+7068:                   isProcessing={isProcessing}
+7069:                   processingStatus={processingStatus}
+7070:                 />
+7071:               )}
+7072:               {activeTab === 'partners' && (
+7073:                 <PartnersView 
+7074:                   partners={partners} 
+7075:                   onEdit={(p) => handlePartnerEditSelect(p)} 
+7076:                   onBatchEdit={handleBatchPartnerEditStart}
+7077:                   onDelete={handleDeletePartner} 
+7
+<truncated 7521 bytes>
+                         <div className="text-[10px] text-text-dim flex items-center justify-center gap-1 font-bold">
+7185:                               <div className="size-1.5 rounded-full bg-text-dim" /> Chưa có trên máy chủ
+7186:                             </div>
+7187:                           )}
+7188:                         </div>
+7189:                       </div>
+7190:                     );
+7191:                   })}
+7192:                 </div>
+7193:               )}
+7194:               {activeTab === 'docs' && (
+7195:                 <DocsView 
+7196:                   items={generatedDocs} 
+7197:                   onDelete={handleDeleteDoc} 
+7198:                   onBulkDelete={handleBulkDeleteDocs}
+7199:                   onDeleteAll={handleDeleteAllDocs}
+7200:                   invoices={invoices}
+7201:                   partners={partners}
+7202:                 />
+7203:               )}
+7204:               {activeTab === 'contract' && (
+7205:                 <ContractView
+7206:                   partners={partners}
+7207:                   user={user}
+7208:                   contractForm={contractForm}
+7209:                   updateContractForm={updateContractForm}
+7210:                   onContractSaved={handleContractSave}
+7211:                   setIsInvoiceSelectorOpen={setIsInvoiceSelectorOpen}
+7212:                   setActiveInvoiceTag={setActiveInvoiceTag}
+7213:                   handleFieldChange={handleContractFieldChange}
+7214:                 />
+7215:               )}
+7216:             </div>
+7217:         </div>
+7218: 
+7219:         <footer className="h-10 bg-sidebar-dark border-t border-border-dark px-6 flex items-center justify-between text-[10px] uppercase font-bold tracking-widest text-text-dim">
+7220:           <div className="flex items-center gap-6">
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

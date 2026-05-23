@@ -1,0 +1,76 @@
+Created At: 2026-05-22T05:11:00Z
+Completed At: 2026-05-22T05:11:00Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8117
+Total Bytes: 396877
+Showing lines 3259 to 3360
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3259:   const handleGenerate = async () => {
+3260:     if (!templateBuffer || !selectedTemplate) return;
+3261:     setIsGenerating(true);
+3262:     try {
+3263:       const zip = new PizZip(templateBuffer);
+3264:       
+3265:       let docXml = zip.file("word/document.xml")?.asText() || "";
+3266:       if (docXml.includes('[BANG_GDN]')) {
+3267:         docXml = docXml.replace(/\[BANG_GDN\]/g, '[@BANG_GDN]');
+3268:         zip.file("word/document.xml", docXml);
+3269:       }
+3270: 
+3271:       const doc = new Docxtemplater(zip, { 
+3272:         paragraphLoop: true, 
+3273:         linebreaks: true, 
+3274:         delimiters: { start: "[", end: "]" } 
+3275:       });
+3276:       
+3277:       const dataToRender: Record<string, string> = {};
+3278:       Object.keys(formData).forEach(tag => {
+3279:         const upper = tag.toUpperCase();
+3280:         // Skip dots for common table-related tags if empty
+3281:         const isTableTag = upper.includes('NOI_DUNG') || 
+3282:                            upper.includes('DVT') || 
+3283:                            upper.includes('SOLUONG') || 
+3284:                            upper.includes('SL') || 
+3285:                            upper.includes('DON_GIA') ||
+3286:                            upper.includes('DONGIA') ||
+3287:                            upper.includes('THANHTIEN') ||
+3288:                            upper.includes('THANH_TIEN');
+3289:                            
+3290:         if (upper === 'BANG_GDN') {
+3291:           let rows: GdnRow[] = [];
+3292:           try {
+3293:             if (formData[tag]) {
+
+<truncated 2402 bytes>
+= tag.toUpperCase();
+3331:         if (u === 'BEN_DUOC_DE_NGHI_TITLE') {
+3332:           dataToRender[tag] = benDuocVal.toUpperCase();
+3333:         } else if (u === 'BEN_DE_NGHI_TITLE') {
+3334:           dataToRender[tag] = benDeNghiVal.toUpperCase();
+3335:         } else if (u === 'BEN_DUOC_DE_NGHI') {
+3336:           dataToRender[tag] = toVietnameseTitleCase(benDuocVal) || "....................";
+3337:         } else if (u === 'BEN_DE_NGHI') {
+3338:           dataToRender[tag] = toVietnameseTitleCase(benDeNghiVal) || "....................";
+3339:         }
+3340:       });
+3341: 
+3342:       // Double-safety for default exact casing if not captured above
+3343:       if (!dataToRender['BEN_DUOC_DE_NGHI_TITLE']) dataToRender['BEN_DUOC_DE_NGHI_TITLE'] = benDuocVal.toUpperCase();
+3344:       if (!dataToRender['BEN_DE_NGHI_TITLE']) dataToRender['BEN_DE_NGHI_TITLE'] = benDeNghiVal.toUpperCase();
+3345:       if (!dataToRender[benDuocKey]) dataToRender[benDuocKey] = toVietnameseTitleCase(benDuocVal) || "....................";
+3346:       if (!dataToRender[benDeNghiKey]) dataToRender[benDeNghiKey] = toVietnameseTitleCase(benDeNghiVal) || "....................";
+3347: 
+3348:       doc.render(dataToRender);
+3349:       const out = doc.getZip().generate({ type: 'blob', compression: 'DEFLATE' });
+3350:       const templateName = CONTRACT_TEMPLATES.find(t => t.id === selectedTemplate)?.name || 'HopDong';
+3351:       const fileName = `${templateName}_${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.docx`;
+3352:       
+3353:       saveAs(out, fileName);
+3354:       
+3355:       // Save metadata to Supabase
+3356:       await onContractSaved({
+3357:         templateId: selectedTemplate,
+3358:         partyAId: selectedPartyAId,
+3359:         partyBId: selectedPartyBId,
+3360:         formData: formData,
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,0 +1,1 @@
+"                                  return '';\n                                })()}\n                              </span>\n                              {partner.representative || '---'}\n                            </div>"

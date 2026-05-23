@@ -1,0 +1,58 @@
+Created At: 2026-05-20T11:36:06Z
+Completed At: 2026-05-20T11:36:06Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8258
+Total Bytes: 401638
+Showing lines 4151 to 4300
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+4151:                           </div>
+4152:                         </div>
+4153:                       </div>
+4154: 
+4155:                       <div className="p-5 bg-orange-500/5 border border-orange-500/20 rounded-2xl shadow-lg relative overflow-hidden group">
+4156:                         <div className="absolute top-0 right-0 p-4 opacity-10">
+4157:                           <CheckCircle2 className="size-16 text-orange-500" />
+4158:                         </div>
+4159:                         <div className="text-[9px] font-black text-orange-500 uppercase mb-2 tracking-widest">3. Kết quả đã chuyển đổi (Sang 2 cấp)</div>
+4160:                         <div className="text-base font-black text-white mb-3 leading-relaxed">{convResult.fullAddress}</div>
+4161:                         <div className="flex gap-2">
+4162:                           <div className={cn(
+4163:                             "rounded px-2 py-1 text-[10px] font-bold border uppercase tracking-tighter",
+4164:                             convResult.isConverted ? "bg-primary/20 text-primary border-primary/30" : "bg-white/5 text-text-dim border-border-dark"
+4165:                           )}>
+4166:                             {convResult.isConverted ? "Khớp bảng ánh xạ 2025" : "Chưa có dữ liệu chính xác"}
+4167:                           </div>
+4168:                         </div>
+4169:                       </div>
+4170:                     </div>
+4171:                   ) : (
+4172:                     <div className="h-40 border-2 border-dashed border-border-dark rounded-2xl fl
+<truncated 7149 bytes>
+.bankName || '---'}
+4275:                         </div>
+4276:                       </div>
+4277:                     </td>
+4278: 
+4279:                     <td className="px-8 py-8 whitespace-nowrap">
+4280:                       <div className="flex flex-col gap-1.5">
+4281:                         <div className="flex items-center gap-2.5">
+4282:                           <div className="size-9 rounded-full bg-gradient-to-tr from-white/10 to-white/5 border border-white/10 flex items-center justify-center shadow-lg group-hover:border-primary/30 transition-all">
+4283:                             <UserIcon className="size-4 text-text-dim group-hover:text-primary" />
+4284:                           </div>
+4285:                           <div>
+4286:                             <div className="text-white font-black text-sm flex items-center gap-1.5">
+4287:                               <span className="text-primary/60">
+4288:                                 {(() => {
+4289:                                   const g = partner.gender?.toLowerCase();
+4290:                                   if (g === 'nam' || g === 'm' || g === 'male' || g === 'ông') return 'Ông.';
+4291:                                   if (g === 'nữ' || g === 'f' || g === 'female' || g === 'bà') return 'Bà.';
+4292:                                   return '';
+4293:                                 })()}
+4294:                               </span>
+4295:                               {partner.representative || '---'}
+4296:                             </div>
+4297:                             <div className="text-[10px] text-text-dim font-black uppercase mt-1 italic tracking-wider opacity-60">
+4298:                               {partner.position || 'Giám đốc'}
+4299:                             </div>
+4300:                           </div>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,0 +1,36 @@
+Created At: 2026-05-20T11:27:55Z
+Completed At: 2026-05-20T11:27:56Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8256
+Total Bytes: 401520
+Showing lines 523 to 550
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+523:     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-bg-dark/80 backdrop-blur-md p-4">
+524:       <motion.div 
+525:         initial={{ opacity: 0, scale: 0.95, y: 20 }}
+526:         animate={{ opacity: 1, scale: 1, y: 0 }}
+527:         className="bg-card-dark rounded-[32px] border border-border-dark shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden"
+528:       >
+529:         <div className="p-8 border-b border-border-dark flex justify-between items-center bg-white/5">
+530:           <div>
+531:             <h2 className="text-2xl font-black text-white tracking-tighter uppercase">Kiểm tra kết quả bóc tách</h2>
+532:             <p className="text-text-dim text-xs font-bold uppercase tracking-widest mt-1">Vui lòng rà soát lại thông tin trước khi lưu vào hệ thống</p>
+533:           </div>
+534:           <button onClick={onClose} className="size-12 flex items-center justify-center bg-white/5 hover:bg-red-500/20 text-white rounded-2xl transition-all group">
+535:             <X className="size-6 group-hover:text-red-500" />
+536:           </button>
+537:         </div>
+538: 
+539:         <div className="flex-1 overflow-y-auto p-8 space-y-10">
+540:           {/* Thông tin hóa đơn */}
+541:           <section className="space-y-8">
+542:             <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-border-dark">
+543:               <div className="flex items-center gap-3 text-primary">
+544:                 <FileText className="size-6" />
+545:                 <h3 className="text-base font-black uppercase tracking-[0.2em]">Thông tin Hóa đơn</h3>
+546:               </div>
+547:               <div className="flex items-center gap-3 bg-primary/10 px-6 py-2.5 rounded-2xl border border-primary/20 shadow-lg shadow-primary/5">
+548:                 <Box className="size-4 text-primary" />
+549:                 <span className="text-xs font-black text-primary uppercase tracking-widest">
+550:                   Phân loại: {(() => {
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

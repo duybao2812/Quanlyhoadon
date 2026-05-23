@@ -1,0 +1,1 @@
+"::-webkit-scrollbar-thumb:hover {\n  background: rgba(255, 255, 255, 0.15);\n}\n\n/* Force Times New Roman for serif documents to prevent diacritics splitting in Windows browsers */\n.font-serif {\n  font-family: \"Times New Roman\", Times, serif !important;\n}"

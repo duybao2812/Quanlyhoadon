@@ -1,0 +1,55 @@
+Created At: 2026-05-20T11:37:41Z
+Completed At: 2026-05-20T11:37:41Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8239
+Total Bytes: 400508
+Showing lines 4200 to 4250
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+4200:                       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+4201:                       <div className="relative z-10">
+4202:                         <div className="font-bold text-white group-hover:text-primary transition-colors text-xs tracking-tight leading-tight mb-1.5">
+4203:                           {partner.name}
+4204:                         </div>
+4205:                         <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-white/5 border border-white/10 rounded-md group-hover:border-primary/30 transition-all">
+4206:                           <Hash className="size-2.5 text-primary/60" />
+4207:                           <span className="text-[9px] font-black text-text-dim uppercase tracking-widest">MST: {partner.taxCode}</span>
+4208:                         </div>
+4209:                       </div>
+4210:                     </td>
+4211: 
+4212:                     <td className="px-5 py-5">
+4213:                       <div className="space-y-2 max-w-md">
+4214:                         <div className="flex gap-2 group/item">
+4215:                           <div className="shrink-0 size-7 rounded-lg bg-white/5 flex items-center justify-center border border-white/10 group-hover/item:border-primary/20 transition-all">
+4216:                             <History className="size-3 text-text-dim" />
+4217:                           </div>
+4218:                           <div className="text-xs font-bold text-text-dim leading-relaxed group-hover
+<truncated 397 bytes>
+                   <div className="flex gap-2 group/item p-2.5 bg-primary/5 rounded-xl border border-primary/10 shadow-[0_10px_30px_rgba(249,115,22,0.1)]">
+4225:                             <div className="shrink-0 size-7 rounded-lg bg-primary/20 flex items-center justify-center border border-primary/30">
+4226:                               <MapPin className="size-3 text-primary" />
+4227:                             </div>
+4228:                             <div className="text-xs font-black text-primary leading-relaxed">
+4229:                               <span className="text-[8px] font-black text-primary/60 uppercase block mb-0.5 tracking-widest">Địa chỉ mới (2025)</span>
+4230:                               {partner.addressPostMerger}
+4231:                             </div>
+4232:                           </div>
+4233:                         )}
+4234:                       </div>
+4235:                     </td>
+4236: 
+4237:                     <td className="px-5 py-5">
+4238:                       <div className="flex flex-col gap-1">
+4239:                         <div className="flex items-center gap-1.5 text-white font-black text-xs group-hover:text-primary transition-colors">
+4240:                           <CreditCard className="size-3 opacity-50" />
+4241:                           {partner.accountNumber || '---'}
+4242:                         </div>
+4243:                         <div className="text-[9px] text-text-dim uppercase font-black tracking-widest leading-tight pl-4 opacity-60">
+4244:                           {partner.bankName || '---'}
+4245:                         </div>
+4246:                       </div>
+4247:                     </td>
+4248: 
+4249:                     <td className="px-5 py-5 whitespace-nowrap">
+4250:                       <div className="flex flex-col gap-1">
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

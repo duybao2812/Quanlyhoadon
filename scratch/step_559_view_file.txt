@@ -1,0 +1,34 @@
+Created At: 2026-05-22T04:58:33Z
+Completed At: 2026-05-22T04:58:33Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8242
+Total Bytes: 400126
+Showing lines 3505 to 3530
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3505:       if (group.month) next[group.month] = m;
+3506:       if (group.year) next[group.year] = y;
+3507:       return next;
+3508:     });
+3509:   };
+3510: 
+3511:   return (
+3512:     <div className="flex flex-col h-full gap-1">
+3513:       {/* Top Header Section */}
+3514:       <div className="flex flex-col md:flex-row gap-2 items-start md:items-center justify-between bg-card-dark p-2 rounded-2xl shadow-sm border border-border-dark">
+3515:         <div className="space-y-0 text-left">
+3516:           <h2 className="text-lg font-bold text-white flex items-center gap-2">
+3517:             <PlusSquare className="size-5 text-primary" />
+3518:             Tạo Hợp Đồng Chuyên Nghiệp
+3519:           </h2>
+3520:           <p className="text-[11px] text-text-dim">Soạn thảo hợp đồng nhanh chóng với mẫu có sẵn</p>
+3521:         </div>
+3522:         <div className="flex items-center gap-2">
+3523:           <button
+3524:             onClick={() => {
+3525:               updateContractForm({
+3526:                 selectedTemplate: '',
+3527:                 tags: [],
+3528:                 templateFormData: {
+3529:                   'HDNT': {},
+3530:                   'HDTC': {},
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

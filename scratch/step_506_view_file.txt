@@ -1,0 +1,56 @@
+Created At: 2026-05-20T12:58:07Z
+Completed At: 2026-05-20T12:58:07Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8256
+Total Bytes: 402056
+Showing lines 6448 to 6495
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+6448:             extractedData = normalizeExtractedData(extractedData);
+6449:             
+6450:             if (extractedData.items) {
+6451:               try {
+6452:                 const { classifyInvoice } = await import('./lib/mistral');
+6453:                 extractedData.classification = await classifyInvoice(extractedData.items);
+6454:               } catch (e) {
+6455:                 console.error("Classification failed:", e);
+6456:               }
+6457:             }
+6458:           } else {
+6459:             updateLoading(`Đang trích xuất AI: ${file.name}`);
+6460:             setRequestCount(prev => prev + 1);
+6461:             try {
+6462:               const rawExtracted = await extractFromInvoice(file);
+6463:               extractedData = normalizeExtractedData(rawExtracted);
+6464:             } catch (err: any) {
+6465:               const errMsg = err.message || "";
+6466:               if (errMsg.includes("429") || errMsg.toLowerCase().includes("quota")) {
+6467:                 setIsTokenLimited(true);
+6468:                 setCountdown(60);
+6469:                 toast("Lỗi giới hạn Token AI. Đang tạm dừng...", "error");
+6470:                 
+6471:                 const timer = setInterval(() => {
+6472:                   setCountdown(prev => {
+6473:                     if (prev <= 1) {
+6474:                       clearInterval(timer);
+6475:                       return 0;
+6476:                     }
+6477:                     return prev - 1;
+6478:                   });
+6479:                 }, 1000);
+6480: 
+6481:                 await new Promise(resolve => setTimeout(resolve, 60000));
+6482:                 setIsTokenLimited(false);
+6483:                 i--; // Retry same file
+6484:                 if (docRef) await supabase.from('invoices').delete().eq('id', docRef.id);
+6485:                 continue;
+6486:               }
+6487:               throw err;
+6488:             }
+6489:             
+6490:             if (extractedData && (extractedData.items || extractedData.items_list)) {
+6491:               try {
+6492:                 const { classifyInvoice } = await import('./lib/mistral');
+6493:                 const items = extractedData.items || extractedData.items_list || [];
+6494:                 extractedData.classification = await classifyInvoice(items);
+6495:               } catch (e) {
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,0 +1,33 @@
+Created At: 2026-05-20T12:56:28Z
+Completed At: 2026-05-20T12:56:28Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8256
+Total Bytes: 402034
+Showing lines 66 to 90
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+66: import { supabase } from './lib/supabaseClient';
+67: import type { User as SupabaseUser } from '@supabase/supabase-js';
+68: type User = SupabaseUser & { 
+69:   uid: string;
+70:   displayName?: string | null;
+71:   photoURL?: string | null;
+72: };
+73: import imageCompression from 'browser-image-compression';
+74: import * as XLSX from 'xlsx';
+75: import { extractFromInvoice } from './lib/mistral';
+76: import { parseInvoiceXml } from './lib/xmlParser';
+77: import { generateDocxBlob, extractTags } from './lib/docxGenerator';
+78: import PizZip from 'pizzip';
+79: import Docxtemplater from 'docxtemplater';
+80: import { smartConvertAddress } from './lib/addressConverter';
+81: import { cn, formatVNNumber } from './lib/utils';
+82: import { useToast } from './components/Notifications';
+83: import { loadTemplates, saveTemplate, deleteStoredTemplate, StoredTemplate } from './lib/storage';
+84: import { AIChatBox } from './components/AIChatBox';
+85: import { InvoiceItemComp } from './components/Invoice/InvoiceItemComp';
+86: import { InvoiceResponsiveCard } from './components/Invoice/InvoiceResponsiveCard';
+87: import { InvoiceItem as MappedInvoiceItem } from './types/invoiceData';
+88: 
+89: // --- Types ---
+90: type Tab = 'dashboard' | 'upload' | 'partners' | 'templates' | 'docs' | 'contract';
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

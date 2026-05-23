@@ -1,0 +1,80 @@
+Created At: 2026-05-22T04:59:56Z
+Completed At: 2026-05-22T04:59:56Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8225
+Total Bytes: 401168
+Showing lines 2300 to 2420
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2300:   'NGANHANGBENB': 'Ngân hàng Bên B',
+2301:   'NGAN_HANG_A': 'Ngân hàng Bên A',
+2302:   'NGAN_HANG_B': 'Ngân hàng Bên B',
+2303:   'NGAY_HD': 'Ngày ký hợp đồng',
+2304:   'THANG_HD': 'Tháng ký hợp đồng',
+2305:   'NAM_HD': 'Năm ký hợp đồng',
+2306:   'NGAY_HOPDONG': 'Ngày ký hợp đồng',
+2307:   'THANG_HOPDONG': 'Tháng ký hợp đồng',
+2308:   'NAM_HOPDONG': 'Năm ký hợp đồng',
+2309:   'NGAYKYHOPDONG': 'Ngày ký hợp đồng',
+2310:   'SO_HD': 'Số hợp đồng',
+2311:   'SO_HOPDONG': 'Số hợp đồng',
+2312:   'SOHOPDONG': 'Số hợp đồng',
+2313:   'SOHD': 'Số hợp đồng',
+2314:   'NGAY_BAT_DAU': 'Ngày bắt đầu',
+2315:   'NGAY_KET_THUC': 'Ngày kết thúc',
+2316:   'BANGCHUGIATRI': 'Bằng chữ giá trị',
+2317:   'BANGGIATRIHOPDONG': 'Bảng giá trị hợp đồng',
+2318:   'BANG_GIATRIHOPDONG': 'Bảng giá trị hợp đồng',
+2319:   'GIATRIHOPDONG': 'Giá trị hợp đồng',
+2320:   'TEN_CTY_VIET_TAT': 'Tên công ty viết tắt',
+2321:   'NOI_KY': 'Nơi ký',
+2322:   'DIA_DIEM': 'Địa điểm',
+2323:   'BANG_GIATRITHUEXE': 'Bảng giá trị thuê xe',
+2324:   'BANGGIATRITHUEXE': 'Bảng giá trị thuê xe',
+2325:   'GOI_THAU': 'Gói thầu',
+2326:   'TEN_CONGTRINH': 'Tên công trình',
+2327:   'BEN_DE_NGHI': 'Bên đề nghị (Bên B)',
+2328:   'BEN_DUOC_DE_NGHI': 'Bên được đề nghị (Bên A)',
+2329:   'DAI_DIEN_BEN_DE_NGHI': 'Đại diện bên đề nghị (Bên B)',
+2330:   'STK_BEN_DE_NGHI': 'Số tài khoản bên đề nghị (Bên B)',
+2331:   'NGAN_HANG_BEN
+<truncated 3491 bytes>
+: string): string => {
+2383:   const d = new Date(dateStr);
+2384:   if (isNaN(d.getTime())) return dateStr;
+2385:   const day = d.getDate().toString().padStart(2, '0');
+2386:   const month = (d.getMonth() + 1).toString().padStart(2, '0');
+2387:   const year = d.getFullYear();
+2388:   return `ngày ${day} tháng ${month} năm ${year}`;
+2389: };
+2390: 
+2391: const InlineField: React.FC<{
+2392:   tag: string;
+2393:   value: string;
+2394:   onChange: (val: string) => void;
+2395:   placeholder?: string;
+2396:   type?: 'text' | 'date' | 'select';
+2397:   options?: string[];
+2398:   onOpenSelector?: () => void;
+2399:   isCurrency?: boolean;
+2400:   className?: string;
+2401: }> = ({ tag, value, onChange, placeholder, type = 'text', options = [], onOpenSelector, isCurrency, className }) => {
+2402:   const [isFocused, setIsFocused] = useState(false);
+2403:   const friendlyLabel = placeholder || getFriendlyLabel(tag);
+2404: 
+2405:   const displayValue = value || friendlyLabel;
+2406:   const isPlaceholder = !value;
+2407:   
+2408:   // Calculate character width dynamically
+2409:   const charWidth = 7.5;
+2410:   const inputWidth = Math.max(displayValue.length * charWidth + (type === 'select' ? 20 : 12), 45);
+2411: 
+2412:   return (
+2413:     <span
+2414:       className={cn(
+2415:         "inline-flex items-center relative rounded transition-all duration-200 align-baseline mx-0.5 px-1 py-0.5",
+2416:         isFocused
+2417:           ? "bg-blue-100/90 ring-1 ring-blue-400 text-blue-950"
+2418:           : isPlaceholder
+2419:             ? "bg-amber-50/40 text-amber-600/70 border-b border-dashed border-amber-400 hover:bg-amber-100/40 hover:text-amber-700 cursor-pointer"
+2420:             : "text-blue-900 font-bold bg-blue-50/40 border-b border-blue-400 hover:bg-blue-100/30 hover:text-blue-950 cursor-pointer",
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

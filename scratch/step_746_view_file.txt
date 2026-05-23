@@ -1,0 +1,53 @@
+Created At: 2026-05-22T05:09:47Z
+Completed At: 2026-05-22T05:09:47Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8117
+Total Bytes: 396877
+Showing lines 3650 to 3865
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3650:                 <p>
+3651:                   <span className="font-bold">- Công trình: </span>
+3652:                   <InlineField tag="TEN_CONGTRINH" value={getVal('TEN_CONGTRINH') || getVal('TENCONGTRINH')} onChange={(v) => { setVal('TEN_CONGTRINH', v); setVal('TENCONGTRINH', v); }} placeholder="Nhập tên công trình..." className="w-[80%]" onOpenSelector={() => { setActiveInvoiceTag?.('TEN_CONGTRINH'); setIsInvoiceSelectorOpen?.(true); }} />
+3653:                 </p>
+3654:               )}
+3655:             </div>
+3656:           ) : (
+3657:             <p className="pl-4 italic text-gray-500">Phạm vi công việc được thực hiện đúng theo yêu cầu kỹ thuật và bản vẽ thiết kế đã được hai bên phê duyệt.</p>
+3658:           )}
+3659:         </div>
+3660: 
+3661:         {/* Section 2: Value */}
+3662:         <div className="space-y-1.5 mb-8 font-serif">
+3663:           <h3 className="font-bold uppercase text-[10px] border-b border-gray-300 pb-0.5">ĐIỀU 2: GIÁ TRỊ HỢP ĐỒNG</h3>
+3664:           <p className="pl-4">
+3665:             - Giá trị hợp đồng tạm tính là: <InlineField tag="GIATRIHOPDONG" value={getVal('GIATRIHOPDONG')} onChange={(v) => setVal('GIATRIHOPDONG', v)} placeholder="Nhập giá trị hợp đồng bằng số..." isCurrency onOpenSelector={() => { setActiveInvoiceTag?.('GIATRIHOPDONG'); setIsInvoiceSelectorOpen?.(true); }} /> <span className="font-bold">VNĐ</span>
+3666:           </p>
+3667:           <p className="pl-4 italic">
+3668:             - Bằng chữ: <InlineField tag="BANGCHU
+<truncated 10836 bytes>
+flex items-center gap-3">
+3842:                   <div className="size-8 rounded-xl bg-primary/20 border border-primary/30 text-primary flex items-center justify-center font-black text-sm shadow-md">3</div>
+3843:                   <div>
+3844:                     <h3 className="font-black text-xs text-white tracking-tight">Soạn thảo văn bản trực quan</h3>
+3845:                     <p className="text-[9px] text-text-dim uppercase tracking-wider">Mô phỏng tài liệu in ấn thực tế (A4 layout)</p>
+3846:                   </div>
+3847:                 </div>
+3848:                 <div className="flex items-center gap-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider shadow-sm">
+3849:                   <Check className="size-3" /> Auto-Save
+3850:                 </div>
+3851:               </div>
+3852: 
+3853:               {/* A4 Workspace */}
+3854:               <div className="flex-1 overflow-y-auto bg-stone-900/60 p-4 md:p-6 custom-scrollbar flex flex-col justify-start">
+3855:                 {selectedTemplate === 'GDNTT' ? renderGdnDocument() : renderContractDocument()}
+3856:               </div>
+3857: 
+3858:               {/* Footer */}
+3859:               <div className="bg-card-dark border-t border-border-dark p-2 flex items-center justify-between text-[9px] text-text-dim">
+3860:                  <div className="flex items-center gap-1.5 uppercase font-black tracking-widest">
+3861:                    <ShieldCheck className="size-3 text-emerald-500" /> Hệ thống bảo mật
+3862:                  </div>
+3863:                  <div className="italic">Dữ liệu trống mặc định: <span className="text-primary font-bold">"............"</span></div>
+3864:               </div>
+3865:             </div>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

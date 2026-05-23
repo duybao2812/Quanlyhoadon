@@ -1,0 +1,20 @@
+Created At: 2026-05-20T11:36:15Z
+Completed At: 2026-05-20T11:36:15Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8258
+Total Bytes: 401638
+Showing lines 7054 to 7065
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+7054:                             <td className="border border-border-dark p-2 text-right text-xs">{formatVNNumber(selectedInvoice.extractedData?.totals?.grandTotal || selectedInvoice.extractedData?.totals?.grand_total)}</td>
+7055:                           </tr>
+7056:                         </tbody>
+7057:                       </table>
+7058:                     </div>
+7059:                   </div>
+7060:                 </div>
+7061:               )}
+7062:               {activeTab === 'upload' && (
+7063:                 <UploadView 
+7064:                   onUpload={handleFileUpload} 
+7065:                   queue={uploadQueue}
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

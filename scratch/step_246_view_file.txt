@@ -1,0 +1,22 @@
+Created At: 2026-05-20T11:36:13Z
+Completed At: 2026-05-20T11:36:13Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8258
+Total Bytes: 401638
+Showing lines 6815 to 6828
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+6815:                     onDownloadContract={downloadContract}
+6816:                     user={user}
+6817:                     rankMap={rankMap}
+6818:                   />
+6819:                 </div>
+6820:               )}
+6821:               {activeTab === 'dashboard' && selectedInvoice && (
+6822:                 <div className="grid grid-cols-12 gap-6 h-full min-h-[600px]">
+6823:                   {/* Left Panel: Extracted Source */}
+6824:                   <div className="col-span-4 flex flex-col card h-full">
+6825:                     <div className="p-4 border-b border-border-dark flex justify-between items-center bg-sidebar-dark">
+6826:                       <h3 className="font-bold text-sm text-white truncate mr-2">Nguồn: {selectedInvoice.fileName}</h3>
+6827:                       <button 
+6828:                         onClick={() => handleInvoiceSelect(null)}
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

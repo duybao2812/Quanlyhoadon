@@ -1,0 +1,72 @@
+Created At: 2026-05-22T05:13:41Z
+Completed At: 2026-05-22T05:13:41Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8641
+Total Bytes: 437338
+Showing lines 3240 to 3370
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3240:     });
+3241:     return true; // Assume we want to show toast if called manually
+3242:   }, [selectedPartyAId, selectedPartyBId, partners]);
+3243: 
+3244:   // Track date-related keys to trigger updates
+3245:   const dateValuesString = useMemo(() => {
+3246:     const keys: string[] = [];
+3247:     dateGroups.forEach(g => {
+3248:       if (g.day) keys.push(formData[g.day] || '');
+3249:       if (g.month) keys.push(formData[g.month] || '');
+3250:       if (g.year) keys.push(formData[g.year] || '');
+3251:     });
+3252:     return keys.join('|');
+3253:   }, [dateGroups, formData]);
+3254: 
+3255:   useEffect(() => {
+3256:     forceUpdateAddresses();
+3257:   }, [dateValuesString, selectedPartyAId, selectedPartyBId, forceUpdateAddresses]);
+3258: 
+3259:   const handleGenerate = async () => {
+3260:     if (!templateBuffer || !selectedTemplate) return;
+3261:     setIsGenerating(true);
+3262:     try {
+3263:       const zip = new PizZip(templateBuffer);
+3264:       
+3265:       let docXml = zip.file("word/document.xml")?.asText() || "";
+3266:       if (docXml.includes('[BANG_GDN]')) {
+3267:         docXml = docXml.replace(/\[BANG_GDN\]/g, '[@BANG_GDN]');
+3268:         zip.file("word/document.xml", docXml);
+3269:       }
+3270: 
+3271:       const doc = new Docxtemplater(zip, { 
+3272:         paragraphLoop: true, 
+3273:         linebreaks: true, 
+3274:         delimiters: { start: "[", end: "]" } 
+3275:       });
+3276:       
+3277:       const dataToRender: Record<string, string> = {};
+3278:       Object.keys(formData).forEach(tag => {
+3279:         const upper 
+<truncated 4392 bytes>
+nder(dataToRender);
+3349:       const out = doc.getZip().generate({ type: 'blob', compression: 'DEFLATE' });
+3350:       const templateName = CONTRACT_TEMPLATES.find(t => t.id === selectedTemplate)?.name || 'HopDong';
+3351:        const renderGdnDocument = () => {
+3352:     const getVal = (tag: string) => formData[tag] || '';
+3353:     const setVal = (tag: string, val: string) => handleFieldChange(tag, val);
+3354: 
+3355:     return (
+3356:       <div className="font-serif text-[#1a1a1a] text-xs leading-relaxed max-w-[800px] w-full mx-auto bg-white p-8 md:p-14 shadow-2xl rounded-sm border border-gray-200 my-4 text-left relative transition-all duration-300">
+3357:         {/* National Emblem & Admin Title */}
+3358:         <div className="grid grid-cols-2 gap-4 mb-6 font-serif">
+3359:           <div className="text-left font-bold text-[10.5px] uppercase leading-tight">
+3360:             <div className="min-h-[1.5em]">
+3361:               <InlineField tag="TEN_CTY_VIET_TAT" value={getVal('TEN_CTY_VIET_TAT')} onChange={(v) => setVal('TEN_CTY_VIET_TAT', v)} placeholder="[Tên Cty Viết Tắt]" />
+3362:             </div>
+3363:             <div className="font-normal normal-case italic text-[9.5px] mt-1 text-gray-500">
+3364:               Số: <InlineField tag="SO_GDN" value={getVal('SO_GDN')} onChange={(v) => setVal('SO_GDN', v)} placeholder="........" />
+3365:             </div>
+3366:             <div className="font-normal text-[9px] mt-1 text-gray-800">
+3367:               (V/v: Đề nghị <InlineField tag="TAMUNG-THANHTOAN" type="select" options={['tạm ứng', 'thanh toán']} value={getVal('TAMUNG-THANHTOAN')} onChange={(v) => setVal('TAMUNG-THANHTOAN', v)} placeholder="tạm ứng / thanh toán" />)
+3368:             </div>
+3369:           </div>
+3370:           <div className="text-center font-bold">
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

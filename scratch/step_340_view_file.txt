@@ -1,0 +1,68 @@
+Created At: 2026-05-20T11:38:58Z
+Completed At: 2026-05-20T11:38:58Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8234
+Total Bytes: 400492
+Showing lines 7151 to 7210
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+7151:                           )}
+7152: 
+7153:                           {isAvailableOnServer ? (
+7154:                             <div className="text-[10px] text-green-500 flex items-center justify-center gap-1 font-bold">
+7155:                               <div className="size-1.5 rounded-full bg-green-500 animate-pulse" /> Đã sẵn sàng trên máy chủ
+7156:                             </div>
+7157:                           ) : (
+7158:                             <div className="text-[10px] text-text-dim flex items-center justify-center gap-1 font-bold">
+7159:                               <div className="size-1.5 rounded-full bg-text-dim" /> Chưa có trên máy chủ
+7160:                             </div>
+7161:                           )}
+7162:                         </div>
+7163:                       </div>
+7164:                     );
+7165:                   })}
+7166:                 </div>
+7167:               )}
+7168:               {activeTab === 'docs' && (
+7169:                 <div className="zoom-125">
+7170:                   <DocsView 
+7171:                     items={generatedDocs} 
+7172:                     onDelete={handleDeleteDoc} 
+7173:                     onBulkDelete={handleBulkDeleteDocs}
+7174:                     onDeleteAll={handleDeleteAllDocs}
+7175:                     invoices={invoices}
+7176:                     partners={partners}
+7177:                   />
+7178:                 </div>
+7179:               )}
+7180:               {activeTab === 'contract' && (
+7181:                 <div className="zoom-125">
+7182:                   <ContractView
+7183:                     partners={partners}
+7184:                     user={user}
+7185:                     contractForm={contractForm}
+7186:                     updateContractForm={updateContractForm}
+7187:                     onContractSaved={handleContractSave}
+7188:                     setIsInvoiceSelectorOpen={setIsInvoiceSelectorOpen}
+7189:                     setActiveInvoiceTag={setActiveInvoiceTag}
+7190:                     handleFieldChange={handleContractFieldChange}
+7191:                   />
+7192:                 </div>
+7193:               )}
+7194:             </div>
+7195:         </div>
+7196: 
+7197:         <footer className="h-10 bg-sidebar-dark border-t border-border-dark px-6 flex items-center justify-between text-[10px] uppercase font-bold tracking-widest text-text-dim">
+7198:           <div className="flex items-center gap-6">
+7199:             <div className="flex items-center gap-2">
+7200:               <div className={`size-2 rounded-full ${isLoadingInvoices || isProcessing ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500'}`}></div>
+7201:               <span>AI MODEL: MISTRAL-LARGE-LATEST (PREMIUM)</span>
+7202:             </div>
+7203:             <div className="flex items-center gap-2">
+7204:               <Globe className="size-3" />
+7205:               <span>AI REGION: ASIA-SOUTHEAST1 (SINGAPORE)</span>
+7206:             </div>
+7207:             <div className="flex items-center gap-2">
+7208:               <Zap className="size-3" />
+7209:               <span>API STATUS: HEALTHY | REQUESTS: {requestCount}</span>
+7210:             </div>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

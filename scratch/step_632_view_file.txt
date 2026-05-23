@@ -1,0 +1,53 @@
+Created At: 2026-05-22T05:00:42Z
+Completed At: 2026-05-22T05:00:42Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8117
+Total Bytes: 396877
+Showing lines 3403 to 3600
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3403:   const renderGdnDocument = () => {
+3404:     const getVal = (tag: string) => formData[tag] || '';
+3405:     const setVal = (tag: string, val: string) => handleFieldChange(tag, val);
+3406: 
+3407:     return (
+3408:       <div className="font-serif text-[#1a1a1a] text-xs leading-relaxed max-w-[800px] w-full mx-auto bg-white p-8 md:p-14 shadow-2xl rounded-sm border border-gray-200 my-4 text-left relative transition-all duration-300">
+3409:         {/* National Emblem & Admin Title */}
+3410:         <div className="grid grid-cols-2 gap-4 mb-6 font-serif">
+3411:           <div className="text-center font-bold text-[10.5px] uppercase leading-tight">
+3412:             {selectedPartyBId ? partners.find(p => p.id === selectedPartyBId)?.name.toUpperCase() : "ĐƠN VỊ ĐỀ NGHỊ"}
+3413:             <div className="font-normal normal-case italic text-[9.5px] mt-1 text-gray-500">
+3414:               Số: <InlineField tag="SO_GDN" value={getVal('SO_GDN')} onChange={(v) => setVal('SO_GDN', v)} placeholder="........" />
+3415:             </div>
+3416:           </div>
+3417:           <div className="text-center">
+3418:             <div className="font-bold text-[10.5px] uppercase">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+3419:             <div className="font-bold text-[9.5px] underline underline-offset-4 mt-1">Độc lập - Tự do - Hạnh phúc</div>
+3420:           </div>
+3421:         </div>
+3422: 
+3423:         {/* Document Title */}
+3424:         <div className="text-center my-8 space-y-1">
+3425:           <h1 className="text-sm font-bold uppercase tracki
+<truncated 11071 bytes>
+_CHI_A') || getVal('DIACHI_A')} onChange={(v) => { setVal('DIA_CHI_A', v); setVal('DIACHI_A', v); }} placeholder="Địa chỉ trụ sở Bên A..." className="w-[85%]" />
+3581:           </p>
+3582:           <p className="pl-4">
+3583:             <span className="font-bold">Mã số thuế: </span>
+3584:             <InlineField tag="MST_A" value={getVal('MST_A')} onChange={(v) => setVal('MST_A', v)} placeholder="Mã số thuế..." />
+3585:           </p>
+3586:           <p className="pl-4">
+3587:             <span className="font-bold">Đại diện: </span>
+3588:             <InlineField tag="GIOITINH_A" type="select" options={['Ông', 'Bà']} value={getVal('GIOITINH_A')} onChange={(v) => setVal('GIOITINH_A', v)} placeholder="Ông/Bà" />
+3589:             <span className="ml-1"></span>
+3590:             <InlineField tag="DAI_DIEN_A" value={getVal('DAI_DIEN_A')} onChange={(v) => setVal('DAI_DIEN_A', v)} placeholder="Họ tên đại diện Bên A..." />
+3591:             <span className="ml-4 font-bold">Chức vụ: </span>
+3592:             <InlineField tag="CHUC_VU_A" value={getVal('CHUC_VU_A') || getVal('CHUCVU_A')} onChange={(v) => { setVal('CHUC_VU_A', v); setVal('CHUCVU_A', v); }} placeholder="Chức vụ..." />
+3593:           </p>
+3594:           <p className="pl-4">
+3595:             <span className="font-bold">Số tài khoản: </span>
+3596:             <InlineField tag="STK_A" value={getVal('STK_A')} onChange={(v) => setVal('STK_A', v)} placeholder="Số tài khoản ngân hàng..." />
+3597:             <span className="ml-4 font-bold">Tại ngân hàng: </span>
+3598:             <InlineField tag="NH_A" value={getVal('NH_A') || getVal('NGAN_HANG_A')} onChange={(v) => { setVal('NH_A', v); setVal('NGAN_HANG_A', v); }} placeholder="Tên ngân hàng..." />
+3599:           </p>
+3600:         </div>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

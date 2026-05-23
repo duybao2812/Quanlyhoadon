@@ -1,0 +1,82 @@
+Created At: 2026-05-22T05:15:29Z
+Completed At: 2026-05-22T05:15:29Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8628
+Total Bytes: 435739
+Showing lines 5851 to 5955
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+5851:       };
+5852: 
+5853:       const template = contractForm.selectedTemplate;
+5854:       const isSpecialContract = template === 'HDNT' || template === 'HDCM';
+5855:       
+5856:       let itemsToDisplay: any[] = [];
+5857:       const rawItems: any[] = [];
+5858: 
+5859:       selectedDatas.forEach(inv => {
+5860:         const data = inv.extractedData || {};
+5861:         const items = data.items || data.lineItems || inv.lineItems || [];
+5862:         rawItems.push(...items);
+5863:       });
+5864: 
+5865:       if (isSpecialContract) {
+5866:         // Merge items logic: Group by (Name/Description, Unit, Price)
+5867:         const mergedMap = new Map<string, any>();
+5868:         
+5869:         rawItems.forEach(item => {
+5870:           const desc = (item.description || item.name || '---').trim();
+5871:           const unit = (item.unit || item.DVT || '---').trim();
+5872:           const price = safeParse(item.unitPrice || item.Don_Gia || '0');
+5873:           
+5874:           // Create a unique key for grouping
+5875:           const key = `${desc.toLowerCase()}|${unit.toLowerCase()}|${price}`;
+5876:           
+5877:           const qty = safeParse(item.quantity || item.SL || '0');
+5878:           const totalLine = safeParse(item.total || item.Thanh_Tien || item.amount || (qty * price));
+5879:           
+5880:           if (mergedMap.has(key)) {
+5881:             const existing = mergedMap.get(key);
+5882:             existing.quantity += qty;
+5883:             existing.total += totalLine;
+5884:           } else {
+5885:             mergedMap.set(key, {
+588
+<truncated 1359 bytes>
+       const vat = Math.round(total * 0.1);
+5920:         const grandTotal = total + vat;
+5921:         
+5922:         markdownTable += `| | TỔNG CỘNG TIỀN HÀNG | | | | ${formatThousands(String(total))} |\n`;
+5923:         markdownTable += `| | THUẾ GIÁ TRỊ GIA TĂNG (10%) | | | | ${formatThousands(String(vat))} |\n`;
+5924:         markdownTable += `| | TỔNG CỘNG TIỀN THANH TOÁN | | | | ${formatThousands(String(grandTotal))} |`;
+5925:         
+5926:         const valueTag = contractForm.tags.find(t => {
+5927:           const u = t.toUpperCase();
+5928:           return (u.includes('GIATRI') || u.includes('SO_TIEN')) && !u.includes('BANG') && !u.includes('CHU');
+5929:         });
+5930:         if (valueTag) {
+5931:           handleContractFieldChange(valueTag, String(grandTotal));
+5932:         }
+5933:       } else {
+5934:         markdownTable += `| | TỔNG CỘNG | | | | ${formatThousands(String(total))} |`;
+5935:       }
+5936: 
+5937:       handleContractFieldChange(activeInvoiceTag, markdownTable);
+5938:     } else {
+5939:       // Sum value for numeric field
+5940:       const safeParse = (v: any) => {
+5941:         if (typeof v === 'number') return v;
+5942:         return parseFloat(String(v || '0').replace(/[^0-9.-]+/g, '')) || 0;
+5943:       };
+5944: 
+5945:       const totalSum = selectedDatas.reduce((acc, inv) => {
+5946:         const data = inv.extractedData || {};
+5947:         const amt = data.totals?.grandTotal || data.totals?.totalAmount || data.totalAmount || inv.totalAmount || 0;
+5948:         return acc + safeParse(amt);
+5949:       }, 0);
+5950:       handleContractFieldChange(activeInvoiceTag, formatThousands(String(totalSum)));
+5951:     }
+5952: 
+5953:     setIsInvoiceSelectorOpen(false);
+5954:     setActiveInvoiceTag(null);
+5955:     setSelectedInvoices([]);
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

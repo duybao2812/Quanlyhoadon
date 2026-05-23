@@ -1,0 +1,81 @@
+Created At: 2026-05-22T05:11:24Z
+Completed At: 2026-05-22T05:11:24Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8117
+Total Bytes: 396877
+Showing lines 3102 to 3254
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3102:   const handlePartyChange = (partnerId: string, type: 'A' | 'B') => {
+3103:     if (type === 'A') setSelectedPartyAId(partnerId);
+3104:     else setSelectedPartyBId(partnerId);
+3105: 
+3106:     const partner = partners.find(p => p.id === partnerId);
+3107:     if (!partner) return;
+3108: 
+3109:     const newFormData = { ...formData };
+3110:     const mapping = getMappingForPartner(partner, type);
+3111: 
+3112:     // Chúng ta lặp qua danh sách tag từ template + các tag ảo để đảm bảo cập nhật đầy đủ
+3113:     const allTags = new Set([...tags, 'DIA_CHI_A', 'DIA_CHI_B', 'DIACHI_A', 'DIACHI_B', 'DIA_CHI_BEN_A', 'DIA_CHI_BEN_B']);
+3114:     
+3115:     allTags.forEach(tag => {
+3116:       const upperTag = tag.toUpperCase();
+3117:       // Try direct match from mapping
+3118:       if (mapping[upperTag]) {
+3119:         newFormData[tag] = mapping[upperTag]!;
+3120:       } else {
+3121:         // Try fuzzy matching for common patterns - use stricter checks
+3122:         const isSideA = upperTag.includes('BENA') || upperTag.includes('BEN_A') || upperTag.includes('BEN A') || upperTag.endsWith('_A') || upperTag.startsWith('A_') || upperTag.includes('BEN_DUOC_DE_NGHI');
+3123:         const isSideB = upperTag.includes('BENB') || upperTag.includes('BEN_B') || upperTag.includes('BEN B') || upperTag.endsWith('_B') || upperTag.startsWith('B_') || upperTag.includes('BEN_DE_NGHI') || (upperTag.includes('DE_NGHI') && !upperTag.includes('DUOC'));
+3124:         
+3125:         const isCorrectSide = (type === 'A' && isSideA) || (type === 'B' && isSideB);
+3126: 
+<truncated 4402 bytes>
+ing _BENA)
+3209:           const isSideA = 
+3210:             upperTag.endsWith('_A') || 
+3211:             upperTag.includes('BEN_A') || 
+3212:             upperTag.includes('BEN A') || 
+3213:             upperTag.includes('BENA') || 
+3214:             upperTag.startsWith('A_');
+3215: 
+3216:           const isSideB = 
+3217:             upperTag.endsWith('_B') || 
+3218:             upperTag.includes('BEN_B') || 
+3219:             upperTag.includes('BEN B') || 
+3220:             upperTag.includes('BENB') || 
+3221:             upperTag.startsWith('B_');
+3222: 
+3223:           const isCorrectSide = (type === 'A' && isSideA) || (type === 'B' && isSideB);
+3224:           
+3225:           if (isCorrectSide) {
+3226:             const targetVal = isAddressTag ? effectiveAddress : (partner.representative || '');
+3227:             const currentVal = newFormData[tag] || '';
+3228:             if (currentVal !== targetVal) {
+3229:               newFormData[tag] = targetVal;
+3230:               needsUpdateTotal = true;
+3231:             }
+3232:           }
+3233:         });
+3234:       });
+3235: 
+3236:       if (needsUpdateTotal) {
+3237:         return newFormData;
+3238:       }
+3239:       return prevFormData;
+3240:     });
+3241:     return true; // Assume we want to show toast if called manually
+3242:   }, [selectedPartyAId, selectedPartyBId, partners]);
+3243: 
+3244:   // Track date-related keys to trigger updates
+3245:   const dateValuesString = useMemo(() => {
+3246:     const keys: string[] = [];
+3247:     dateGroups.forEach(g => {
+3248:       if (g.day) keys.push(formData[g.day] || '');
+3249:       if (g.month) keys.push(formData[g.month] || '');
+3250:       if (g.year) keys.push(formData[g.year] || '');
+3251:     });
+3252:     return keys.join('|');
+3253:   }, [dateGroups, formData]);
+3254: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

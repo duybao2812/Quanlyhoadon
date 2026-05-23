@@ -61,8 +61,8 @@ service cloud.firestore {
       return data.keys().hasAll(['templateId', 'partyAId', 'partyBId', 'formData', 'fileName', 'createdAt', 'ownerId'])
         && data.ownerId == request.auth.uid
         && data.templateId is string && data.templateId.size() <= 100
-        && isValidId(data.partyAId)
-        && isValidId(data.partyBId)
+        && (data.partyAId == '' || isValidId(data.partyAId))
+        && (data.partyBId == '' || isValidId(data.partyBId))
         && data.formData is map
         && data.fileName is string && data.fileName.size() <= 1024
         && data.createdAt == request.time;

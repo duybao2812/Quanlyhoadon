@@ -1,0 +1,69 @@
+Created At: 2026-05-22T05:00:02Z
+Completed At: 2026-05-22T05:00:03Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8225
+Total Bytes: 401168
+Showing lines 3200 to 3260
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3200:         
+3201:         allPossibleTags.forEach(tag => {
+3202:           const upperTag = tag.toUpperCase();
+3203:           const isAddressTag = upperTag.includes('DIA_CHI') || upperTag.includes('DIACHI');
+3204:           const isRepTag = upperTag.includes('DAI_DIEN') || upperTag.includes('DAIDIEN');
+3205:           
+3206:           if (!isAddressTag && !isRepTag) return;
+3207:           
+3208:           // Stricter check for Side A/B to prevent cross-contamination (e.g. _B matching _BENA)
+3209:           const isSideA = 
+3210:             upperTag.endsWith('_A') || 
+3211:             upperTag.includes('BEN_A') || 
+3212:             upperTag.includes('BEN A') || 
+3213:             upperTag.includes('BENA') || 
+3214:             upperTag.startsWith('A_');
+3215: 
+3216:           const isSideB = 
+3217:             upperTag.endsWith('_B') || 
+3218:             upperTag.includes('BEN_B') || 
+3219:             upperTag.includes('BEN B') || 
+3220:             upperTag.includes('BENB') || 
+3221:             upperTag.startsWith('B_');
+3222: 
+3223:           const isCorrectSide = (type === 'A' && isSideA) || (type === 'B' && isSideB);
+3224:           
+3225:           if (isCorrectSide) {
+3226:             const targetVal = isAddressTag ? effectiveAddress : (partner.representative || '');
+3227:             const currentVal = newFormData[tag] || '';
+3228:             if (currentVal !== targetVal) {
+3229:               newFormData[tag] = targetVal;
+3230:               needsUpdateTotal = true;
+3231:             }
+3232:           }
+3233:         });
+3234:       });
+3235: 
+3236:       if (needsUpdateTotal) {
+3237:         return newFormData;
+3238:       }
+3239:       return prevFormData;
+3240:     });
+3241:     return true; // Assume we want to show toast if called manually
+3242:   }, [selectedPartyAId, selectedPartyBId, partners]);
+3243: 
+3244:   // Track date-related keys to trigger updates
+3245:   const dateValuesString = useMemo(() => {
+3246:     const keys: string[] = [];
+3247:     dateGroups.forEach(g => {
+3248:       if (g.day) keys.push(formData[g.day] || '');
+3249:       if (g.month) keys.push(formData[g.month] || '');
+3250:       if (g.year) keys.push(formData[g.year] || '');
+3251:     });
+3252:     return keys.join('|');
+3253:   }, [dateGroups, formData]);
+3254: 
+3255:   useEffect(() => {
+3256:     forceUpdateAddresses();
+3257:   }, [dateValuesString, selectedPartyAId, selectedPartyBId, forceUpdateAddresses]);
+3258: 
+3259:   const getTagType = (tag: string) => {
+3260:     const u = tag.toUpperCase();
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

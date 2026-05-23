@@ -1,0 +1,76 @@
+Created At: 2026-05-22T04:56:47Z
+Completed At: 2026-05-22T04:56:47Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8256
+Total Bytes: 402066
+Showing lines 2660 to 3459
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2660: 
+2661: const ContractView = ({ 
+2662:   partners, 
+2663:   user,
+2664:   contractForm,
+2665:   updateContractForm,
+2666:   onContractSaved,
+2667:   setIsInvoiceSelectorOpen,
+2668:   setActiveInvoiceTag,
+2669:   handleFieldChange
+2670: }: { 
+2671:   partners: Partner[], 
+2672:   user: User | null,
+2673:   contractForm: {
+2674:     selectedTemplate: string;
+2675:     tags: string[];
+2676:     templateFormData: Record<string, Record<string, string>>;
+2677:     selectedPartyAId: string;
+2678:     selectedPartyBId: string;
+2679:     templateBuffer: ArrayBuffer | null;
+2680:     vtLinks: Record<string, 'A' | 'B' | null>;
+2681:   },
+2682:   updateContractForm: (updates: any) => void,
+2683:   onContractSaved: (contractData: Omit<SmartContract, 'id' | 'ownerId' | 'createdAt'>) => Promise<void>,
+2684:   setIsInvoiceSelectorOpen?: (open: boolean) => void,
+2685:   setActiveInvoiceTag?: (tag: string | null) => void,
+2686:   handleFieldChange: (tag: string, val: string) => void
+2687: }) => {
+2688:   const { toast } = useToast();
+2689:   const dayRefs = useRef<Record<string, HTMLInputElement | null>>({});
+2690:   const monthRefs = useRef<Record<string, HTMLInputElement | null>>({});
+2691:   const yearRefs = useRef<Record<string, HTMLInputElement | null>>({});
+2692:   const { selectedTemplate, tags, templateFormData, selectedPartyAId, selectedPartyBId, templateBuffer, vtLinks } = contractForm;
+2693:   
+2694:   // Use data for current template
+2695:   const formData = useMemo(() => templateFormData[selectedTemplate] || {}, [templateFormData, selectedTemplate]);
+2696
+<truncated 35937 bytes>
+== baseKey) || baseKey;
+3431:           dataToRender[tag] = (formData[matchKey] || '').toUpperCase();
+3432:         } else if (upper === 'BEN_DUOC_DE_NGHI' || upper === 'BEN_DE_NGHI') {
+3433:           dataToRender[tag] = toVietnameseTitleCase(formData[tag]) || "....................";
+3434:         } else {
+3435:           dataToRender[tag] = formData[tag] || (isTableTag ? "" : "....................");
+3436:         }
+3437:       });
+3438: 
+3439:       // Ensure TAMUNG-THANHTOAN_TITLE is in dataToRender
+3440:       const tamungKey = Object.keys(formData).find(k => k.toUpperCase() === 'TAMUNG-THANHTOAN') || 'TAMUNG-THANHTOAN';
+3441:       const tamungVal = formData[tamungKey] || '';
+3442:       dataToRender['TAMUNG-THANHTOAN_TITLE'] = tamungVal.toUpperCase();
+3443: 
+3444:       // Ensure all variations of company tags in the template are correctly mapped in their exact case
+3445:       const benDuocKey = Object.keys(formData).find(k => k.toUpperCase() === 'BEN_DUOC_DE_NGHI') || 'BEN_DUOC_DE_NGHI';
+3446:       const benDeNghiKey = Object.keys(formData).find(k => k.toUpperCase() === 'BEN_DE_NGHI') || 'BEN_DE_NGHI';
+3447:       const benDuocVal = formData[benDuocKey] || '';
+3448:       const benDeNghiVal = formData[benDeNghiKey] || '';
+3449:       
+3450:       const genTags = extractTags(templateBuffer);
+3451:       genTags.forEach(tag => {
+3452:         const u = tag.toUpperCase();
+3453:         if (u === 'BEN_DUOC_DE_NGHI_TITLE') {
+3454:           dataToRender[tag] = benDuocVal.toUpperCase();
+3455:         } else if (u === 'BEN_DE_NGHI_TITLE') {
+3456:           dataToRender[tag] = benDeNghiVal.toUpperCase();
+3457:         } else if (u === 'BEN_DUOC_DE_NGHI') {
+3458:           dataToRender[tag] = toVietnameseTitleCase(benDuocVal) || "....................";
+3459:         } else if (u === 'BEN_DE_NGHI') {
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

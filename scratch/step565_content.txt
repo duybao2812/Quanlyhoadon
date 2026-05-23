@@ -1,0 +1,77 @@
+Created At: 2026-05-22T04:58:52Z
+Completed At: 2026-05-22T04:58:52Z
+The following changes were made by the replace_file_content tool to: d:\GitHub\Quanlyhoadon\src\App.tsx. If relevant, proactively run terminal commands to execute this code for the USER. Don't ask for permission.
+[diff_block_start]
+@@ -3508,6 +3508,292 @@
+     });
+   };
+ 
++  const renderGdnDocument = () => {
++    const getVal = (tag: string) => formData[tag] || '';
++    const setVal = (tag: string, val: string) => handleFieldChange(tag, val);
++
++    return (
++      <div className="font-serif text-[#1a1a1a] text-xs leading-relaxed max-w-[800px] w-full mx-auto bg-white p-8 md:p-14 shadow-2xl rounded-sm border border-gray-200 my-4 text-left relative transition-all duration-300">
++        {/* National Emblem & Admin Title */}
++        <div className="grid grid-cols-2 gap-4 mb-6 font-serif">
++          <div className="text-center font-bold text-[10.5px] uppercase leading-tight">
++            {selectedPartyBId ? partners.find(p => p.id === selectedPartyBId)?.name.toUpperCase() : "ĐƠN VỊ ĐỀ NGHỊ"}
++            <div className="font-normal normal-case italic text-[9.5px] mt-1 text-gray-500">
++              Số: <InlineField tag="SO_GDN" value={getVal('SO_GDN')} onChange={(v) => setVal('SO_GDN', v)} placeholder="........" />
++            </div>
++          </div>
++          <div className="text-center">
++            <div className="font-bold text-[10.5px] uppercase">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
++            <div className="font-bold text-[9.5px] underline underline-offset-4 mt-1">Độc lập - Tự do - Hạnh phúc</div>
++          </div>
++        </div>
++
++        {/* Document Title */}
++        <div className="text-center my-8 space-y-1">
++          <h1 className="text-sm font-bold uppercase tracking-wider">
++            GIẤY ĐỀ NGHỊ <InlineField tag="TAMUNG-THANHTOAN" type="select" options={['Tạm ứng', 'Thanh toán']} value={getVal('TAMUNG-THANHTOAN')} onChange={(v) => setVal('TAMUNG
+<truncated 42060 bytes>
+>
++                    <h3 className="font-black text-xs text-white tracking-tight">Soạn thảo văn bản trực quan</h3>
++                    <p className="text-[9px] text-text-dim uppercase tracking-wider">Mô phỏng tài liệu in ấn thực tế (A4 layout)</p>
++                  </div>
++                </div>
++                <div className="flex items-center gap-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider shadow-sm">
++                  <Check className="size-3" /> Auto-Save
++                </div>
++              </div>
++
++              {/* A4 Workspace */}
++              <div className="flex-1 overflow-y-auto bg-stone-900/60 p-4 md:p-6 custom-scrollbar flex flex-col justify-start">
++                {selectedTemplate === 'GDNTT' ? renderGdnDocument() : renderContractDocument()}
+               </div>
+ 
+               {/* Footer */}
+@@ -3980,14 +3980,16 @@
+                  <div className="flex items-center gap-1.5 uppercase font-black tracking-widest">
+                    <ShieldCheck className="size-3 text-emerald-500" /> Hệ thống bảo mật
+                  </div>
+-                 <div className="italic">Dữ liệu trống mặc định: <span className="text-primary">"............"</span></div>
+-              </div>
+-            </div>
+-          )}
+-        </div>
+-      </div>
+-    </div>
+-  );
++                 <div className="italic">Dữ liệu trống mặc định: <span className="text-primary font-bold">"............"</span></div>
++              </div>
++            </div>
++          )}
++        </div>
++      </div>
++    </div>
++  );
++};
++
+ };
+ 
+ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: { 
+[diff_block_end]
+
+Please note that the above snippet only shows the MODIFIED lines from the last change. It shows up to 3 lines of unchanged lines before and after the modified lines. The actual file contents may have many more lines not shown.

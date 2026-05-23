@@ -1,0 +1,1 @@
+"                                  if (g === 'nữ' || g === 'f' || g === 'female' || g === 'bà') return 'Bà.';\n                                  return '';\n                                })()}\n                              </span>\n                              {partner.representative || '---'}\n                            </div>"

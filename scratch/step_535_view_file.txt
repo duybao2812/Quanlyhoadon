@@ -1,0 +1,100 @@
+Created At: 2026-05-22T04:57:10Z
+Completed At: 2026-05-22T04:57:10Z
+File Path: `file:///C:/Users/gunfi/.gemini/antigravity/brain/e946d253-0355-489b-8d49-b22d313858bb/implementation_plan.md`
+Total Lines: 173
+Total Bytes: 6787
+Showing lines 1 to 173
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: # Kế hoạch: Tái cấu trúc thư mục dự án theo chuẩn Frontend Scalable
+2: 
+3: Mục tiêu: Sắp xếp lại các file/thư mục trong `src/` theo cấu trúc chuẩn trong ảnh (assets, components, layout, pages, features, hooks, context, services, utils). **Không thay đổi bất kỳ chức năng, logic hay giao diện nào.**
+4: 
+5: ---
+6: 
+7: ## Cấu trúc hiện tại → Cấu trúc mới
+8: 
+9: ### Hiện tại (`src/`)
+10: ```
+11: src/
+12: ├── App.tsx              ← Khổng lồ (402KB) — chứa toàn bộ views, hooks, logic
+13: ├── index.css
+14: ├── main.tsx
+15: ├── components/
+16: │   ├── AIChatBox.tsx
+17: │   ├── Notifications.tsx
+18: │   └── Invoice/
+19: │       ├── InvoiceCardContent.tsx
+20: │       ├── InvoiceDetailTable.tsx
+21: │       ├── InvoiceHoverCard.tsx
+22: │       ├── InvoiceItemComp.tsx
+23: │       ├── InvoiceList.tsx
+24: │       ├── InvoiceResponsiveCard.tsx
+25: │       ├── InvoiceSummary.tsx
+26: │       └── InvoiceTapCard.tsx
+27: ├── lib/
+28: │   ├── addressConverter.ts
+29: │   ├── addressData.ts
+30: │   ├── contractUtils.ts
+31: │   ├── docxGenerator.ts
+32: │   ├── formatter.ts
+33: │   ├── mistral.ts
+34: │   ├── storage.ts
+35: │   ├── supabaseClient.ts
+36: │   ├── utils.ts
+37: │   └── xmlParser.ts
+38: └── types/
+39:     └── invoiceData.ts
+40: ```
+41: 
+42: ### Cấu trúc m
+<truncated 4023 bytes>
+./../utils/formatter` |
+126: | `components/Invoice/InvoiceItemComp.tsx` | `../../lib/utils` | `../../utils/utils` |
+127: | `components/Invoice/InvoiceSummary.tsx` | `../../lib/formatter` | `../../utils/formatter` |
+128: | `components/Invoice/InvoiceTapCard.tsx` | `../../lib/utils` | `../../utils/utils` |
+129: 
+130: ### Bước 4: Xóa thư mục `lib/` (sau khi xác nhận tất cả đã di chuyển)
+131: 
+132: ### Bước 5: Chạy `npm run build` để xác minh không có lỗi
+133: 
+134: ---
+135: 
+136: ## Kết quả cuối cùng
+137: 
+138: ```
+139: src/
+140: ├── assets/                    ← Chuẩn bị cho images/icons tương lai
+141: ├── components/                ← Reusable UI components
+142: │   ├── AIChatBox.tsx
+143: │   ├── Notifications.tsx
+144: │   └── Invoice/
+145: ├── context/                   ← Chuẩn bị cho React Context tương lai
+146: ├── hooks/                     ← Chuẩn bị cho custom hooks tương lai
+147: ├── services/                  ← API & external services
+148: │   ├── mistral.ts
+149: │   └── supabaseClient.ts
+150: ├── types/                     ← TypeScript types
+151: │   └── invoiceData.ts
+152: ├── utils/                     ← Helper functions & utilities
+153: │   ├── addressConverter.ts
+154: │   ├── addressData.ts
+155: │   ├── contractUtils.ts
+156: │   ├── docxGenerator.ts
+157: │   ├── formatter.ts
+158: │   ├── storage.ts
+159: │   ├── utils.ts
+160: │   └── xmlParser.ts
+161: ├── App.tsx
+162: ├── index.css
+163: └── main.tsx
+164: ```
+165: 
+166: ## Verification Plan
+167: 
+168: ### Automated Tests
+169: - `npm run build` — Xác minh biên dịch thành công sau khi tái cấu trúc
+170: 
+171: ### Manual Verification
+172: - Chạy `npm run dev` và kiểm tra toàn bộ 6 tab hoạt động bình thường
+173: 
+The above content shows the entire, complete file contents of the requested file.

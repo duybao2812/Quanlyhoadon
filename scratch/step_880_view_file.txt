@@ -1,0 +1,79 @@
+Created At: 2026-05-22T05:14:28Z
+Completed At: 2026-05-22T05:14:28Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8628
+Total Bytes: 435739
+Showing lines 5630 to 5700
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+5630:       if (!currentId) return prev;
+5631:       
+5632:       const oldData = prev.templateFormData[currentId] || {};
+5633:       const newData = typeof updater === 'function' ? updater(oldData) : updater;
+5634:       
+5635:       return {
+5636:         ...prev,
+5637:         templateFormData: {
+5638:           ...prev.templateFormData,
+5639:           [currentId]: newData
+5640:         }
+5641:       };
+5642:     });
+5643:   };
+5644: 
+5645:   const handleContractFieldChange = (tag: string, val: string) => {
+5646:     const upperTag = tag.toUpperCase();
+5647:     const tags = contractForm.tags || [];
+5648:     
+5649:     const isTableTag = (upperTag.includes('BANG') || upperTag.includes('TABLE')) && 
+5650:                       !upperTag.includes('BANG_CHU') && !upperTag.includes('BANGCHU');
+5651: 
+5652:     // Check if this is a currency/number field
+5653:     const isCurrencyField = !isTableTag && [
+5654:       'GIATRI', 'GIA_TRI', 'SO_TIEN', 'TONG_TIEN', 'THANH_TIEN', 'PHI', 'PHIDICHVU', 'GIA_TRI_HD', 'GIATRIHOPDONG'
+5655:     ].some(v => upperTag.includes(v));
+5656: 
+5657:     let finalVal = val;
+5658:     let autoWords = '';
+5659: 
+5660:     if (isCurrencyField) {
+5661:       // Format with thousands separator
+5662:       finalVal = formatThousands(val);
+5663:       
+5664:       // Calculate words if possible
+5665:       const numericString = val.replace(/\D/g, '');
+5666:       if (numericString) {
+5667:         const num = parseInt(numericString, 10);
+5668:         if (!isNaN(num)) {
+5669:           autoWords = numberToVietnameseWords(num);
+5670:         }
+5671:       }
+5672:     } else if (upperTag === 'BANG_GDN') {
+5673:       try {
+5674:         const rows = JSON.parse(val);
+5675:         if (Array.isArray(rows)) {
+5676:           const totalSum = rows.reduce((sum, row) => {
+5677:             const num = parseInt(row.giatri, 10) || 0;
+5678:             return sum + num;
+5679:           }, 0);
+5680:           if (totalSum > 0) {
+5681:             autoWords = numberToVietnameseWords(totalSum);
+5682:           }
+5683:         }
+5684:       } catch (e) {
+5685:         // Ignore JSON parsing errors for incomplete edits
+5686:       }
+5687:     }
+5688: 
+5689:     setContractFormData((prev: Record<string, string>) => {
+5690:       const next = { ...prev, [tag]: finalVal };
+5691:       
+5692:       // If we generated words, try to find a word field to populate
+5693:       if (autoWords) {
+5694:         const wordTag = tags.find(t => {
+5695:           const u = t.toUpperCase();
+5696:           return (u.includes('BANG_CHU') || u.includes('BANGCHU')) && !u.includes('LICH');
+5697:         });
+5698:         if (wordTag) {
+5699:           next[wordTag] = autoWords;
+5700:         }
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

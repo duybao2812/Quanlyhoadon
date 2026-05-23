@@ -1,0 +1,64 @@
+Created At: 2026-05-20T11:41:51Z
+Completed At: 2026-05-20T11:41:51Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8264
+Total Bytes: 402388
+Showing lines 6801 to 6860
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+6801:                     isExportingExcel={isExportingExcel}
+6802:                     isLoadingData={isLoadingInvoices}
+6803:                     subTab={dashboardSubTab}
+6804:                     onSubTabChange={handleDashboardSubTabChange}
+6805:                     generatedDocs={generatedDocs}
+6806:                     contracts={contracts}
+6807:                     invoices={invoices}
+6808:                     partners={partners}
+6809:                     onDeleteDoc={handleDeleteDoc}
+6810:                     onBulkDeleteDocs={handleBulkDeleteDocs}
+6811:                     onDeleteAllDocs={handleDeleteAllDocs}
+6812:                     onDownloadDoc={downloadDoc}
+6813:                     onDeleteContract={handleDeleteContract}
+6814:                     onBulkDeleteContracts={handleBulkDeleteContracts}
+6815:                     onDownloadContract={downloadContract}
+6816:                     user={user}
+6817:                     rankMap={rankMap}
+6818:                   />
+6819:                 </div>
+6820:               )}
+6821:               {activeTab === 'dashboard' && selectedInvoice && (
+6822:                 <div className="zoom-125">
+6823:                   <div className="grid grid-cols-12 gap-6 h-full min-h-[600px]">
+6824:                   {/* Left Panel: Extracted Source */}
+6825:                   <div className="col-span-4 flex flex-col card h-full">
+6826:                     <div className="p-4 border-b border-border-dark flex justify-between items-center bg-sidebar-dark">
+6827:                       <h3 className="font-bold text-sm text-white
+<truncated 330 bytes>
+                      </button>
+6834:                     </div>
+6835:                     <div className="flex-1 p-4 space-y-6 overflow-y-auto text-sm">
+6836:                       {(() => {
+6837:                         const rawT = selectedInvoice.extractedData?.classification;
+6838:                         const tType = typeof rawT === 'object' ? rawT.type : (rawT || 'BB_CM');
+6839:                         const isCM = tType.includes('CM');
+6840:                         const isVT = tType.includes('VT');
+6841:                         const isTC = tType.includes('TC');
+6842:                         const isSwapped = isVT || isCM || isTC;
+6843:                         
+6844:                         let labelSeller = isSwapped ? "Người bán (Bên B)" : "Người bán (Bên A)";
+6845:                         let labelBuyer = isSwapped ? "Người mua (Bên A)" : "Người mua (Bên B)";
+6846:                         
+6847:                         if (isCM) {
+6848:                           labelSeller = "Bên cho thuê (Bên B)";
+6849:                           labelBuyer = "Bên thuê (Bên A)";
+6850:                         } else if (isTC) {
+6851:                           labelSeller = "Người nhận thầu (Bên B)";
+6852:                           labelBuyer = "Người giao thầu (Bên A)";
+6853:                         }
+6854: 
+6855:                         const sellerSection = (
+6856:                           <div key="seller">
+6857:                             <label className="text-sm text-primary font-black uppercase block mb-2">
+6858:                               {labelSeller}
+6859:                             </label>
+6860:                             <div className="text-xl font-semibold text-white leading-tight tracking-tight">{selectedInvoice.extractedData?.seller?.name}</div>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

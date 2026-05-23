@@ -1,0 +1,44 @@
+Created At: 2026-05-20T11:36:47Z
+Completed At: 2026-05-20T11:36:47Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8260
+Total Bytes: 401706
+Showing lines 7190 to 7225
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+7190:                             </div>
+7191:                           )}
+7192:                         </div>
+7193:                       </div>
+7194:                     );
+7195:                   })}
+7196:                 </div>
+7197:               )}
+7198:               {activeTab === 'docs' && (
+7199:                 <DocsView 
+7200:                   items={generatedDocs} 
+7201:                   onDelete={handleDeleteDoc} 
+7202:                   onBulkDelete={handleBulkDeleteDocs}
+7203:                   onDeleteAll={handleDeleteAllDocs}
+7204:                   invoices={invoices}
+7205:                   partners={partners}
+7206:                 />
+7207:               )}
+7208:               {activeTab === 'contract' && (
+7209:                 <ContractView
+7210:                   partners={partners}
+7211:                   user={user}
+7212:                   contractForm={contractForm}
+7213:                   updateContractForm={updateContractForm}
+7214:                   onContractSaved={handleContractSave}
+7215:                   setIsInvoiceSelectorOpen={setIsInvoiceSelectorOpen}
+7216:                   setActiveInvoiceTag={setActiveInvoiceTag}
+7217:                   handleFieldChange={handleContractFieldChange}
+7218:                 />
+7219:               )}
+7220:             </div>
+7221:         </div>
+7222: 
+7223:         <footer className="h-10 bg-sidebar-dark border-t border-border-dark px-6 flex items-center justify-between text-[10px] uppercase font-bold tracking-widest text-text-dim">
+7224:           <div className="flex items-center gap-6">
+7225:             <div className="flex items-center gap-2">
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

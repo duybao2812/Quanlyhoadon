@@ -1,0 +1,65 @@
+Created At: 2026-05-22T05:12:42Z
+Completed At: 2026-05-22T05:12:42Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8641
+Total Bytes: 437338
+Showing lines 4100 to 4250
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+4100:           {/* Article 5 */}
+4101:           <div>
+4102:             <h4 className="font-bold uppercase text-[10px]">ĐIỀU 5: PHƯƠNG THỨC THANH TOÁN</h4>
+4103:             <p className="pl-4 mt-1">Thanh toán bằng chuyển khoản.</p>
+4104:             <p className="pl-4 mt-1">
+4105:               Căn cứ vào Biên bản xác nhận ca máy, Bên B xuất hóa đơn cho bên A và bên A sẽ thanh toán cho bên B 100% giá trị trong vòng 240 ngày kể từ ngày hai bên đối chiếu và xác nhận công nợ.
+4106:             </p>
+4107:           </div>
+4108: 
+4109:           {/* Article 6 */}
+4110:           <div>
+4111:             <h4 className="font-bold uppercase text-[10px]">ĐIỀU 6: TRÁCH NHIỆM CỦA CÁC BÊN</h4>
+4112:             <div className="pl-4 mt-1 space-y-2">
+4113:               <div>
+4114:                 <p className="font-bold">- Trách nhiệm của Bên A:</p>
+4115:                 <ul className="list-disc pl-4 space-y-0.5 mt-0.5 text-gray-700 text-[11px] text-justify">
+4116:                   <li>Bố trí mặt bằng, địa hình tốt để máy hoạt động đảm bảo an toàn;</li>
+4117:                   <li>Sắp xếp lịch làm việc hợp lý để đảm bảo sức khỏe thợ lái máy;</li>
+4118:                   <li>Thanh toán tiền thuê máy đúng hạn và tuân thủ các điều khoản của hợp đồng;</li>
+4119:                   <li>Xác lập lập Biên bản xác nhận ca máy thực tế để làm cơ sở thanh toán;</li>
+4120:                   <li>Cam kết sử dụ
+<truncated 6898 bytes>
+flex-col md:flex-row gap-2 items-start md:items-center justify-between bg-card-dark p-2 rounded-2xl shadow-sm border border-border-dark">
+4217:         <div className="space-y-0 text-left">
+4218:           <h2 className="text-lg font-bold text-white flex items-center gap-2">
+4219:             <PlusSquare className="size-5 text-primary" />
+4220:             Tạo Hợp Đồng Chuyên Nghiệp
+4221:           </h2>
+4222:           <p className="text-[11px] text-text-dim">Soạn thảo hợp đồng nhanh chóng với mẫu có sẵn</p>
+4223:         </div>
+4224:         <div className="flex items-center gap-2">
+4225:           <button
+4226:             onClick={() => {
+4227:               updateContractForm({
+4228:                 selectedTemplate: '',
+4229:                 tags: [],
+4230:                 templateFormData: {
+4231:                   'HDNT': {},
+4232:                   'HDTC': {},
+4233:                   'HDCM': {},
+4234:                   'GDNTT': {}
+4235:                 },
+4236:                 selectedPartyAId: '',
+4237:                 selectedPartyBId: '',
+4238:                 templateBuffer: null,
+4239:                 vtLinks: {}
+4240:               });
+4241:             }}
+4242:             className="px-3 py-1.5 text-xs font-medium text-text-dim hover:bg-white/5 hover:text-white rounded-lg transition-colors border border-border-dark"
+4243:           >
+4244:             Làm mới
+4245:           </button>
+4246:           {selectedTemplate && (
+4247:             <button
+4248:               onClick={handleGenerate}
+4249:               disabled={isGenerating}
+4250:               className="px-4 py-2 bg-primary/20 text-primary border border-primary/30 rounded-xl text-xs font-bold hover:bg-primary/30 transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50"
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

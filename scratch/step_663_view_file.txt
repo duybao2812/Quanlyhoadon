@@ -1,0 +1,29 @@
+Created At: 2026-05-22T05:07:20Z
+Completed At: 2026-05-22T05:07:20Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8117
+Total Bytes: 396877
+Showing lines 2965 to 2985
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2965:     partners, 
+2966:     toast,
+2967:     handleFieldChange,
+2968:     getEffectiveAddressByCurrentDate
+2969:   };
+2970: 
+2971:   const [isGenerating, setIsGenerating] = useState(false);
+2972: 
+2973:   const CONTRACT_TEMPLATES = [
+2974:     { id: 'HDNT', name: 'Hợp đồng Nguyên Tắc', file: 'Template_HDNT.docx' },
+2975:     { id: 'HDTC', name: 'Hợp đồng Thi Công', file: 'Template_HDTC.docx' },
+2976:     { id: 'HDCM', name: 'Hợp đồng Ca Máy', file: 'Template_HDCM.docx' },
+2977:     { id: 'GDNTT', name: 'Giấy đề nghị thanh toán/ tạm ứng', file: 'Template GDN TT.docx' }
+2978:   ];
+2979: 
+2980:   const handleTemplateChange = async (templateId: string) => {
+2981:     setSelectedTemplate(templateId);
+2982:     const template = CONTRACT_TEMPLATES.find(t => t.id === templateId);
+2983:     if (!template) return;
+2984: 
+2985:     try {
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,0 +1,36 @@
+Created At: 2026-05-20T11:36:40Z
+Completed At: 2026-05-20T11:36:40Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8258
+Total Bytes: 401638
+Showing lines 6818 to 6845
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+6818:                   />
+6819:                 </div>
+6820:               )}
+6821:               {activeTab === 'dashboard' && selectedInvoice && (
+6822:                 <div className="grid grid-cols-12 gap-6 h-full min-h-[600px]">
+6823:                   {/* Left Panel: Extracted Source */}
+6824:                   <div className="col-span-4 flex flex-col card h-full">
+6825:                     <div className="p-4 border-b border-border-dark flex justify-between items-center bg-sidebar-dark">
+6826:                       <h3 className="font-bold text-sm text-white truncate mr-2">Nguồn: {selectedInvoice.fileName}</h3>
+6827:                       <button 
+6828:                         onClick={() => handleInvoiceSelect(null)}
+6829:                         className="text-xs text-text-dim hover:text-white"
+6830:                       >
+6831:                         Quay lại
+6832:                       </button>
+6833:                     </div>
+6834:                     <div className="flex-1 p-4 space-y-6 overflow-y-auto text-sm">
+6835:                       {(() => {
+6836:                         const rawT = selectedInvoice.extractedData?.classification;
+6837:                         const tType = typeof rawT === 'object' ? rawT.type : (rawT || 'BB_CM');
+6838:                         const isCM = tType.includes('CM');
+6839:                         const isVT = tType.includes('VT');
+6840:                         const isTC = tType.includes('TC');
+6841:                         const isSwapped = isVT || isCM || isTC;
+6842:                         
+6843:                         let labelSeller = isSwapped ? "Người bán (Bên B)" : "Người bán (Bên A)";
+6844:                         let labelBuyer = isSwapped ? "Người mua (Bên A)" : "Người mua (Bên B)";
+6845:                         
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

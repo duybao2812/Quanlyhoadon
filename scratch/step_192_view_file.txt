@@ -1,0 +1,84 @@
+Created At: 2026-05-20T11:34:42Z
+Completed At: 2026-05-20T11:34:42Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8256
+Total Bytes: 401522
+Showing lines 4012 to 4092
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+4012: const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: { 
+4013:   partners: Partner[], 
+4014:   onEdit: (p: Partner) => void, 
+4015:   onBatchEdit: () => void,
+4016:   onDelete: (id: string) => void 
+4017: }) => {
+4018:   const { toast } = useToast();
+4019:   const [searchTerm, setSearchTerm] = useState('');
+4020:   const [showAddressTool, setShowAddressTool] = useState(false);
+4021:   const [convInput, setConvInput] = useState('');
+4022:   const [convResult, setConvResult] = useState<any>(null);
+4023: 
+4024:   // State cho Context Menu
+4025:   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, partner: Partner | null } | null>(null);
+4026: 
+4027:   const filteredPartners = partners.filter(p => 
+4028:     p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+4029:     p.taxCode.includes(searchTerm) ||
+4030:     (p.representative && p.representative.toLowerCase().includes(searchTerm.toLowerCase()))
+4031:   );
+4032: 
+4033:   const handleContextMenu = (e: React.MouseEvent, partner: Partner) => {
+4034:     e.preventDefault();
+4035:     setContextMenu({ x: e.clientX, y: e.clientY, partner });
+4036:   };
+4037: 
+4038:   const closeContextMenu = () => setContextMenu(null);
+4039: 
+4040:   const handleConvert = (val: string) => {
+4041:     setConvInput(val);
+4042:     if (val.trim().length > 5) {
+4043:       setConvResult(smartConvertAddress(val));
+4044:     } else {
+4045:       setConvResult(null);
+4046:     }
+4047:   };
+4048: 
+4049:   return (
+4050:     <div className="space-y-6" onClick={closeContextMenu}>
+4051:    
+<truncated 600 bytes>
+king-[0.2em] mt-1">
+4059:               {partners.length} Công ty liên kết
+4060:             </div>
+4061:           </div>
+4062:         </div>
+4063:         <div className="flex items-center gap-4">
+4064:           <div className="relative">
+4065:             <Search className="size-4 absolute left-4 top-1/2 -translate-y-1/2 text-text-dim" />
+4066:             <input 
+4067:               type="text" 
+4068:               placeholder="Tìm kiếm đối tác..." 
+4069:               value={searchTerm}
+4070:               onChange={(e) => setSearchTerm(e.target.value)}
+4071:               className="pl-11 pr-4 py-2.5 bg-sidebar-dark border border-border-dark rounded-2xl text-sm focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all w-72 text-white placeholder:text-text-dim"
+4072:             />
+4073:           </div>
+4074:           <div className="w-px h-8 bg-border-dark" />
+4075:           <button 
+4076:             onClick={() => setShowAddressTool(!showAddressTool)}
+4077:             className={cn(
+4078:               "flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border shadow-sm",
+4079:               showAddressTool 
+4080:               ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" 
+4081:               : "bg-white/5 border-border-dark text-text-dim hover:text-white hover:bg-white/10"
+4082:             )}
+4083:           >
+4084:             <MapPin className="size-4" />
+4085:             AI Address
+4086:           </button>
+4087:           <button 
+4088:             onClick={() => onEdit({ id: 'new', name: '', taxCode: '', address: '' })}
+4089:             className="btn-primary"
+4090:           >
+4091:             <Plus className="size-4" />
+4092:             THÊM MỚI
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

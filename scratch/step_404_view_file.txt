@@ -1,0 +1,59 @@
+Created At: 2026-05-20T11:41:57Z
+Completed At: 2026-05-20T11:41:57Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8264
+Total Bytes: 402388
+Showing lines 7051 to 7100
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+7051:                             <td className="border border-border-dark p-2 text-right">{formatVNNumber(selectedInvoice.extractedData?.totals?.vatAmount)}</td>
+7052:                           </tr>
+7053:                           <tr className="bg-primary/20 text-white font-bold">
+7054:                             <td colSpan={5} className="border border-border-dark p-2 text-right text-xs uppercase tracking-tight">Thành tiền (Sau thuế)</td>
+7055:                             <td className="border border-border-dark p-2 text-right text-xs">{formatVNNumber(selectedInvoice.extractedData?.totals?.grandTotal || selectedInvoice.extractedData?.totals?.grand_total)}</td>
+7056:                           </tr>
+7057:                         </tbody>
+7058:                       </table>
+7059:                     </div>
+7060:                   </div>
+7061:                 </div>
+7062:               </div>
+7063:               )}
+7064:               {activeTab === 'upload' && (
+7065:                 <UploadView 
+7066:                   onUpload={handleFileUpload} 
+7067:                   queue={uploadQueue}
+7068:                   rejectedFiles={rejectedFiles}
+7069:                   onRemove={removeFromQueue}
+7070:                   onRemoveRejected={removeRejectedFile}
+7071:                   onProcess={processQueue}
+7072:                   isProcessing={isProcessing}
+7073:                   processingStatus={processingStatus}
+7074:                 />
+7075:               )}
+7076:               {activeTab === 'partners' && (
+7077:                 <PartnersView 
+7078:    
+<truncated 96 bytes>
+ect(p)} 
+7080:                   onBatchEdit={handleBatchPartnerEditStart}
+7081:                   onDelete={handleDeletePartner} 
+7082:                 />
+7083:               )}
+7084:               {activeTab === 'templates' && (
+7085:                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+7086:                   {[
+7087:                     { id: 'BB_CM', label: 'Biên bản Ca Máy', icon: HardHat, desc: 'Dành cho các hóa đơn thuê máy móc, thiết bị.' },
+7088:                     { id: 'BB_VT', label: 'Biên bản Vật Tư', icon: Box, desc: 'Dành cho các hóa đơn mua bán vật tư, hàng hóa.' },
+7089:                     { id: 'BB_TC', label: 'Biên bản Thi Công', icon: Construction, desc: 'Dành cho các hóa đơn dịch vụ xây dựng, lắp đặt.' },
+7090:                   ].map((t) => {
+7091:                     const isAvailableOnServer = availableTemplates.includes(t.id);
+7092:                     const isAvailableLocally = localTemplates.some(lt => lt.id === t.id);
+7093: 
+7094:                     return (
+7095:                       <div key={t.id} className="card p-5 rounded-2xl flex flex-col items-center text-center group relative overflow-hidden transition-all hover:translate-y-[-4px]">
+7096:                         <div className="absolute top-0 right-0 size-20 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-xl"></div>
+7097:                         {isAvailableLocally && !isAvailableOnServer && (
+7098:                           <div className="absolute top-3 right-3 flex items-center gap-1 bg-orange-500/10 text-orange-500 text-[8px] font-black px-1.5 py-0.5 uppercase rounded-lg border border-orange-500/20 animate-pulse">
+7099:                             <Zap className="size-2" />
+7100:                             Cần khôi phục
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

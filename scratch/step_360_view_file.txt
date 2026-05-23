@@ -1,0 +1,60 @@
+Created At: 2026-05-20T11:39:19Z
+Completed At: 2026-05-20T11:39:19Z
+File Path: `file:///d:/GitHub/Quanlyhoadon/src/App.tsx`
+Total Lines: 8234
+Total Bytes: 400516
+Showing lines 4100 to 4155
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+4100:           </button>
+4101:         </div>
+4102:       </div>
+4103: 
+4104:       {/* Address Converter Tool - 3 Parts Output */}
+4105:       <AnimatePresence>
+4106:         {showAddressTool && (
+4107:           <motion.div 
+4108:             initial={{ height: 0, opacity: 0 }}
+4109:             animate={{ height: 'auto', opacity: 1 }}
+4110:             exit={{ height: 0, opacity: 0 }}
+4111:             className="overflow-hidden"
+4112:           >
+4113:             <div className="card p-5 bg-sidebar-dark border-border-dark shadow-inner relative overflow-hidden">
+4114:               <div className="absolute top-0 right-0 size-24 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
+4115:               <div className="flex items-center justify-between mb-4">
+4116:                 <div className="flex items-center gap-2.5">
+4117:                   <div className="size-8 bg-primary/10 rounded-lg flex items-center justify-center">
+4118:                     <MapPin className="size-4 text-primary" />
+4119:                   </div>
+4120:                   <div>
+4121:                     <h3 className="text-sm font-black text-white uppercase tracking-widest">Chuyển đổi địa chỉ 2 cấp</h3>
+4122:                     <p className="text-text-dim text-[8px] font-bold uppercase tracking-widest mt-0.5">Chuẩn hóa dữ liệu theo nghị định mới nhất 2025</p>
+4123:                   </div>
+4124:                 </div>
+4125:               </div>
+4126: 
+4127:               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+4128: 
+<truncated 547 bytes>
+unded-xl text-xs outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all min-h-[90px] resize-none text-white"
+4135:                   />
+4136:                 </div>
+4137: 
+4138:                 <div className="space-y-2">
+4139:                   <div className="text-[8px] font-black text-text-dim uppercase tracking-widest px-1">Phân tách thông minh (Real-time)</div>
+4140:                   {convResult ? (
+4141:                     <div className="space-y-3">
+4142:                       <div className="grid grid-cols-2 gap-3">
+4143:                         <div className="p-3 bg-white/5 border border-border-dark rounded-xl">
+4144:                           <div className="text-[8px] font-bold text-text-dim uppercase mb-1">1. Xã/Phường gốc</div>
+4145:                           <div className="text-xs font-black text-white">{convResult.oldWard}</div>
+4146:                         </div>
+4147:                         <div className="p-3 bg-white/5 border border-border-dark rounded-xl">
+4148:                           <div className="text-[8px] font-bold text-text-dim uppercase mb-1">2. Địa chỉ cũ (3 cấp)</div>
+4149:                           <div className="text-[11px] font-bold text-text-dim leading-relaxed truncate" title={convResult.oldFullAddress || `${convResult.detail ? convResult.detail + ', ' : ''}${convResult.oldWard}, ${convResult.oldDistrict}, ${convResult.province}`}>
+4150:                             {convResult.oldFullAddress || `${convResult.detail ? convResult.detail + ', ' : ''}${convResult.oldWard}, ${convResult.oldDistrict}, ${convResult.province}`}
+4151:                           </div>
+4152:                         </div>
+4153:                       </div>
+4154: 
+4155:                             <div className="overflow-x-auto custom-scrollbar">
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

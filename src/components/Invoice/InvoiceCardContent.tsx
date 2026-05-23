@@ -37,13 +37,13 @@ export const InvoiceCardContent: React.FC<Props> = ({ invoice, onGenerateDoc }) 
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
-          <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+          <h3 className="text-lg font-bold text-white flex items-center gap-2">
             <FileText className="w-5 h-5 text-primary" />
             Hóa đơn {invoice.invoiceNumber}
           </h3>
           <div className="flex items-center gap-3 mt-1">
-            <p className="text-sm text-gray-500">Ngày lập: {formatDate(invoice.date)}</p>
-            <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-blue-600 border border-blue-100">
+            <p className="text-sm text-stone-400">Ngày lập: {formatDate(invoice.date)}</p>
+            <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-primary/15 text-primary border border-primary/30">
               Phân loại: {getClassificationName()}
             </span>
           </div>
@@ -51,7 +51,7 @@ export const InvoiceCardContent: React.FC<Props> = ({ invoice, onGenerateDoc }) 
         {onGenerateDoc && (
           <button 
             onClick={() => onGenerateDoc(invoice)}
-            className="px-3 py-1 bg-indigo-600 text-white text-xs font-medium rounded-full hover:bg-indigo-700 transition-colors"
+            className="px-3 py-1 bg-primary text-white text-xs font-medium rounded-full hover:bg-primary-hover transition-colors"
           >
             Tạo biên bản
           </button>
@@ -59,16 +59,16 @@ export const InvoiceCardContent: React.FC<Props> = ({ invoice, onGenerateDoc }) 
       </div>
 
       {/* Info */}
-      <div className="grid grid-cols-2 gap-4 text-sm bg-gray-50 p-3 rounded-lg">
+      <div className="grid grid-cols-2 gap-4 text-sm bg-white/5 p-3 rounded-lg border border-white/5">
         <div className="space-y-1">
-          <p className="text-gray-500 font-medium">{labels.seller}</p>
-          <p className="font-semibold text-gray-900">{invoice.companyName}</p>
-          <p className="text-gray-600">MST: {invoice.taxCode}</p>
+          <p className="text-stone-500 font-medium uppercase text-[10px] tracking-wider">{labels.seller}</p>
+          <p className="font-semibold text-white">{invoice.companyName}</p>
+          <p className="text-stone-400">MST: {invoice.taxCode}</p>
         </div>
         <div className="space-y-1">
-          <p className="text-gray-500 font-medium">{labels.buyer}</p>
-          <p className="font-semibold text-gray-900">{invoice.buyerName}</p>
-          <p className="text-gray-600">MST: {invoice.buyerTaxCode}</p>
+          <p className="text-stone-500 font-medium uppercase text-[10px] tracking-wider">{labels.buyer}</p>
+          <p className="font-semibold text-white">{invoice.buyerName}</p>
+          <p className="text-stone-400">MST: {invoice.buyerTaxCode}</p>
         </div>
       </div>
 
