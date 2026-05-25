@@ -76,12 +76,31 @@ begin
     new.updated_at = timezone('utc'::text, now());
     return new;
 end;
-$$ language plpgsql;
+$$ language plpgsql
+set search_path = public;
 
 create trigger update_partners_updated_at before update on public.partners for each row execute procedure update_updated_at_column();
 create trigger update_invoices_updated_at before update on public.invoices for each row execute procedure update_updated_at_column();
 create trigger update_generated_docs_updated_at before update on public.generated_docs for each row execute procedure update_updated_at_column();
 create trigger update_contracts_updated_at before update on public.contracts for each row execute procedure update_updated_at_column();
+
+-- 1. Hàm helper lấy custom user id an toàn tuyệt đối
+CREATE OR REPLACE FUNCTION public.get_custom_user_id()
+RETURNS text AS $$
+DECLARE
+  headers_text text;
+BEGIN
+  SELECT current_setting('request.headers', true) INTO headers_text;
+  IF headers_text IS NOT NULL AND headers_text <> '' THEN
+    RETURN (headers_text::json ->> 'x-custom-user-id');
+  END IF;
+  RETURN NULL;
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY INVOKER
+SET search_path = public;
 
 -- ==========================================
 -- BẢO MẬT HÀNG CƠ SỞ DỮ LIỆU (Row-Level Security - RLS)
@@ -94,28 +113,72 @@ alter table public.generated_docs enable row level security;
 alter table public.contracts enable row level security;
 
 -- Chính sách cho bảng partners
-create policy "Users can perform all operations on their own partners"
-on public.partners for all
-using (auth.uid()::text = owner_id)
-with check (auth.uid()::text = owner_id);
+CREATE POLICY "Users can manage their own partners"
+ON public.partners FOR ALL
+TO public
+USING (
+  COALESCE(
+    (SELECT public.get_custom_user_id()),
+    (SELECT auth.uid())::text
+  ) = owner_id
+)
+WITH CHECK (
+  COALESCE(
+    (SELECT public.get_custom_user_id()),
+    (SELECT auth.uid())::text
+  ) = owner_id
+);
 
 -- Chính sách cho bảng invoices
-create policy "Users can perform all operations on their own invoices"
-on public.invoices for all
-using (auth.uid()::text = owner_id)
-with check (auth.uid()::text = owner_id);
+CREATE POLICY "Users can manage their own invoices"
+ON public.invoices FOR ALL
+TO public
+USING (
+  COALESCE(
+    (SELECT public.get_custom_user_id()),
+    (SELECT auth.uid())::text
+  ) = owner_id
+)
+WITH CHECK (
+  COALESCE(
+    (SELECT public.get_custom_user_id()),
+    (SELECT auth.uid())::text
+  ) = owner_id
+);
 
 -- Chính sách cho bảng generated_docs
-create policy "Users can perform all operations on their own generated_docs"
-on public.generated_docs for all
-using (auth.uid()::text = owner_id)
-with check (auth.uid()::text = owner_id);
+CREATE POLICY "Users can manage their own generated_docs"
+ON public.generated_docs FOR ALL
+TO public
+USING (
+  COALESCE(
+    (SELECT public.get_custom_user_id()),
+    (SELECT auth.uid())::text
+  ) = owner_id
+)
+WITH CHECK (
+  COALESCE(
+    (SELECT public.get_custom_user_id()),
+    (SELECT auth.uid())::text
+  ) = owner_id
+);
 
 -- Chính sách cho bảng contracts
-create policy "Users can perform all operations on their own contracts"
-on public.contracts for all
-using (auth.uid()::text = owner_id)
-with check (auth.uid()::text = owner_id);
+CREATE POLICY "Users can manage their own contracts"
+ON public.contracts FOR ALL
+TO public
+USING (
+  COALESCE(
+    (SELECT public.get_custom_user_id()),
+    (SELECT auth.uid())::text
+  ) = owner_id
+)
+WITH CHECK (
+  COALESCE(
+    (SELECT public.get_custom_user_id()),
+    (SELECT auth.uid())::text
+  ) = owner_id
+);
 
 -- ==========================================
 -- KHỞI TẠO STORAGE BUCKETS VÀ RLS CHO STORAGE
@@ -140,3 +203,10 @@ create policy "Users can access their own storage folder in generated_docs"
 on storage.objects for all
 using (bucket_id = 'generated_docs' and (storage.foldername(name))[1] = auth.uid()::text)
 with check (bucket_id = 'generated_docs' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ==========================================
+-- CHỈ MỤC BAO PHỦ KHÓA NGOẠI (Foreign Key Covering Indexes)
+-- ==========================================
+create index if not exists contracts_party_a_id_idx on public.contracts(party_a_id);
+create index if not exists contracts_party_b_id_idx on public.contracts(party_b_id);
+create index if not exists generated_docs_invoice_id_idx on public.generated_docs(invoice_id);

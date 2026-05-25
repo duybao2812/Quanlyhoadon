@@ -44,22 +44,24 @@ export async function parseInvoiceXml(xmlString: string): Promise<any> {
     return null;
   };
 
-  // 1. Get Main Blocks
-  const nBan = findNode(result, ['NBan']) || {};
-  const nMua = findNode(result, ['NMua']) || {};
-  const tTChung = findNode(result, ['TTChung']) || {};
-  const tToan = findNode(result, ['TToan', 'THTToan']) || {};
+  // 1. Get Main Blocks (Targeting the actual e-invoice block first to avoid envelope metadata matching)
+  const dlhDon = findNode(result, ['DLHDon', 'HDon', 'Invoice']) || result;
+
+  const nBan = findNode(dlhDon, ['NBan', 'Seller']) || {};
+  const nMua = findNode(dlhDon, ['NMua', 'Buyer']) || {};
+  const tTChung = findNode(dlhDon, ['TTChung']) || {};
+  const tToan = findNode(dlhDon, ['TToan', 'THTToan', 'Payment']) || {};
   
-  // 2. Items extraction
+  // 2. Items extraction (Searching within the invoice block)
   let itemsList: any[] = [];
-  const dshhdvu = findNode(result, ['DSHHDVu', 'DSHHoa', 'ListData']);
+  const dshhdvu = findNode(dlhDon, ['DSHHDVu', 'DSHHoa', 'ListData']);
   if (dshhdvu) {
     const hhdvu = findNode(dshhdvu, ['HHDVu', 'HHoa', 'Item']);
     if (hhdvu) {
       itemsList = Array.isArray(hhdvu) ? hhdvu : [hhdvu];
     }
   } else {
-    const hhdvuNode = findNode(result, ['HHDVu', 'HHoa']);
+    const hhdvuNode = findNode(dlhDon, ['HHDVu', 'HHoa']);
     if (hhdvuNode) {
       itemsList = Array.isArray(hhdvuNode) ? hhdvuNode : [hhdvuNode];
     }

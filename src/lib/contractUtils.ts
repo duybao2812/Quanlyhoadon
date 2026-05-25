@@ -1,11 +1,21 @@
 
 export const formatThousands = (value: string): string => {
   if (!value) return '';
-  // Remove non-numeric characters
-  const numericValue = value.replace(/\D/g, '');
-  if (!numericValue) return '';
-  // Format with dots
-  return new Intl.NumberFormat('de-DE').format(parseInt(numericValue, 10));
+  let cleanValue = value;
+  if (value.includes(',') && value.includes('.')) {
+    cleanValue = value.replace(/\./g, '').replace(/,/g, '.');
+  } else if (value.includes(',')) {
+    cleanValue = value.replace(/,/g, '.');
+  }
+  const parsed = parseFloat(cleanValue);
+  if (isNaN(parsed)) return '';
+  
+  const parts = cleanValue.split('.');
+  const decimalPlaces = parts.length > 1 ? parts[1].length : 0;
+  return new Intl.NumberFormat('de-DE', {
+    minimumFractionDigits: decimalPlaces,
+    maximumFractionDigits: Math.max(decimalPlaces, 3)
+  }).format(parsed);
 };
 
 export const numberToVietnameseWords = (number: number): string => {

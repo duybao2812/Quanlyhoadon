@@ -28,7 +28,7 @@ function formatCompanyName(name: any) {
   const val = fallbackDots(name);
   if (val === "....................") return val;
   if (typeof val !== 'string') return val;
-  
+
   const hasDiacritics = (word: string) => /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(word);
 
   const structuralMapping: Record<string, string> = {
@@ -42,7 +42,7 @@ function formatCompanyName(name: any) {
   const upperCaseTerms = ['INT', 'VNCN', 'E&C', 'TNHH', 'CP', 'MTV', 'VN', 'JS', 'JSC', 'VAT', 'STK', 'HTX', 'PCCC', 'GTVT', 'XD', 'TM', 'DV', 'CN', 'KCN', 'SX', 'XNK'];
 
   const words = val.trim().split(/\s+/);
-  
+
   return words.map((word, index) => {
     if (!word) return '';
     const lowerWord = word.toLowerCase();
@@ -65,7 +65,7 @@ export function extractTags(buffer: ArrayBuffer): string[] {
   const docXml = zip.file("word/document.xml")?.asText() || "";
   // Strip XML tags to get clean content
   const cleanText = docXml.replace(/<[^>]+>/g, "");
-  
+
   // Search for [TAG] in the clean text
   const regex = /\[([^\]]+)\]/g;
   const tags = new Set<string>();
@@ -99,26 +99,26 @@ export async function generateDocxBlob({
 }): Promise<Blob> {
   const rawVat = data.invoice.vatRate !== undefined && data.invoice.vatRate !== null && data.invoice.vatRate !== '' ? data.invoice.vatRate : '8';
   const vatRateStr = rawVat.toString().includes('%') ? rawVat.toString() : `${rawVat}%`;
-  
+
   const tableRows = (data.items || [])
     .filter((item: any) => {
       const qty = parseFloat(item.quantity) || 0;
       const price = parseFloat(item.unitPrice) || parseFloat(item.price) || 0;
       const amount = Number(item.amount || item.total || item.totalAmount || item.lineTotal) || (qty * price);
-      
+
       const isZero = qty === 0 && price === 0 && amount === 0;
       const isEmptyUnit = !item.unit || item.unit.toString().trim() === "" || item.unit.toString().trim() === "-" || item.unit.toString().trim() === ".";
-      
+
       return !(isZero && isEmptyUnit);
     })
     .map((item: any, index: number) => {
       const qty = parseFloat(item.quantity);
       const price = parseFloat(item.unitPrice);
       const amount = Number(item.amount || item.total || item.totalAmount || item.lineTotal) || (!isNaN(qty) && !isNaN(price) ? qty * price : 0);
-      
+
       const displayUnit = (item.unit && !item.unit.toString().match(/^[. -]+$/)) ? item.unit.toString() : "";
       let displayQty = (item.quantity !== undefined && item.quantity !== null && item.quantity !== "" && !isNaN(qty) && qty !== 0) ? formatVNNumber(qty) : "";
-      
+
       // Request: Hide quantity "1" for construction (TC)
       if (templateType.includes('TC') && qty === 1) {
         displayQty = "";
@@ -159,7 +159,7 @@ export async function generateDocxBlob({
   </w:tblPr>
   <w:tblGrid>${columns.map(c => `<w:gridCol w:w="${c.width}"/>`).join('')}</w:tblGrid>
   <w:tr>
-    <w:trPr><w:trHeight w:val="450"/></w:trPr>
+    <w:trPr><w:trHeight w:val="450"/><w:tblHeader/></w:trPr>
     ${columns.map(col => `
       <w:tc>
         <w:tcPr><w:tcW w:w="${col.width}" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F2F2F2"/><w:vAlign w:val="center"/></w:tcPr>
@@ -168,31 +168,31 @@ export async function generateDocxBlob({
   </w:tr>
   ${items.map(item => `
   <w:tr>
-    <w:tc><w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(item.STT)}</w:t></w:r></w:p></w:tc>
-    <w:tc><w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(item.NOIDUNG)}</w:t></w:r></w:p></w:tc>
-    <w:tc><w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(item.DVT)}</w:t></w:r></w:p></w:tc>
-    <w:tc><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(item.SOLUONG)}</w:t></w:r></w:p></w:tc>
-    <w:tc><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(item.DONGIA)}</w:t></w:r></w:p></w:tc>
-    <w:tc><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(item.THANHTIEN)}</w:t></w:r></w:p></w:tc>
+    <w:tc><w:tcPr><w:tcW w:w="600" w:type="dxa"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(item.STT)}</w:t></w:r></w:p></w:tc>
+    <w:tc><w:tcPr><w:tcW w:w="4500" w:type="dxa"/></w:tcPr><w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(item.NOIDUNG)}</w:t></w:r></w:p></w:tc>
+    <w:tc><w:tcPr><w:tcW w:w="800" w:type="dxa"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(item.DVT)}</w:t></w:r></w:p></w:tc>
+    <w:tc><w:tcPr><w:tcW w:w="800" w:type="dxa"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(item.SOLUONG)}</w:t></w:r></w:p></w:tc>
+    <w:tc><w:tcPr><w:tcW w:w="1200" w:type="dxa"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(item.DONGIA)}</w:t></w:r></w:p></w:tc>
+    <w:tc><w:tcPr><w:tcW w:w="1600" w:type="dxa"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(item.THANHTIEN)}</w:t></w:r></w:p></w:tc>
   </w:tr>`).join('')}
   <w:tr>
-    <w:tc><w:tcPr><w:gridSpan w:val="5"/><w:vAlign w:val="center"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="100" w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>CỘNG TIỀN HÀNG:</w:t></w:r></w:p></w:tc>
-    <w:tc><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(formatVNNumber(data.totals.subtotal))}</w:t></w:r></w:p></w:tc>
+    <w:tc><w:tcPr><w:gridSpan w:val="5"/><w:tcW w:w="7900" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="100" w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>CỘNG TIỀN HÀNG:</w:t></w:r></w:p></w:tc>
+    <w:tc><w:tcPr><w:tcW w:w="1600" w:type="dxa"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(formatVNNumber(data.totals.subtotal))}</w:t></w:r></w:p></w:tc>
   </w:tr>
   <w:tr>
-    <w:tc><w:tcPr><w:gridSpan w:val="5"/><w:vAlign w:val="center"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="100" w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(`THUẾ GTGT (${vatRateStr}):`)}</w:t></w:r></w:p></w:tc>
-    <w:tc><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(formatVNNumber(data.totals.vatAmount))}</w:t></w:r></w:p></w:tc>
+    <w:tc><w:tcPr><w:gridSpan w:val="5"/><w:tcW w:w="7900" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="100" w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(`THUẾ GTGT (${vatRateStr}):`)}</w:t></w:r></w:p></w:tc>
+    <w:tc><w:tcPr><w:tcW w:w="1600" w:type="dxa"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(formatVNNumber(data.totals.vatAmount))}</w:t></w:r></w:p></w:tc>
   </w:tr>
   <w:tr>
-    <w:tc><w:tcPr><w:gridSpan w:val="5"/><w:vAlign w:val="center"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="100" w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>TỔNG CỘNG THANH TOÁN:</w:t></w:r></w:p></w:tc>
-    <w:tc><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(formatVNNumber(data.totals.grandTotal))}</w:t></w:r></w:p></w:tc>
+    <w:tc><w:tcPr><w:gridSpan w:val="5"/><w:tcW w:w="7900" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="100" w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>TỔNG CỘNG THANH TOÁN:</w:t></w:r></w:p></w:tc>
+    <w:tc><w:tcPr><w:tcW w:w="1600" w:type="dxa"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(formatVNNumber(data.totals.grandTotal))}</w:t></w:r></w:p></w:tc>
   </w:tr>
 </w:tbl>`;
   };
 
   const tableXml = generateDocxTable(tableRows);
   const zip = new PizZip(templateBuffer);
-  
+
   let docXml = zip.file("word/document.xml")?.asText() || "";
   ["BB_BANGGIATHUEXE", "BB_BANGVATTU", "BB_BANGTHICONG", "items"].forEach(p => {
     docXml = docXml.replace(new RegExp(`\\[${p}\\]`, 'g'), `[@${p}]`);
@@ -219,9 +219,9 @@ export async function generateDocxBlob({
 
   const isSwapped = templateType.includes('VT') || templateType.includes('CM') || templateType.includes('TC');
   let pA = partnerA || {}, pB = partnerB || {}, sData = data.seller, bData = data.buyer;
-  if (isSwapped) { 
-    [pA, pB] = [pB, pA]; 
-    [sData, bData] = [bData, sData]; 
+  if (isSwapped) {
+    [pA, pB] = [pB, pA];
+    [sData, bData] = [bData, sData];
   }
 
   const formatGender = (gender?: string) => {
@@ -266,5 +266,41 @@ export async function generateDocxBlob({
     VAT_RATE: vatRateStr
   });
 
-  return doc.getZip().generate({ type: 'blob', compression: 'DEFLATE' });
+  const documentXml = doc.getZip().file("word/document.xml")?.asText() || "";
+  if (documentXml) {
+    // 1. Autofix table inside paragraph
+    const fixedXml = documentXml.replace(/<w:p\b[^>]*>(?:(?!<\/w:p>)[\s\S])*?<w:tbl\b[\s\S]*?<\/w:tbl>(?:(?!<\/w:p>)[\s\S])*?<\/w:p>/g, (match) => {
+      const tblMatch = match.match(/<w:tbl\b[\s\S]*?<\/w:tbl>/);
+      return tblMatch ? tblMatch[0] + '<w:p/>' : match;
+    });
+    
+    // 2. Validate XML and ensure no w:tbl is nested inside w:p
+    try {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(fixedXml, "text/xml");
+      const parserError = xmlDoc.getElementsByTagName("parsererror");
+      if (parserError.length > 0) {
+        throw new Error(parserError[0].textContent || "XML parse error");
+      }
+
+      const tables = xmlDoc.getElementsByTagName("w:tbl");
+      for (let i = 0; i < tables.length; i++) {
+        let parent = tables[i].parentNode;
+        while (parent) {
+          if (parent.nodeName === "w:p") {
+            throw new Error("Phát hiện lỗi cấu trúc OOXML nghiêm trọng: Thẻ bảng <w:tbl> nằm bên trong thẻ đoạn văn <w:p>.");
+          }
+          parent = parent.parentNode;
+        }
+      }
+    } catch (e: any) {
+      console.error("XML Validation Error in generated DOCX:", e);
+      throw new Error("Tệp hợp đồng xuất ra bị lỗi XML cấu trúc: " + e.message);
+    }
+    
+    doc.getZip().file("word/document.xml", fixedXml);
+  }
+
+  const zipData = doc.getZip().generate({ type: 'uint8array', compression: 'DEFLATE' });
+  return new Blob([zipData], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 }

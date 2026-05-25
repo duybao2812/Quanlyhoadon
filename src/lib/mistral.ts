@@ -19,7 +19,8 @@ export async function extractFromInvoice(file: File): Promise<any> {
       method: 'POST',
       body: JSON.stringify({
         base64Data,
-        fileType: file.type
+        fileType: file.type,
+        fileName: file.name
       })
     });
 

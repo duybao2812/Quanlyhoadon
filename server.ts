@@ -10,6 +10,7 @@ import dotenv from 'dotenv';
 import axios from 'axios';
 import OpenAI from 'openai';
 import os from 'os';
+import { JSDOM } from 'jsdom';
 
 dotenv.config();
 
@@ -575,7 +576,19 @@ async function startServer() {
           { header: "THÀNH TIỀN", key: "THANHTIEN", width: "1600" }
         ];
 
-        let xml = `
+        const makeCell = (text: string, width: string, align: string, bold = false, span = 0, vAlign = '', shade = '') => {
+          const escaped = escapeXml(text);
+          const bTag = bold ? '<w:b/><w:bCs/>' : '';
+          const runTag = escaped ? `<w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>${bTag}<w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t xml:space="preserve">${escaped}</w:t></w:r>` : '';
+          const spanTag = span ? `<w:gridSpan w:val="${span}"/>` : '';
+          const vAlignTag = vAlign ? `<w:vAlign w:val="${vAlign}"/>` : '';
+          const shadeTag = shade ? `<w:shd w:val="clear" w:color="auto" w:fill="${shade}"/>` : '';
+          const spacingBefore = (span || vAlign === 'center') ? '100' : '60';
+          const spacingAfter = (span || vAlign === 'center') ? '100' : '60';
+          return `<w:tc><w:tcPr>${spanTag}<w:tcW w:w="${width}" w:type="dxa"/>${shadeTag}${vAlignTag}</w:tcPr><w:p><w:pPr><w:jc w:val="${align}"/><w:spacing w:before="${spacingBefore}" w:after="${spacingAfter}"/></w:pPr>${runTag}</w:p></w:tc>`;
+        };
+
+        return `
 <w:tbl xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:tblPr>
     <w:tblW w:w="5000" w:type="pct"/>
@@ -591,35 +604,30 @@ async function startServer() {
   <w:tblGrid>${columns.map(c => `<w:gridCol w:w="${c.width}"/>`).join('')}</w:tblGrid>
   <w:tr>
     <w:trPr><w:trHeight w:val="450"/></w:trPr>
-    ${columns.map(col => `
-      <w:tc>
-        <w:tcPr><w:tcW w:w="${col.width}" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F2F2F2"/><w:vAlign w:val="center"/></w:tcPr>
-        <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="100" w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(col.header)}</w:t></w:r></w:p>
-      </w:tc>`).join('')}
+    ${columns.map(col => makeCell(col.header, col.width, 'center', true, 0, 'center', 'F2F2F2')).join('')}
   </w:tr>
   ${items.map(item => `
   <w:tr>
-    <w:tc><w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(item.STT)}</w:t></w:r></w:p></w:tc>
-    <w:tc><w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(item.NOIDUNG)}</w:t></w:r></w:p></w:tc>
-    <w:tc><w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(item.DVT)}</w:t></w:r></w:p></w:tc>
-    <w:tc><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(item.SOLUONG)}</w:t></w:r></w:p></w:tc>
-    <w:tc><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(item.DONGIA)}</w:t></w:r></w:p></w:tc>
-    <w:tc><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(item.THANHTIEN)}</w:t></w:r></w:p></w:tc>
+    ${makeCell(item.STT, '600', 'center')}
+    ${makeCell(item.NOIDUNG, '4500', 'left')}
+    ${makeCell(item.DVT, '800', 'center')}
+    ${makeCell(item.SOLUONG, '800', 'right')}
+    ${makeCell(item.DONGIA, '1200', 'right')}
+    ${makeCell(item.THANHTIEN, '1600', 'right')}
   </w:tr>`).join('')}
   <w:tr>
-    <w:tc><w:tcPr><w:gridSpan w:val="5"/><w:vAlign w:val="center"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="100" w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>CỘNG TIỀN HÀNG:</w:t></w:r></w:p></w:tc>
-    <w:tc><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(formatVNNumber(data.totals.subtotal))}</w:t></w:r></w:p></w:tc>
+    ${makeCell('CỘNG TIỀN HÀNG:', '7900', 'right', true, 5, 'center')}
+    ${makeCell(formatVNNumber(data.totals.subtotal), '1600', 'right', true)}
   </w:tr>
   <w:tr>
-    <w:tc><w:tcPr><w:gridSpan w:val="5"/><w:vAlign w:val="center"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="100" w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(`THUẾ GTGT (${vatRateStr}):`)}</w:t></w:r></w:p></w:tc>
-    <w:tc><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(formatVNNumber(data.totals.vatAmount))}</w:t></w:r></w:p></w:tc>
+    ${makeCell(`THUẾ GTGT (${vatRateStr}):`, '7900', 'right', true, 5, 'center')}
+    ${makeCell(formatVNNumber(data.totals.vatAmount), '1600', 'right', true)}
   </w:tr>
   <w:tr>
-    <w:tc><w:tcPr><w:gridSpan w:val="5"/><w:vAlign w:val="center"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="100" w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>TỔNG CỘNG THANH TOÁN:</w:t></w:r></w:p></w:tc>
-    <w:tc><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>${escapeXml(formatVNNumber(data.totals.grandTotal))}</w:t></w:r></w:p></w:tc>
+    ${makeCell('TỔNG CỘNG THANH TOÁN:', '7900', 'right', true, 5, 'center')}
+    ${makeCell(formatVNNumber(data.totals.grandTotal), '1600', 'right', true)}
   </w:tr>
 </w:tbl>`;
-        return xml;
       };
 
       const tableXml = generateDocxTable(tableRows);
@@ -727,6 +735,42 @@ async function startServer() {
       };
 
       doc.render(variables);
+      
+      let documentXml = doc.getZip().file("word/document.xml")?.asText() || "";
+      if (documentXml) {
+        // 1. Autofix table inside paragraph
+        const fixedXml = documentXml.replace(/<w:p\b[^>]*>(?:(?!<\/w:p>)[\s\S])*?<w:tbl\b[\s\S]*?<\/w:tbl>(?:(?!<\/w:p>)[\s\S])*?<\/w:p>/g, (match) => {
+          const tblMatch = match.match(/<w:tbl\b[\s\S]*?<\/w:tbl>/);
+          return tblMatch ? tblMatch[0] + '<w:p/>' : match;
+        });
+
+        // 2. Validate XML syntax using Node's jsdom DOMParser and ensure no w:tbl is nested inside w:p
+        try {
+          const dom = new JSDOM();
+          const parser = new dom.window.DOMParser();
+          const xmlDoc = parser.parseFromString(fixedXml, "text/xml");
+          const parserError = xmlDoc.getElementsByTagName("parsererror");
+          if (parserError.length > 0) {
+            throw new Error(parserError[0].textContent || "XML parse error");
+          }
+
+          const tables = xmlDoc.getElementsByTagName("w:tbl");
+          for (let i = 0; i < tables.length; i++) {
+            let parent = tables[i].parentNode;
+            while (parent) {
+              if (parent.nodeName === "w:p") {
+                throw new Error("Phát hiện lỗi cấu trúc OOXML nghiêm trọng: Thẻ bảng <w:tbl> nằm bên trong thẻ đoạn văn <w:p>.");
+              }
+              parent = parent.parentNode;
+            }
+          }
+        } catch (e: any) {
+          console.error("XML Validation Error in generated server DOCX:", e);
+          throw new Error("Tệp hợp đồng xuất ra bị lỗi XML cấu trúc: " + e.message);
+        }
+
+        doc.getZip().file("word/document.xml", fixedXml);
+      }
 
       const buf = doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' });
       res.set({

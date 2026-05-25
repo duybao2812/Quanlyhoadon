@@ -1,17 +1,18 @@
-name: Deploy to GitHub Pages
+name: Continuous Integration
 
 on:
   push:
     branches: [ main ]
-
-permissions:
-  contents: write
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  build-and-deploy:
+  validate:
+    name: Lint, Test & Build
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Node.js
@@ -21,15 +22,15 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci || npm install
 
-      - name: Build
+      - name: Run Linter / Type Check
+        run: npm run lint
+
+      - name: Run Unit Tests
+        run: npm run test:dashboard
+
+      - name: Test Build Compilation
         run: npm run build
         env:
           VITE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-
-      - name: Deploy
-        uses: JamesIves/github-pages-deploy-action@v4
-        with:
-          folder: dist
-          branch: gh-pages
