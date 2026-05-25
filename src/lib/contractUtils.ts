@@ -1,16 +1,31 @@
 
 export const formatThousands = (value: string): string => {
   if (!value) return '';
-  let cleanValue = value;
-  if (value.includes(',') && value.includes('.')) {
-    cleanValue = value.replace(/\./g, '').replace(/,/g, '.');
-  } else if (value.includes(',')) {
-    cleanValue = value.replace(/,/g, '.');
+  let str = String(value).trim();
+  // Strip thousands separators if there are multiple dots or commas
+  if ((str.match(/\./g) || []).length > 1) {
+    str = str.replace(/\./g, '');
   }
-  const parsed = parseFloat(cleanValue);
+  if ((str.match(/,/g) || []).length > 1) {
+    str = str.replace(/,/g, '');
+  }
+  // Handle mixed separators (dot and comma)
+  if (str.includes('.') && str.includes(',')) {
+    if (str.indexOf('.') < str.indexOf(',')) {
+      // 1.234,56 -> 1234.56
+      str = str.replace(/\./g, '').replace(/,/g, '.');
+    } else {
+      // 1,234.56 -> 1234.56
+      str = str.replace(/,/g, '');
+    }
+  } else if (str.includes(',') && !str.includes('.')) {
+    // 1234,56 -> 1234.56
+    str = str.replace(/,/g, '.');
+  }
+  const parsed = parseFloat(str.replace(/[^0-9.-]/g, ''));
   if (isNaN(parsed)) return '';
   
-  const parts = cleanValue.split('.');
+  const parts = str.split('.');
   const decimalPlaces = parts.length > 1 ? parts[1].length : 0;
   return new Intl.NumberFormat('de-DE', {
     minimumFractionDigits: decimalPlaces,

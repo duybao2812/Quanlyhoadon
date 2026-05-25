@@ -6793,7 +6793,7 @@ const ContractView = ({
           Kính gửi: <InlineField tag="BEN_DUOC_DE_NGHI_TITLE" placeholder="Ban Giám đốc Công ty ..." width="380px" />
         </div>
 
-        <div className="space-y-3 mt-4 text-justify">
+        <div className="space-y-3 mt-4 text-left">
           <p>
             - Căn cứ Hợp đồng số: <InlineField tag="SO_HOPDONG" placeholder="[Số hợp đồng]" width="140px" /> được ký vào ngày <InlineField tag="NGAY_KY_HOP_DONG" placeholder="[Ngày ký hợp đồng]" width="140px" /> về việc <InlineField tag="NOI_DUNG_HOP_DONG" placeholder="[Nội dung hợp đồng]" width="280px" /> giữa <InlineField tag="BEN_DUOC_DE_NGHI" placeholder="[Bên được đề nghị]" width="180px" /> và <InlineField tag="BEN_DE_NGHI" placeholder="[Bên đề nghị]" width="180px" />.
           </p>
@@ -6838,7 +6838,7 @@ const ContractView = ({
   // HDNT Document A4 Layout
   const renderHDNTDocument = () => {
     return (
-      <div className="space-y-6 text-stone-900 leading-relaxed text-[13px] text-justify">
+      <div className="space-y-6 text-stone-900 leading-relaxed text-[13px] text-left">
         <div className="flex justify-between items-start">
           <div className="flex flex-col text-left">
             <InlineField tag="TEN_CTY_VIET_TAT" placeholder="[TÊN CÔNG TY VIẾT TẮT]" width="200px" />
@@ -6984,7 +6984,7 @@ const ContractView = ({
   // HDTC Document A4 Layout
   const renderHDTCDocument = () => {
     return (
-      <div className="space-y-6 text-stone-900 leading-relaxed text-[13px] text-justify">
+      <div className="space-y-6 text-stone-900 leading-relaxed text-[13px] text-left">
         <div className="flex justify-between items-start">
           <div className="flex flex-col text-left">
             <InlineField tag="TEN_CTY_VIET_TAT" placeholder="[TÊN CÔNG TY VIẾT TẮT]" width="200px" />
@@ -7156,7 +7156,7 @@ const ContractView = ({
   // HDCM Document A4 Layout
   const renderHDCMDocument = () => {
     return (
-      <div className="space-y-6 text-stone-900 leading-relaxed text-[13px] text-justify">
+      <div className="space-y-6 text-stone-900 leading-relaxed text-[13px] text-left">
         <div className="flex justify-between items-start">
           <div className="flex flex-col text-left">
             <InlineField tag="TEN_CTY_VIET_TAT" placeholder="[TÊN CÔNG TY VIẾT TẮT]" width="200px" />
