@@ -5137,6 +5137,64 @@ const ContractFormContext = React.createContext<{
   setIsInvoiceSelectorOpen?: (open: boolean) => void;
 } | null>(null);
 
+// Inline Editable Content Span to flow seamlessly like normal text
+const InlineEditableSpan = ({
+  value,
+  placeholder,
+  onChange,
+  className
+}: {
+  value: string;
+  placeholder?: string;
+  onChange: (val: string) => void;
+  className?: string;
+}) => {
+  const ref = React.useRef<HTMLSpanElement>(null);
+  const [isFocused, setIsFocused] = React.useState(false);
+
+  React.useEffect(() => {
+    if (ref.current && document.activeElement !== ref.current) {
+      ref.current.textContent = value || '';
+    }
+  }, [value]);
+
+  const displayVal = value || '';
+  const showPlaceholder = !displayVal && !isFocused;
+
+  return (
+    <span
+      ref={ref}
+      contentEditable
+      suppressContentEditableWarning
+      onFocus={() => setIsFocused(true)}
+      onBlur={(e) => {
+        setIsFocused(false);
+        const text = e.currentTarget.textContent || '';
+        onChange(text);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          e.currentTarget.blur();
+        }
+      }}
+      className={cn(
+        "border-b border-dashed border-stone-400 hover:border-primary focus:border-primary font-bold px-0.5 cursor-text transition-all font-sans text-xs outline-none focus:bg-stone-50/50",
+        showPlaceholder ? "text-stone-400 font-normal italic" : "text-stone-900",
+        className
+      )}
+      style={{
+        display: 'inline',
+        wordBreak: 'break-word',
+        whiteSpace: 'pre-wrap',
+        minWidth: '30px'
+      }}
+    >
+      {showPlaceholder ? (placeholder || '................................') : displayVal}
+    </span>
+  );
+};
+
 // Helper component for inline dotted editing in simulated A4 layout
 const InlineField = ({
   tag,
@@ -5158,11 +5216,9 @@ const InlineField = ({
   const val = formData[tag] || '';
   const displayVal = val !== undefined && val !== null ? String(val) : '';
   
-  // For longer text fields, use textarea to support wrapping when too long.
+  // For longer text fields, use dynamic inline-editable span to wrap perfectly like normal text
   // Short numeric or length-restricted fields can remain standard inputs.
   const isLongField = !isNumeric && (!maxLength || maxLength > 5);
-
-  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   // Dynamic width calculation based on text length to avoid clipping
   const measureText = displayVal || placeholder || '................................';
@@ -5172,42 +5228,20 @@ const InlineField = ({
     ? `${Math.max(50, calculatedWidth)}px` 
     : `max(${width}, ${calculatedWidth}px)`;
 
-  React.useEffect(() => {
-    if (isLongField && textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-    }
-  }, [displayVal, isLongField]);
-
   if (isLongField) {
     return (
-      <span className="inline-block relative group mx-0.5 align-middle max-w-full">
-        <textarea
-          ref={textareaRef}
-          rows={1}
+      <span className="inline relative group mx-0.5 align-baseline">
+        <InlineEditableSpan
           value={displayVal}
-          placeholder={placeholder || '................................'}
-          maxLength={maxLength}
-          onChange={(e) => {
-            let nextVal = e.target.value;
+          placeholder={placeholder}
+          onChange={(nextVal) => {
             // Prevent manual newlines by replacing them with space, maintaining single-paragraph flow
-            nextVal = nextVal.replace(/\r?\n/g, ' ');
-            handleFieldChange(tag, nextVal);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              e.currentTarget.blur();
-            }
+            const cleanedVal = nextVal.replace(/\r?\n/g, ' ');
+            handleFieldChange(tag, cleanedVal);
           }}
           className={cn(
-            "bg-transparent border-b border-dashed border-stone-400 hover:border-primary focus:border-primary text-stone-900 font-bold focus:outline-none focus:ring-0 px-1 py-0 text-center transition-all inline-block font-sans text-xs max-w-full resize-none overflow-hidden leading-normal align-middle",
             displayVal ? "border-stone-300" : "text-stone-400"
           )}
-          style={{ 
-            width: dynamicWidth,
-            minHeight: '20px'
-          }}
         />
         <span className="absolute -top-7 left-1/2 -translate-x-1/2 bg-stone-950 text-white text-[9px] font-black px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 shadow-lg uppercase font-sans">
           {getFriendlyLabel(tag)} ({tag})
