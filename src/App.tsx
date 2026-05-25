@@ -5157,12 +5157,67 @@ const InlineField = ({
 
   const val = formData[tag] || '';
   const displayVal = val !== undefined && val !== null ? String(val) : '';
-  // Dynamic width calculation based on text length
-  const charLen = displayVal ? displayVal.length : (placeholder ? placeholder.length : 12);
-  const dynamicWidth = width === 'auto' ? `${Math.max(50, charLen * 8.5 + 12)}px` : width;
+  
+  // For longer text fields, use textarea to support wrapping when too long.
+  // Short numeric or length-restricted fields can remain standard inputs.
+  const isLongField = !isNumeric && (!maxLength || maxLength > 5);
+
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+  // Dynamic width calculation based on text length to avoid clipping
+  const measureText = displayVal || placeholder || '................................';
+  const charWidth = 8.5; // width of character in pixels
+  const calculatedWidth = measureText.length * charWidth + 16;
+  const dynamicWidth = width === 'auto' 
+    ? `${Math.max(50, calculatedWidth)}px` 
+    : `max(${width}, ${calculatedWidth}px)`;
+
+  React.useEffect(() => {
+    if (isLongField && textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [displayVal, isLongField]);
+
+  if (isLongField) {
+    return (
+      <span className="inline-block relative group mx-0.5 align-middle max-w-full">
+        <textarea
+          ref={textareaRef}
+          rows={1}
+          value={displayVal}
+          placeholder={placeholder || '................................'}
+          maxLength={maxLength}
+          onChange={(e) => {
+            let nextVal = e.target.value;
+            // Prevent manual newlines by replacing them with space, maintaining single-paragraph flow
+            nextVal = nextVal.replace(/\r?\n/g, ' ');
+            handleFieldChange(tag, nextVal);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              e.currentTarget.blur();
+            }
+          }}
+          className={cn(
+            "bg-transparent border-b border-dashed border-stone-400 hover:border-primary focus:border-primary text-stone-900 font-bold focus:outline-none focus:ring-0 px-1 py-0 text-center transition-all inline-block font-sans text-xs max-w-full resize-none overflow-hidden leading-normal align-middle",
+            displayVal ? "border-stone-300" : "text-stone-400"
+          )}
+          style={{ 
+            width: dynamicWidth,
+            minHeight: '20px'
+          }}
+        />
+        <span className="absolute -top-7 left-1/2 -translate-x-1/2 bg-stone-950 text-white text-[9px] font-black px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 shadow-lg uppercase font-sans">
+          {getFriendlyLabel(tag)} ({tag})
+        </span>
+      </span>
+    );
+  }
 
   return (
-    <span className="inline-block relative group mx-0.5 align-middle">
+    <span className="inline-block relative group mx-0.5 align-middle max-w-full">
       <input
         type="text"
         value={displayVal}
@@ -5174,7 +5229,7 @@ const InlineField = ({
           handleFieldChange(tag, nextVal);
         }}
         className={cn(
-          "bg-transparent border-b border-dashed border-stone-400 hover:border-primary focus:border-primary text-stone-900 font-bold focus:outline-none focus:ring-0 px-1 py-0 text-center transition-all inline-block font-sans text-xs",
+          "bg-transparent border-b border-dashed border-stone-400 hover:border-primary focus:border-primary text-stone-900 font-bold focus:outline-none focus:ring-0 px-1 py-0 text-center transition-all inline-block font-sans text-xs max-w-full",
           displayVal ? "border-stone-300" : "text-stone-400"
         )}
         style={{ width: dynamicWidth }}
@@ -10025,7 +10080,29 @@ export default function App() {
       // Sum value for numeric field
       const safeParse = (v: any) => {
         if (typeof v === 'number') return v;
-        return parseFloat(String(v || '0').replace(/[^0-9.-]+/g, '')) || 0;
+        let str = String(v || '0').trim();
+        // If there are multiple dots, they are thousands separators, so strip them
+        if ((str.match(/\./g) || []).length > 1) {
+          str = str.replace(/\./g, '');
+        }
+        // If there are multiple commas, they are thousands separators, so strip them
+        if ((str.match(/,/g) || []).length > 1) {
+          str = str.replace(/,/g, '');
+        }
+        // Handle mixed separators (dot and comma)
+        if (str.includes('.') && str.includes(',')) {
+          if (str.indexOf('.') < str.indexOf(',')) {
+            // Vietnamese/German: 1.234.567,89 -> strip dots, change comma to dot
+            str = str.replace(/\./g, '').replace(/,/g, '.');
+          } else {
+            // US: 1,234,567.89 -> strip commas
+            str = str.replace(/,/g, '');
+          }
+        } else if (str.includes(',') && !str.includes('.')) {
+          // Vietnamese single comma decimal: 1234,56 -> change comma to dot
+          str = str.replace(/,/g, '.');
+        }
+        return parseFloat(str.replace(/[^0-9.-]/g, '')) || 0;
       };
 
       const totalSum = selectedDatas.reduce((acc, inv) => {
