@@ -3366,6 +3366,36 @@ const DashboardView = ({
 
         // Bước 3: Chuẩn hóa dữ liệu và lưu làm 'completed'
         const normalized = normalizeExtractedData(extractedData);
+
+        // Check if there is an existing XML invoice in the system with the same number and total amount
+        const pdfNum = normalized.invoice?.number || normalized.soHoaDon || '';
+        const pdfDisplayNum = pdfNum ? pdfNum.toString().replace(/^0+/, '') : '';
+        const pdfAmt = Number(normalized.totals?.grandTotal || normalized.totals?.total || 0);
+
+        const isDuplicateOfXml = invoices.some(inv => {
+          if (inv.fileType !== 'xml') return false;
+          let xmlNum = inv.extractedData?.invoice?.number || inv.extractedData?.soHoaDon || '';
+          if (!xmlNum) {
+            const match = inv.fileName?.match(/(\d+)(?=\.(pdf|xml)$)/i);
+            if (match && match[1]) xmlNum = match[1];
+          }
+          const xmlDisplayNum = xmlNum ? xmlNum.toString().replace(/^0+/, '') : '';
+          const xmlAmt = Number(inv.totalAmount || inv.extractedData?.totals?.grandTotal || 0);
+
+          return xmlDisplayNum === pdfDisplayNum && Math.abs(xmlAmt - pdfAmt) < 0.01;
+        });
+
+        if (isDuplicateOfXml) {
+          console.log(`Detected duplicate PDF: ${fileToProcess.name} matches an existing XML invoice. Deleting initialized database record...`);
+          // Delete the temporary record we created
+          await supabase.from('invoices').delete().eq('id', invoiceId);
+          queueCopy[currentIdx].status = 'completed'; // Skip the item and mark as complete in sync status
+          setSyncQueue([...queueCopy]);
+          currentIdx++;
+          successfulCount++; // count as processed (skipped successfully)
+          continue;
+        }
+
         const mapped = mapInvoiceToSupabase({
           status: 'completed',
           fileURL: extractedData.driveUrl || fileToProcess.url,
@@ -3580,31 +3610,40 @@ const DashboardView = ({
   return (
     <div className="space-y-6 overflow-y-auto h-full p-1 scroll-smooth">
       {/* Overview Stats Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 p-3 bg-white/[0.01] border border-border-dark/40 rounded-3xl shadow-lg relative overflow-hidden backdrop-blur-md">
         {[
-          { label: 'Hợp đồng cần xử lý', value: stats.pending, color: 'text-orange-500', icon: Clock },
-          { label: 'Đối tác liên kết', value: stats.partners, color: 'text-blue-500', icon: Users },
-          { label: 'Hóa đơn hệ thống', value: stats.invoices, color: 'text-emerald-500', icon: FileText },
-          { label: 'Hồ sơ đã hoàn tất', value: generatedDocs.length, color: 'text-indigo-500', icon: ShieldCheck },
-        ].map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className="stat-card group"
-          >
-            <div className="relative z-10">
-              <div className="stat-label">{stat.label}</div>
-              <div className="flex items-end gap-3">
-                <div className="stat-value">
-                  {isLoadingData ? <Skeleton className="h-12 w-24" /> : stat.value}
-                </div>
-                <span className="text-[10px] font-black text-text-dim mb-1.5 uppercase tracking-wider">Mục dữ liệu</span>
+          { label: 'Hợp đồng cần xử lý', value: stats.pending, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20', icon: Clock },
+          { label: 'Đối tác liên kết', value: stats.partners, color: 'text-blue-500 bg-blue-500/10 border-blue-500/20', icon: Users },
+          { label: 'Hóa đơn hệ thống', value: stats.invoices, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20', icon: FileText },
+          { label: 'Hồ sơ đã hoàn tất', value: generatedDocs.length, color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20', icon: ShieldCheck },
+        ].map((stat, i) => {
+          const Icon = stat.icon;
+          return (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.08 }}
+              className="flex items-center gap-3.5 px-4 py-3 rounded-2xl bg-sidebar-dark/40 border border-border-dark hover:border-[#FF7A00]/25 transition-all duration-300 hover:scale-[1.01] hover:shadow-lg group relative overflow-hidden"
+            >
+              {/* Subtle background glow effect */}
+              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.01] to-transparent pointer-events-none" />
+              
+              <div className={cn("p-2 rounded-xl shrink-0 border flex items-center justify-center transition-all group-hover:scale-105", stat.color)}>
+                <Icon className="size-4" />
               </div>
-            </div>
-          </motion.div>
-        ))}
+              <div className="flex flex-col min-w-0">
+                <span className="text-[10px] font-black uppercase tracking-wider text-text-dim/80 leading-normal truncate group-hover:text-white transition-colors">{stat.label}</span>
+                <div className="flex items-baseline gap-1.5 mt-0.5">
+                  <span className="text-base font-extrabold tracking-tight text-white">
+                    {isLoadingData ? <Loader2 className="size-3.5 animate-spin text-text-dim" /> : stat.value}
+                  </span>
+                  <span className="text-[9px] font-bold text-text-dim/50 uppercase">Mục dữ liệu</span>
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Modern Dashboard Navigation */}
@@ -9416,7 +9455,60 @@ export default function App() {
       if (error) {
         throw error;
       }
-      setInvoices((data || []).map(inv => {
+
+      // Automatically identify and delete duplicate PDF invoices if an XML invoice exists with the same number and total amount
+      const rawList = data || [];
+      const xmlInvoicesMap = new Map<string, any>();
+      const pdfDuplicatesToDelete: string[] = [];
+
+      // Step 1: Record XML invoices
+      rawList.forEach(inv => {
+        if (inv.file_type === 'xml') {
+          let num = inv.extracted_data?.invoice?.number || inv.extracted_data?.soHoaDon || '';
+          if (!num) {
+            const match = inv.file_name?.match(/(\d+)(?=\.(pdf|xml)$)/i);
+            if (match && match[1]) num = match[1];
+          }
+          const displayNum = num ? num.toString().replace(/^0+/, '') : '';
+          const amt = Number(inv.total_amount || inv.extracted_data?.totals?.grandTotal || 0);
+
+          if (displayNum && amt > 0) {
+            const key = `${displayNum}_${amt}`;
+            xmlInvoicesMap.set(key, inv);
+          }
+        }
+      });
+
+      // Step 2: Identify duplicate PDFs
+      rawList.forEach(inv => {
+        if (inv.file_type === 'pdf') {
+          let num = inv.extracted_data?.invoice?.number || inv.extracted_data?.soHoaDon || '';
+          if (!num) {
+            const match = inv.file_name?.match(/(\d+)(?=\.(pdf|xml)$)/i);
+            if (match && match[1]) num = match[1];
+          }
+          const displayNum = num ? num.toString().replace(/^0+/, '') : '';
+          const amt = Number(inv.total_amount || inv.extracted_data?.totals?.grandTotal || 0);
+
+          if (displayNum && amt > 0) {
+            const key = `${displayNum}_${amt}`;
+            if (xmlInvoicesMap.has(key)) {
+              pdfDuplicatesToDelete.push(inv.id);
+            }
+          }
+        }
+      });
+
+      if (pdfDuplicatesToDelete.length > 0) {
+        console.log("Dọn dẹp hóa đơn PDF trùng lặp từ Supabase:", pdfDuplicatesToDelete);
+        supabase.from('invoices').delete().in('id', pdfDuplicatesToDelete).then(({ error: delErr }) => {
+          if (delErr) console.error("Lỗi dọn dẹp hóa đơn PDF trùng lặp:", delErr.message);
+        });
+      }
+
+      const filteredList = rawList.filter(inv => !pdfDuplicatesToDelete.includes(inv.id));
+
+      setInvoices(filteredList.map(inv => {
         const rawExtData = inv.extracted_data;
         const extractedData = rawExtData ? { ...rawExtData } : undefined;
         if (extractedData) {
@@ -9951,16 +10043,21 @@ export default function App() {
   };
 
   const getInvoiceCategory = (inv: Invoice) => {
-    if (inv.category) return inv.category;
-    const data = inv.extractedData || {};
-    const r = data.classification;
+    const r = inv.category || inv.extractedData?.classification;
     if (!r) return null;
     const t = typeof r === 'object' ? r.type : r;
     switch (t) {
-      case 'BB_VT': return 'Vật tư';
-      case 'BB_CM': return 'Ca máy';
-      case 'BB_TC': return 'Thi công';
-      default: return null;
+      case 'BB_VT':
+      case 'Vật tư':
+        return 'Vật tư';
+      case 'BB_CM':
+      case 'Ca máy':
+        return 'Ca máy';
+      case 'BB_TC':
+      case 'Thi công':
+        return 'Thi công';
+      default:
+        return t;
     }
   };
 
