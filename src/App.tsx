@@ -6956,21 +6956,21 @@ const ContractView = ({
 
         <div className="space-y-1.5 mt-4">
           <div className="font-bold">Điều 4: Phương thức nghiệm thu khối lượng</div>
-          <p className="pl-4 text-xs text-stone-700" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+          <p className="pl-4" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
             {formData['dieu4_content'] || 'Căn cứ vào khối lượng bàn giao vật tư thực tế tại công trình, Bên A và Bên B đo đạc, lập Biên bản xác nhận khối lượng vật tư để làm cơ sở thanh toán.'}
           </p>
         </div>
 
         <div className="space-y-1.5 mt-4">
           <div className="font-bold">Điều 5: Phương thức thanh toán</div>
-          <p className="pl-4 text-xs text-stone-700" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+          <p className="pl-4" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
             {formData['dieu5_content'] || 'Thanh toán bằng chuyển khoản. Căn cứ vào Biên bản xác nhận khối lượng vật tư, Bên B xuất hóa đơn cho bên A và bên A sẽ thanh toán cho bên B 100% giá trị trong vòng 240 ngày kể từ ngày hai bên đối chiếu và xác nhận công nợ.'}
           </p>
         </div>
 
         <div className="space-y-1.5 mt-4">
           <div className="font-bold">Điều 6: Trách nhiệm của các bên</div>
-          <div className="pl-4 space-y-2 text-xs text-stone-700">
+          <div className="pl-4 space-y-2">
             <div>
               <div className="font-bold">6.1. Trách nhiệm của Bên A:</div>
               <p className="pl-4 mt-0.5" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
@@ -7118,21 +7118,21 @@ const ContractView = ({
 
         <div className="space-y-1.5 mt-4 text-left">
           <div className="font-bold">Điều 4: Phương thức nghiệm thu khối lượng</div>
-          <p className="pl-4 text-xs text-stone-700 font-sans" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+          <p className="pl-4" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
             {formData['dieu4_content'] || 'Căn cứ vào khối lượng thực tế thi công tại công trình, Bên A và Bên B đo đạc, lập biên bản xác nhận khối lượng thi công hoàn thiện để làm cơ sở thanh toán.'}
           </p>
         </div>
 
         <div className="space-y-1.5 mt-4 text-left">
           <div className="font-bold">Điều 5: Phương thức thanh toán</div>
-          <p className="pl-4 text-xs text-stone-700 font-sans" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+          <p className="pl-4" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
             {formData['dieu5_content'] || 'Thanh toán bằng chuyển khoản. Căn cứ vào Biên bản xác nhận khối lượng thi công, Bên B xuất hóa đơn cho bên A và bên A sẽ thanh toán cho bên B 100% giá trị trong vòng 240 ngày kể từ ngày hai bên đối chiếu và xác nhận công nợ.'}
           </p>
         </div>
 
         <div className="space-y-1.5 mt-4 text-left">
           <div className="font-bold">Điều 6: Trách nhiệm của các bên</div>
-          <div className="pl-4 space-y-2 text-xs text-stone-700 font-sans">
+          <div className="pl-4 space-y-2">
             <div>
               <div className="font-bold">6.1. Trách nhiệm của Bên A:</div>
               <p className="pl-4 mt-0.5" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
@@ -7264,21 +7264,21 @@ const ContractView = ({
 
         <div className="space-y-1.5 mt-4 text-left">
           <div className="font-bold">Điều 4: Phương thức nghiệm thu khối lượng</div>
-          <p className="pl-4 text-xs text-stone-700 font-sans" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+          <p className="pl-4" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
             {formData['dieu4_content'] || 'Căn cứ vào khối lượng thực tế thi công tại công trình, Bên A và Bên B đo đạc, lập Biên bản xác nhận ca máy để làm cơ sở thanh toán.'}
           </p>
         </div>
 
         <div className="space-y-1.5 mt-4 text-left">
           <div className="font-bold">Điều 5: Phương thức thanh toán</div>
-          <p className="pl-4 text-xs text-stone-700 font-sans" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+          <p className="pl-4" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
             {formData['dieu5_content'] || 'Thanh toán bằng chuyển khoản. Căn cứ vào Biên bản xác nhận ca máy, Bên B xuất hóa đơn cho bên A và bên A sẽ thanh toán cho bên B 100% giá trị trong vòng 240 ngày kể từ ngày hai bên đối chiếu và xác nhận công nợ.'}
           </p>
         </div>
 
         <div className="space-y-1.5 mt-4 text-left">
           <div className="font-bold">Điều 6: Trách nhiệm của các bên</div>
-          <div className="pl-4 space-y-2 text-xs text-stone-700 font-sans">
+          <div className="pl-4 space-y-2">
             <div>
               <div className="font-bold">6.1. Trách nhiệm của Bên A:</div>
               <p className="pl-4 mt-0.5" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
