@@ -6508,8 +6508,8 @@ const generateDocxBlobForContract = async (
   const zip = new PizZip(buffer);
   let rawXml = zip.file("word/document.xml")?.asText() || "";
 
-  // Expand multiline tags into separate styled XML paragraphs for HDNT template
-  if (templateId === 'HDNT') {
+  // Expand multiline tags into separate styled XML paragraphs for HDNT, HDTC, and HDCM templates
+  if (templateId === 'HDNT' || templateId === 'HDTC' || templateId === 'HDCM') {
     const generateRandomHexId = () => {
       return Math.floor(Math.random() * 0x100000000).toString(16).padStart(8, '0').toUpperCase();
     };
@@ -7116,44 +7116,34 @@ const ContractView = ({
           <p className="pl-4">- Thời gian thực hiện: kể từ ký hợp đồng.</p>
         </div>
 
-        <div className="space-y-1.5 mt-4">
+        <div className="space-y-1.5 mt-4 text-left">
           <div className="font-bold">Điều 4: Phương thức nghiệm thu khối lượng</div>
-          <p className="pl-4">
-            Căn cứ vào khối lượng thực tế thi công tại công trình, Bên A và Bên B đo đạc, lập biên bản xác nhận khối lượng thi công hoàn thiện để làm cơ sở thanh toán.
+          <p className="pl-4 text-xs text-stone-700 font-sans" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+            {formData['dieu4_content'] || 'Căn cứ vào khối lượng thực tế thi công tại công trình, Bên A và Bên B đo đạc, lập biên bản xác nhận khối lượng thi công hoàn thiện để làm cơ sở thanh toán.'}
           </p>
         </div>
 
-        <div className="space-y-1.5 mt-4">
+        <div className="space-y-1.5 mt-4 text-left">
           <div className="font-bold">Điều 5: Phương thức thanh toán</div>
-          <p className="pl-4">
-            Thanh toán bằng chuyển khoản. Căn cứ vào Biên bản xác nhận khối lượng thi công, Bên B xuất hóa đơn cho bên A và bên A sẽ thanh toán cho bên B 100% giá trị trong vòng 240 ngày kể từ ngày hai bên đối chiếu và xác nhận công nợ.
+          <p className="pl-4 text-xs text-stone-700 font-sans" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+            {formData['dieu5_content'] || 'Thanh toán bằng chuyển khoản. Căn cứ vào Biên bản xác nhận khối lượng thi công, Bên B xuất hóa đơn cho bên A và bên A sẽ thanh toán cho bên B 100% giá trị trong vòng 240 ngày kể từ ngày hai bên đối chiếu và xác nhận công nợ.'}
           </p>
         </div>
 
-        <div className="space-y-1.5 mt-4">
+        <div className="space-y-1.5 mt-4 text-left">
           <div className="font-bold">Điều 6: Trách nhiệm của các bên</div>
-          <div className="pl-4 space-y-2">
+          <div className="pl-4 space-y-2 text-xs text-stone-700 font-sans">
             <div>
-              <div className="font-bold text-xs">6.1. Trách nhiệm của Bên A:</div>
-              <ul className="list-disc pl-4 space-y-0.5 text-xs text-stone-700">
-                <li>Giám sát công tác kỹ thuật, chất lượng công trình và tiến độ thi công đối với bên B. Đôn đốc bên B thi công và nghiệm thu đúng quy trình quy phạm và bản vẽ thiết kế thi công đã được phê duyệt;</li>
-                <li>Thanh toán đầy đủ theo đơn giá của bên B và đúng thời gian cho bên B;</li>
-                <li>Phối hợp nhận bàn giao mặt bằng công trình đã giải tỏa và bàn giao lại cho bên B;</li>
-                <li>Xác lập lập Biên bản xác nhận khối lượng thi công thực tế để làm cơ sở thanh toán.</li>
-                <li>Thanh toán kinh phí cho bên B như Điều 5.</li>
-              </ul>
+              <div className="font-bold">6.1. Trách nhiệm của Bên A:</div>
+              <p className="pl-4 mt-0.5" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                {formData['dieu6_a_content'] || `- Giám sát công tác kỹ thuật, chất lượng công trình và tiến độ thi công đối với bên B. Đôn đốc bên B thi công và nghiệm thu đúng quy trình quy phạm và bản vẽ thiết kế thi công đã được phê duyệt;\n- Thanh toán đầy đủ theo đơn giá của bên B và đúng thời gian cho bên B;\n- Phối hợp nhận bàn giao mặt bằng công trình đã giải tỏa và bàn giao lại cho bên B;\n- Xác lập lập Biên bản xác nhận khối lượng thi công thực tế để làm cơ sở thanh toán.\n- Thanh toán kinh phí cho bên B như Điều 5.`}
+              </p>
             </div>
-            <div>
-              <div className="font-bold text-xs">6.2. Trách nhiệm của Bên B:</div>
-              <ul className="list-disc pl-4 space-y-0.5 text-xs text-stone-700">
-                <li>Lập tiến độ và phương án tổ chức thi công gửi bên A sau 07 ngày để bên A theo dõi kiểm tra trong thi công;</li>
-                <li>Phối hợp cùng bên A nhận bàn giao mặt bằng thi công, quản lý thống nhất mặt bằng thi công sau khi được bàn giao;</li>
-                <li>Thi công theo đúng Hồ sơ thiết kế, chất lượng đúng quy trình quy phạm hiện hành;</li>
-                <li>Trong quá trình thi công phải đảm bảo vệ sinh môi trường chung, các vật liệu thừa phải thu dọn vận chuyển ngay đi nơi khác theo chỉ dẫn của tư vấn giám sát;</li>
-                <li>Chịu trách nhiệm về an toàn lao động, phòng chống cháy nổ, đảm bảo giao thông, an toàn giao thông trong suốt quá trình thi công tại công trường. Nếu để xảy ra sự cố bên B phải chịu xử lý theo luật định;</li>
-                <li>Cùng bên B lập Biên bản xác nhận khối lượng thi công thực tế để làm cơ sở thanh toán và thanh lý hợp đồng.</li>
-                <li>Xuất hóa đơn thuế GTGT cho bên A.</li>
-              </ul>
+            <div className="mt-2">
+              <div className="font-bold">6.2. Trách nhiệm của Bên B:</div>
+              <p className="pl-4 mt-0.5" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                {formData['dieu6_b_content'] || `- Lập tiến độ và phương án tổ chức thi công gửi bên A sau 07 ngày để bên A theo dõi kiểm tra trong thi công;\n- Phối hợp cùng bên A nhận bàn giao mặt bằng thi công, quản lý thống nhất mặt bằng thi công sau khi được bàn giao;\n- Thi công theo đúng Hồ sơ thiết kế, chất lượng đúng quy trình quy phạm hiện hành;\n- Trong quá trình thi công phải đảm bảo vệ sinh môi trường chung, các vật liệu thừa phải thu dọn vận chuyển ngay đi nơi khác theo chỉ dẫn của tư vấn giám sát;\n- Chịu trách nhiệm về an toàn lao động, phòng chống cháy nổ, đảm bảo giao thông, an toàn giao thông trong suốt quá trình thi công tại công trường. Nếu để xảy ra sự cố bên B phải chịu xử lý theo luật định;\n- Cùng bên B lập Biên bản xác nhận khối lượng thi công thực tế để làm cơ sở thanh toán và thanh lý hợp đồng.\n- Xuất hóa đơn thuế GTGT cho bên A.`}
+              </p>
             </div>
           </div>
         </div>
@@ -7272,45 +7262,34 @@ const ContractView = ({
           <p className="pl-4">- Thời gian thực hiện: kể từ ký hợp đồng.</p>
         </div>
 
-        <div className="space-y-1.5 mt-4">
+        <div className="space-y-1.5 mt-4 text-left">
           <div className="font-bold">Điều 4: Phương thức nghiệm thu khối lượng</div>
-          <p className="pl-4">
-            Căn cứ vào khối lượng thực tế thi công tại công trình, Bên A và Bên B đo đạc, lập Biên bản xác nhận ca máy để làm cơ sở thanh toán.
+          <p className="pl-4 text-xs text-stone-700 font-sans" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+            {formData['dieu4_content'] || 'Căn cứ vào khối lượng thực tế thi công tại công trình, Bên A và Bên B đo đạc, lập Biên bản xác nhận ca máy để làm cơ sở thanh toán.'}
           </p>
         </div>
 
-        <div className="space-y-1.5 mt-4">
+        <div className="space-y-1.5 mt-4 text-left">
           <div className="font-bold">Điều 5: Phương thức thanh toán</div>
-          <p className="pl-4">
-            Thanh toán bằng chuyển khoản. Căn cứ vào Biên bản xác nhận ca máy, Bên B xuất hóa đơn cho bên A và bên A sẽ thanh toán cho bên B 100% giá trị trong vòng 240 ngày kể từ ngày hai bên đối chiếu và xác nhận công nợ.
+          <p className="pl-4 text-xs text-stone-700 font-sans" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+            {formData['dieu5_content'] || 'Thanh toán bằng chuyển khoản. Căn cứ vào Biên bản xác nhận ca máy, Bên B xuất hóa đơn cho bên A và bên A sẽ thanh toán cho bên B 100% giá trị trong vòng 240 ngày kể từ ngày hai bên đối chiếu và xác nhận công nợ.'}
           </p>
         </div>
 
-        <div className="space-y-1.5 mt-4">
+        <div className="space-y-1.5 mt-4 text-left">
           <div className="font-bold">Điều 6: Trách nhiệm của các bên</div>
-          <div className="pl-4 space-y-2">
+          <div className="pl-4 space-y-2 text-xs text-stone-700 font-sans">
             <div>
-              <div className="font-bold text-xs">6.1. Trách nhiệm của Bên A:</div>
-              <ul className="list-disc pl-4 space-y-0.5 text-xs text-stone-700">
-                <li>Bố trí mặt bằng, địa hình tốt để máy hoạt động đảm bảo an toàn.</li>
-                <li>Sắp xếp lịch làm việc hợp lý để đảm bảo sức khỏe thợ lái máy.</li>
-                <li>Thanh toán tiền thuê máy đúng hạn và tuân thủ các điều khoản của hợp đồng.</li>
-                <li>Xác lập lập Biên bản xác nhận ca máy thực tế để làm cơ sở thanh toán.</li>
-                <li>Cam kết sử dụng máy đúng mục đích thuê.</li>
-                <li>Thanh toán kinh phí cho bên B như Điều 5.</li>
-              </ul>
+              <div className="font-bold">6.1. Trách nhiệm của Bên A:</div>
+              <p className="pl-4 mt-0.5" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                {formData['dieu6_a_content'] || `- Bố trí mặt bằng, địa hình tốt để máy hoạt động đảm bảo an toàn.\n- Sắp xếp lịch làm việc hợp lý để đảm bảo sức khỏe thợ lái máy.\n- Thanh toán tiền thuê máy đúng hạn và tuân thủ các điều khoản của hợp đồng.\n- Xác lập lập Biên bản xác nhận ca máy thực tế để làm cơ sở thanh toán.\n- Cam kết sử dụng máy đúng mục đích thuê.\n- Thanh toán kinh phí cho bên B như Điều 5.`}
+              </p>
             </div>
-            <div>
-              <div className="font-bold text-xs">6.2. Trách nhiệm của Bên B:</div>
-              <ul className="list-disc pl-4 space-y-0.5 text-xs text-stone-700">
-                <li>Thiết bị đưa tới công trường phải trong điều kiện hoạt động bình thường tại mọi chế độ.</li>
-                <li>Thợ vận hành máy phải luôn có mặt tại công trường trong giờ làm việc.</li>
-                <li>Đảm bảo máy luôn vận hành tốt. Nếu do lỗi thiết bị, máy phải ngừng hoạt động trên 30 phút thì bên A có trách nhiệm làm bù giờ cho những giờ máy ngừng hoạt động.</li>
-                <li>Đảm bảo tính hợp pháp của thiết bị khi các cơ quan có trách nhiệm kiểm tra.</li>
-                <li>Tuyệt đối tuân thủ và tự chịu trách nhiệm về an toàn lao động trong quá trình vận hành máy tại công trường.</li>
-                <li>Cùng bên B lập Biên bản xác nhận ca máy thực tế để làm cơ sở thanh toán và thanh lý hợp đồng.</li>
-                <li>Xuất hóa đơn thuế GTGT cho bên A.</li>
-              </ul>
+            <div className="mt-2">
+              <div className="font-bold">6.2. Trách nhiệm của Bên B:</div>
+              <p className="pl-4 mt-0.5" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                {formData['dieu6_b_content'] || `- Thiết bị đưa tới công trường phải trong điều kiện hoạt động bình thường tại mọi chế độ.\n- Thợ vận hành máy phải luôn có mặt tại công trường trong giờ làm việc.\n- Đảm bảo máy luôn vận hành tốt. Nếu do lỗi thiết bị, máy phải ngừng hoạt động trên 30 phút thì bên A có trách nhiệm làm bù giờ cho những giờ máy ngừng hoạt động.\n- Đảm bảo tính hợp pháp của thiết bị khi các cơ quan có trách nhiệm kiểm tra.\n- Tuyệt đối tuân thủ và tự chịu trách nhiệm về an toàn lao động trong quá trình vận hành máy tại công trường.\n- Cùng bên B lập Biên bản xác nhận ca máy thực tế để làm cơ sở thanh toán và thanh lý hợp đồng.\n- Xuất hóa đơn thuế GTGT cho bên A.`}
+              </p>
             </div>
           </div>
         </div>
@@ -7658,7 +7637,7 @@ const ContractView = ({
           if (next[tag] === undefined) next[tag] = '';
         });
 
-        // Initialize default clauses for Hợp đồng Nguyên tắc (HDNT)
+        // Initialize default clauses for Hợp đồng Nguyên tắc (HDNT), Hợp đồng Thi Công (HDTC), Hợp đồng Ca Máy (HDCM)
         if (templateId === 'HDNT') {
           if (!next['dieu4_content']) {
             next['dieu4_content'] = 'Căn cứ vào khối lượng bàn giao vật tư thực tế tại công trình, Bên A và Bên B đo đạc, lập Biên bản xác nhận khối lượng vật tư để làm cơ sở thanh toán.';
@@ -7671,6 +7650,32 @@ const ContractView = ({
           }
           if (!next['dieu6_b_content']) {
             next['dieu6_b_content'] = '- Bảo đảm cung ứng đầy đủ cho bên A theo đúng đơn giá đã công bố;\n- Vận chuyển hàng hoá bảo đảm, an toàn đến giao tận địa chỉ đã đăng ký của bên A;\n- Cùng bên B lập Biên bản xác nhận khối lượng vật tư thực tế để làm cơ sở thanh toán và thanh lý hợp đồng.\n- Xuất hóa đơn thuế GTGT cho bên A.';
+          }
+        } else if (templateId === 'HDTC') {
+          if (!next['dieu4_content']) {
+            next['dieu4_content'] = 'Căn cứ vào khối lượng thực tế thi công tại công trình, Bên A và Bên B đo đạc, lập biên bản xác nhận khối lượng thi công hoàn thiện để làm cơ sở thanh toán.';
+          }
+          if (!next['dieu5_content']) {
+            next['dieu5_content'] = 'Thanh toán bằng chuyển khoản. Căn cứ vào Biên bản xác nhận khối lượng thi công, Bên B xuất hóa đơn cho bên A và bên A sẽ thanh toán cho bên B 100% giá trị trong vòng 240 ngày kể từ ngày hai bên đối chiếu và xác nhận công nợ.';
+          }
+          if (!next['dieu6_a_content']) {
+            next['dieu6_a_content'] = '- Giám sát công tác kỹ thuật, chất lượng công trình và tiến độ thi công đối với bên B. Đôn đốc bên B thi công và nghiệm thu đúng quy trình quy phạm và bản vẽ thiết kế thi công đã được phê duyệt;\n- Thanh toán đầy đủ theo đơn giá của bên B và đúng thời gian cho bên B;\n- Phối hợp nhận bàn giao mặt bằng công trình đã giải tỏa và bàn giao lại cho bên B;\n- Xác lập lập Biên bản xác nhận khối lượng thi công thực tế để làm cơ sở thanh toán.\n- Thanh toán kinh phí cho bên B như Điều 5.';
+          }
+          if (!next['dieu6_b_content']) {
+            next['dieu6_b_content'] = '- Lập tiến độ và phương án tổ chức thi công gửi bên A sau 07 ngày để bên A theo dõi kiểm tra trong thi công;\n- Phối hợp cùng bên A nhận bàn giao mặt bằng thi công, quản lý thống nhất mặt bằng thi công sau khi được bàn giao;\n- Thi công theo đúng Hồ sơ thiết kế, chất lượng đúng quy trình quy phạm hiện hành;\n- Trong quá trình thi công phải đảm bảo vệ sinh môi trường chung, các vật liệu thừa phải thu dọn vận chuyển ngay đi nơi khác theo chỉ dẫn của tư vấn giám sát;\n- Chịu trách nhiệm về an toàn lao động, phòng chống cháy nổ, đảm bảo giao thông, an toàn giao thông trong suốt quá trình thi công tại công trường. Nếu để xảy ra sự cố bên B phải chịu xử lý theo luật định;\n- Cùng bên B lập Biên bản xác nhận khối lượng thi công thực tế để làm cơ sở thanh toán và thanh lý hợp đồng.\n- Xuất hóa đơn thuế GTGT cho bên A.';
+          }
+        } else if (templateId === 'HDCM') {
+          if (!next['dieu4_content']) {
+            next['dieu4_content'] = 'Căn cứ vào khối lượng thực tế thi công tại công trình, Bên A và Bên B đo đạc, lập Biên bản xác nhận ca máy để làm cơ sở thanh toán.';
+          }
+          if (!next['dieu5_content']) {
+            next['dieu5_content'] = 'Thanh toán bằng chuyển khoản. Căn cứ vào Biên bản xác nhận ca máy, Bên B xuất hóa đơn cho bên A và bên A sẽ thanh toán cho bên B 100% giá trị trong vòng 240 ngày kể từ ngày hai bên đối chiếu và xác nhận công nợ.';
+          }
+          if (!next['dieu6_a_content']) {
+            next['dieu6_a_content'] = '- Bố trí mặt bằng, địa hình tốt để máy hoạt động đảm bảo an toàn.\n- Sắp xếp lịch làm việc hợp lý để đảm bảo sức khỏe thợ lái máy.\n- Thanh toán tiền thuê máy đúng hạn và tuân thủ các điều khoản của hợp đồng.\n- Xác lập lập Biên bản xác nhận ca máy thực tế để làm cơ sở thanh toán.\n- Cam kết sử dụng máy đúng mục đích thuê.\n- Thanh toán kinh phí cho bên B như Điều 5.';
+          }
+          if (!next['dieu6_b_content']) {
+            next['dieu6_b_content'] = '- Thiết bị đưa tới công trường phải trong điều kiện hoạt động bình thường tại mọi chế độ.\n- Thợ vận hành máy phải luôn có mặt tại công trường trong giờ làm việc.\n- Đảm bảo máy luôn vận hành tốt. Nếu do lỗi thiết bị, máy phải ngừng hoạt động trên 30 phút thì bên A có trách nhiệm làm bù giờ cho những giờ máy ngừng hoạt động.\n- Đảm bảo tính hợp pháp của thiết bị khi các cơ quan có trách nhiệm kiểm tra.\n- Tuyệt đối tuân thủ và tự chịu trách nhiệm về an toàn lao động trong quá trình vận hành máy tại công trường.\n- Cùng bên B lập Biên bản xác nhận ca máy thực tế để làm cơ sở thanh toán và thanh lý hợp đồng.\n- Xuất hóa đơn thuế GTGT cho bên A.';
           }
         }
         return next;
@@ -8242,11 +8247,11 @@ const ContractView = ({
                   </div>
                 )}
 
-                {selectedTemplate === 'HDNT' && (
+                {(selectedTemplate === 'HDNT' || selectedTemplate === 'HDTC' || selectedTemplate === 'HDCM') && (
                   <div className="pt-3 border-t border-border-dark space-y-3 text-left">
                     <h4 className="text-[10px] font-black uppercase text-white tracking-wider flex items-center gap-1.5 justify-start">
                       <PenTool className="size-3.5 text-primary" />
-                      Hiệu Chỉnh Điều Khoản HĐNT
+                      Hiệu Chỉnh Điều Khoản {selectedTemplate === 'HDNT' ? 'HĐNT' : selectedTemplate === 'HDTC' ? 'HĐTC' : 'HĐCM'}
                     </h4>
                     
                     <div className="space-y-3">
