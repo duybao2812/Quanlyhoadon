@@ -359,6 +359,11 @@ const Sidebar = ({
               <Users className="size-5 shrink-0" />
               {isExpanded && <span className="ml-2">Đăng nhập</span>}
             </button>
+            {isExpanded && (
+              <p className="text-[9px] text-text-dim text-center px-1 mb-4 leading-normal opacity-50 select-none">
+                *Nếu gặp lỗi, vui lòng cho phép cửa sổ bật lên (Popups) trên trình duyệt.
+              </p>
+            )}
             {!isExpanded && (
               <div className="absolute left-full ml-4 px-3 py-2 bg-sidebar-dark text-white text-xs font-bold rounded-lg shadow-xl opacity-0 group-hover/login:opacity-100 pointer-events-none transition-all duration-200 translate-x-2 group-hover/login:translate-x-0 z-[100] whitespace-nowrap border border-border-dark">
                 Đăng nhập Google
