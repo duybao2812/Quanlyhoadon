@@ -244,7 +244,7 @@ const Sidebar = ({
       transition={{ duration: 0.15, ease: "easeOut" }}
       onMouseEnter={() => !isPinned && setIsHovered(true)}
       onMouseLeave={() => !isPinned && setIsHovered(false)}
-      className="bg-sidebar-dark text-text-dim flex flex-col h-full shrink-0 relative z-50 shadow-2xl transition-width duration-150 border-r border-border-dark"
+      className="hidden md:flex bg-sidebar-dark text-text-dim flex-col h-full shrink-0 relative z-50 shadow-2xl transition-width duration-150 border-r border-border-dark"
     >
       <button
         onClick={(e) => {
@@ -778,38 +778,40 @@ const ReviewModal = ({
               </div>
             </div>
             <div className="border border-border-dark rounded-[24px] overflow-hidden shadow-2xl bg-sidebar-dark">
-              <table className="w-full text-base">
-                <thead className="bg-white/5 border-b border-border-dark">
-                  <tr className="text-text-dim font-black uppercase tracking-[0.15em]">
-                    <th className="p-4 text-center w-12 text-[10px]">Stt</th>
-                    <th className="p-4 text-left text-[10px]">Nội dung hàng hóa / dịch vụ</th>
-                    <th className="p-4 w-24 text-center text-[10px]">ĐVT</th>
-                    <th className="p-4 w-24 text-center text-[10px]">SL</th>
-                    <th className="p-4 w-32 text-right text-[10px]">Đơn giá</th>
-                    <th className="p-4 w-40 text-right text-[10px]">Thành tiền</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-dark">
-                  {(edited.items || []).map((item: any, idx: number) => (
-                    <tr key={item.id || `item-${idx}-${item.description || ''}`} className="hover:bg-white/5 transition-colors group">
-                      <td className="p-4 text-center text-text-dim font-black opacity-40">{idx + 1}</td>
-                      <td className="p-4 whitespace-normal break-words text-white leading-relaxed min-w-[250px] font-bold">
-                        {item.description || item.name || ''}
-                      </td>
-                      <td className="p-4 text-center text-text-dim font-bold">{item.unit || '-'}</td>
-                      <td className="p-4 text-center text-text-dim font-black italic">
-                        {item.quantity && item.quantity !== 0 ? formatVNNumber(item.quantity) : ''}
-                      </td>
-                      <td className="p-4 text-right text-text-dim font-bold">
-                        {item.unitPrice && item.unitPrice !== 0 ? formatVNNumber(item.unitPrice) : ''}
-                      </td>
-                      <td className="p-4 text-right font-black text-primary bg-primary/5">
-                        {formatVNNumber(item.amount || item.total)}
-                      </td>
+              <div className="overflow-x-auto custom-scrollbar">
+                <table className="w-full text-base min-w-[800px]">
+                  <thead className="bg-white/5 border-b border-border-dark">
+                    <tr className="text-text-dim font-black uppercase tracking-[0.15em]">
+                      <th className="p-4 text-center w-12 text-[10px]">Stt</th>
+                      <th className="p-4 text-left text-[10px]">Nội dung hàng hóa / dịch vụ</th>
+                      <th className="p-4 w-24 text-center text-[10px]">ĐVT</th>
+                      <th className="p-4 w-24 text-center text-[10px]">SL</th>
+                      <th className="p-4 w-32 text-right text-[10px]">Đơn giá</th>
+                      <th className="p-4 w-40 text-right text-[10px]">Thành tiền</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-border-dark">
+                    {(edited.items || []).map((item: any, idx: number) => (
+                      <tr key={item.id || `item-${idx}-${item.description || ''}`} className="hover:bg-white/5 transition-colors group">
+                        <td className="p-4 text-center text-text-dim font-black opacity-40">{idx + 1}</td>
+                        <td className="p-4 whitespace-normal break-words text-white leading-relaxed min-w-[250px] font-bold">
+                          {item.description || item.name || ''}
+                        </td>
+                        <td className="p-4 text-center text-text-dim font-bold">{item.unit || '-'}</td>
+                        <td className="p-4 text-center text-text-dim font-black italic">
+                          {item.quantity && item.quantity !== 0 ? formatVNNumber(item.quantity) : ''}
+                        </td>
+                        <td className="p-4 text-right text-text-dim font-bold">
+                          {item.unitPrice && item.unitPrice !== 0 ? formatVNNumber(item.unitPrice) : ''}
+                        </td>
+                        <td className="p-4 text-right font-black text-primary bg-primary/5">
+                          {formatVNNumber(item.amount || item.total)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
           </section>
@@ -8667,7 +8669,7 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
 
       <div className="card overflow-hidden shadow-[0_30px_100px_rgba(0,0,0,0.4)] border border-white/10 bg-card-dark/80 backdrop-blur-xl rounded-[40px]">
         <div className="overflow-x-auto custom-scrollbar">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[1100px]">
             <thead>
               <tr className="bg-white/5 border-b border-white/10">
                 <th className="px-8 py-6 text-[11px] font-black text-primary uppercase tracking-[0.25em] w-[22%]">
@@ -9551,6 +9553,40 @@ export default function App() {
     showExitConfirm: boolean;
   } | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [showMoreSheet, setShowMoreSheet] = useState(false);
+
+  const handleLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+
+    try {
+      console.log("[DEBUG] Attempting Google Sign-In with Popup...");
+      await signInWithPopup(auth, provider);
+      console.log("[DEBUG] Google Popup Sign-In successful!");
+    } catch (error: any) {
+      if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
+        console.warn("[DEBUG] Popup blocked or cancelled. Falling back to Redirect...");
+        try {
+          await signInWithRedirect(auth, provider);
+        } catch (redirectErr: any) {
+          console.error("[DEBUG] Google Redirect Sign-In error:", redirectErr);
+          toast(`Lỗi đăng nhập: ${redirectErr.message}`, "error");
+        }
+      } else {
+        console.error("[DEBUG] Google Popup Sign-In error:", error);
+        toast(`Lỗi đăng nhập: ${error.message}`, "error");
+      }
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
+
   const [isLoadingInvoices, setIsLoadingInvoices] = useState(true);
   const [isExportingExcel, setIsExportingExcel] = useState(false);
   const [isSyncingDrive, setIsSyncingDrive] = useState(false);
@@ -11861,7 +11897,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
           </div>
         </header>
 
-        <div className="flex-1 p-4 overflow-y-auto">
+        <div className="flex-1 p-4 md:p-6 overflow-y-auto pb-24 md:pb-6">
           <div className="h-full">
             {activeTab === 'dashboard' && !selectedInvoice && (
               <DashboardView
@@ -12197,7 +12233,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
           </div>
         </div>
 
-        <footer className="h-10 bg-sidebar-dark border-t border-border-dark px-6 flex items-center justify-between text-[10px] uppercase font-bold tracking-widest text-text-dim">
+        <footer className="hidden md:flex h-10 bg-sidebar-dark border-t border-border-dark px-6 items-center justify-between text-[10px] uppercase font-bold tracking-widest text-text-dim">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
               <div className={`size-2 rounded-full ${isLoadingInvoices || isProcessing ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500'}`}></div>
@@ -12220,6 +12256,168 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
         </footer>
       </main>
 
+      {/* Mobile Bottom Navigation Bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-sidebar-dark/95 backdrop-blur-md border-t border-border-dark flex items-center justify-around z-40 pb-safe shadow-[0_-4px_24px_rgba(0,0,0,0.4)]">
+        <button
+          onClick={() => handleTabChange('dashboard')}
+          className={cn(
+            "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors text-[10px] font-black uppercase tracking-wider",
+            activeTab === 'dashboard' ? "text-primary" : "text-text-dim hover:text-white"
+          )}
+        >
+          <LayoutDashboard className="size-5" />
+          <span>Tổng quan</span>
+        </button>
+        <button
+          onClick={() => handleTabChange('upload')}
+          className={cn(
+            "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors text-[10px] font-black uppercase tracking-wider",
+            activeTab === 'upload' ? "text-primary" : "text-text-dim hover:text-white"
+          )}
+        >
+          <UploadCloud className="size-5" />
+          <span>Tải lên</span>
+        </button>
+        <button
+          onClick={() => handleTabChange('partners')}
+          className={cn(
+            "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors text-[10px] font-black uppercase tracking-wider",
+            activeTab === 'partners' ? "text-primary" : "text-text-dim hover:text-white"
+          )}
+        >
+          <Users className="size-5" />
+          <span>Đối tác</span>
+        </button>
+        <button
+          onClick={() => handleTabChange('contract')}
+          className={cn(
+            "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors text-[10px] font-black uppercase tracking-wider",
+            activeTab === 'contract' ? "text-primary" : "text-text-dim hover:text-white"
+          )}
+        >
+          <PlusSquare className="size-5" />
+          <span>Hợp đồng</span>
+        </button>
+        <button
+          onClick={() => setShowMoreSheet(true)}
+          className={cn(
+            "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors text-[10px] font-black uppercase tracking-wider",
+            showMoreSheet ? "text-primary" : "text-text-dim hover:text-white"
+          )}
+        >
+          <MoreVertical className="size-5" />
+          <span>Thêm</span>
+        </button>
+      </div>
+
+      {/* Mobile More Bottom Sheet Drawer */}
+      <AnimatePresence>
+        {showMoreSheet && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowMoreSheet(false)}
+              className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[80]"
+            />
+            {/* Sheet Content */}
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 250 }}
+              className="md:hidden fixed bottom-0 left-0 right-0 rounded-t-[32px] bg-sidebar-dark border-t border-border-dark p-6 pb-8 z-[85] max-h-[80vh] overflow-y-auto flex flex-col gap-6 text-white"
+            >
+              {/* Drag Indicator */}
+              <div className="w-12 h-1.5 bg-border-dark rounded-full mx-auto" onClick={() => setShowMoreSheet(false)} />
+
+              {/* User Profile */}
+              {user ? (
+                <div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-border-dark">
+                  <img
+                    src={user.photoURL || ''}
+                    alt=""
+                    className="size-12 rounded-xl border border-border-dark shadow-lg object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-black truncate">{user.displayName}</div>
+                    <div className="text-[10px] text-text-dim truncate">{user.email}</div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      setShowMoreSheet(false);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 text-xs font-black uppercase tracking-wider transition-colors border border-red-500/20"
+                  >
+                    Đăng xuất
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    handleLogin();
+                    setShowMoreSheet(false);
+                  }}
+                  className="w-full bg-white/10 text-white p-4 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-white/20 transition-all border border-border-dark flex items-center justify-center gap-3 active:scale-95 shadow-lg"
+                >
+                  <Users className="size-5 shrink-0" />
+                  <span>Đăng nhập Google</span>
+                </button>
+              )}
+
+              {/* Secondary Navigation */}
+              <div className="flex flex-col gap-2">
+                <div className="text-[10px] text-text-dim uppercase font-bold tracking-widest px-2 mb-1">Mở rộng</div>
+                <button
+                  onClick={() => {
+                    handleTabChange('docs');
+                    setShowMoreSheet(false);
+                  }}
+                  className={cn(
+                    "flex items-center gap-3.5 p-4 rounded-2xl text-xs font-black uppercase tracking-wider border transition-all",
+                    activeTab === 'docs'
+                      ? "bg-primary/20 text-primary border-primary/30"
+                      : "bg-white/5 text-white border-border-dark hover:bg-white/10"
+                  )}
+                >
+                  <Files className="size-5 shrink-0" />
+                  <span>Tài liệu đã tạo</span>
+                </button>
+                <button
+                  onClick={() => {
+                    handleTabChange('system');
+                    setShowMoreSheet(false);
+                  }}
+                  className={cn(
+                    "flex items-center gap-3.5 p-4 rounded-2xl text-xs font-black uppercase tracking-wider border transition-all",
+                    activeTab === 'system'
+                      ? "bg-primary/20 text-primary border-primary/30"
+                      : "bg-white/5 text-white border-border-dark hover:bg-white/10"
+                  )}
+                >
+                  <Database className="size-5 shrink-0" />
+                  <span>Theo dõi hệ thống</span>
+                </button>
+              </div>
+
+              {/* System Stats Block */}
+              <div className="flex flex-col gap-2">
+                <div className="text-[10px] text-text-dim uppercase font-bold tracking-widest px-2 mb-1">Trạng thái hệ thống</div>
+                <div className="flex items-center gap-3 bg-white/5 p-4 rounded-2xl border border-border-dark text-xs">
+                  <div className={cn("size-2.5 rounded-full animate-pulse shadow-md", user ? "bg-green-500 shadow-green-500/50" : "bg-yellow-500 shadow-yellow-500/50")}></div>
+                  <span className="font-bold text-stone-200">
+                    {user ? "AI Engine: Sẵn sàng hoạt động" : "Đang chờ đăng nhập"}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
       {/* Token Limit Countdown Modal */}
       {isTokenLimited && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
