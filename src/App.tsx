@@ -556,23 +556,25 @@ const ReviewModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-bg-dark/80 backdrop-blur-md p-4">
+    <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-bg-dark/80 backdrop-blur-md p-0 md:p-4">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-card-dark rounded-[32px] border border-border-dark shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden"
+        initial={{ opacity: 0, y: "100%" }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: "100%" }}
+        transition={{ type: "spring", damping: 25, stiffness: 250 }}
+        className="bg-card-dark rounded-t-[32px] md:rounded-[32px] border border-border-dark shadow-2xl w-full max-w-5xl h-[92vh] md:h-auto md:max-h-[90vh] flex flex-col overflow-hidden"
       >
-        <div className="p-8 border-b border-border-dark flex justify-between items-center bg-white/5">
+        <div className="p-5 md:p-8 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] md:pt-8 border-b border-border-dark flex justify-between items-center bg-white/5 shrink-0 select-none">
           <div>
-            <h2 className="text-2xl font-black text-white tracking-tighter uppercase">Kiểm tra kết quả bóc tách</h2>
-            <p className="text-text-dim text-xs font-bold uppercase tracking-widest mt-1">Vui lòng rà soát lại thông tin trước khi lưu vào hệ thống</p>
+            <h2 className="text-xl md:text-2xl font-black text-white tracking-tighter uppercase">Kiểm tra kết quả bóc tách</h2>
+            <p className="text-text-dim text-[10px] md:text-xs font-bold uppercase tracking-widest mt-1">Vui lòng rà soát lại thông tin trước khi lưu vào hệ thống</p>
           </div>
-          <button onClick={onClose} className="size-12 flex items-center justify-center bg-white/5 hover:bg-red-500/20 text-white rounded-2xl transition-all group">
-            <X className="size-6 group-hover:text-red-500" />
+          <button onClick={onClose} className="size-10 md:size-12 flex items-center justify-center bg-white/5 hover:bg-red-500/20 text-white rounded-2xl transition-all group">
+            <X className="size-5 md:size-6 group-hover:text-red-500" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-8 space-y-10">
+        <div className="flex-1 overflow-y-auto p-5 md:p-8 space-y-6 md:space-y-10 custom-scrollbar pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] md:pb-8">
           {/* Thông tin hóa đơn */}
           <section className="space-y-8">
             <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-border-dark">
@@ -840,13 +842,13 @@ const ReviewModal = ({
           </section>
         </div>
 
-        <div className="p-8 border-t border-border-dark bg-white/5 flex justify-end gap-4">
-          <button onClick={onClose} className="btn-secondary px-8">
+        <div className="p-5 md:p-8 border-t border-border-dark bg-white/5 flex justify-end gap-4 shrink-0 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] md:pb-8">
+          <button onClick={onClose} className="btn-secondary px-6 md:px-8 py-3 md:py-4">
             HỦY BỎ
           </button>
           <button
             onClick={() => onSave(edited)}
-            className="btn-primary min-w-[200px]"
+            className="btn-primary min-w-[160px] md:min-w-[200px] py-3 md:py-4"
           >
             <Check className="size-4" />
             LƯU VÀO HỆ THỐNG
@@ -12554,32 +12556,33 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
       {/* Single Partner Edit Modal */}
       <AnimatePresence>
         {editingPartner && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex items-center justify-center p-6">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex items-end md:items-center justify-center p-0 md:p-6">
             <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-card-dark rounded-[48px] shadow-[0_50px_100px_rgba(0,0,0,0.6)] w-full max-w-4xl overflow-hidden border border-white/10 flex flex-col max-h-[95vh]"
+              initial={{ opacity: 0, y: "100%" }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 250 }}
+              className="bg-card-dark rounded-t-[32px] md:rounded-[48px] shadow-[0_50px_100px_rgba(0,0,0,0.6)] w-full max-w-4xl overflow-hidden border border-white/10 flex flex-col h-[92vh] md:h-auto md:max-h-[90vh]"
             >
               {/* Modern Header */}
-              <div className="p-10 border-b border-white/5 flex justify-between items-center bg-white/5 relative overflow-hidden">
+              <div className="p-5 md:p-10 border-b border-white/5 flex justify-between items-center bg-white/5 relative overflow-hidden shrink-0 select-none pt-[calc(1.25rem+env(safe-area-inset-top,0px))] md:pt-10">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-orange-400 to-primary/20" />
-                <div className="flex items-center gap-5 relative z-10">
-                  <div className="size-16 bg-primary/20 text-primary rounded-[24px] flex items-center justify-center border border-primary/30 shadow-2xl">
-                    <Building2 className="size-8" />
+                <div className="flex items-center gap-3 md:gap-5 relative z-10">
+                  <div className="size-10 md:size-16 bg-primary/20 text-primary rounded-xl md:rounded-[24px] flex items-center justify-center border border-primary/30 shadow-2xl shrink-0">
+                    <Building2 className="size-5 md:size-8" />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-black text-white uppercase tracking-widest">{editingPartner.id === 'new' ? 'Khởi tạo đối tác mới' : 'Cập nhật hồ sơ đối tác'}</h3>
-                    <p className="text-text-dim text-xs font-bold uppercase tracking-[0.2em] mt-1.5 opacity-60">Chuẩn hóa dữ liệu hệ thống doanh nghiệp</p>
+                    <h3 className="text-lg md:text-2xl font-black text-white uppercase tracking-widest">{editingPartner.id === 'new' ? 'Khởi tạo đối tác mới' : 'Cập nhật hồ sơ đối tác'}</h3>
+                    <p className="text-text-dim text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] mt-1 md:mt-1.5 opacity-60">Chuẩn hóa dữ liệu hệ thống doanh nghiệp</p>
                   </div>
                 </div>
-                <button type="button" onClick={() => handlePartnerEditSelect(null)} className="size-12 flex items-center justify-center text-text-dim hover:text-white hover:bg-white/10 rounded-2xl transition-all">
-                  <X className="size-6" />
+                <button type="button" onClick={() => handlePartnerEditSelect(null)} className="size-10 md:size-12 flex items-center justify-center text-text-dim hover:text-white hover:bg-white/10 rounded-2xl transition-all shrink-0">
+                  <X className="size-5 md:size-6" />
                 </button>
               </div>
 
               <form
-                className="flex-1 overflow-y-auto p-12 space-y-12 custom-scrollbar"
+                className="flex-1 overflow-y-auto p-5 md:p-12 space-y-6 md:space-y-12 custom-scrollbar pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] md:pb-12"
                 onSubmit={async (e) => {
                   e.preventDefault();
                   const formData = new FormData(e.currentTarget);
@@ -12750,38 +12753,39 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
       {/* Advanced Multi-Partner Edit Modal */}
       <AnimatePresence>
         {multiPartnerEdit && multiPartnerEdit.isOpen && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex items-center justify-center p-6">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex items-end md:items-center justify-center p-0 md:p-6">
             <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 30 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 30 }}
-              className="bg-card-dark rounded-[56px] shadow-[0_60px_150px_rgba(0,0,0,0.7)] w-full max-w-6xl overflow-hidden border border-white/10 flex flex-col max-h-[95vh]"
+              initial={{ opacity: 0, y: "100%" }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 250 }}
+              className="bg-card-dark rounded-t-[32px] md:rounded-[56px] shadow-[0_60px_150px_rgba(0,0,0,0.7)] w-full max-w-6xl overflow-hidden border border-white/10 flex flex-col h-[92vh] md:h-auto md:max-h-[90vh]"
             >
               {/* Premium Batch Header */}
-              <div className="p-10 border-b border-white/5 flex justify-between items-center bg-white/5 relative">
+              <div className="p-5 md:p-10 border-b border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center bg-white/5 relative gap-4 shrink-0 select-none pt-[calc(1.25rem+env(safe-area-inset-top,0px))] md:pt-10">
                 <div className="absolute bottom-0 left-0 h-[2px] bg-primary transition-all duration-500 shadow-[0_0_20px_rgba(249,115,22,0.5)]" style={{ width: `${((multiPartnerEdit.currentIndex + 1) / partners.length) * 100}%` }} />
 
-                <div className="flex items-center gap-6">
-                  <div className="size-16 bg-gradient-to-tr from-primary to-orange-400 text-white rounded-[24px] flex items-center justify-center shadow-2xl">
-                    <Layers className="size-8" />
+                <div className="flex items-center gap-3 md:gap-6">
+                  <div className="size-10 md:size-16 bg-gradient-to-tr from-primary to-orange-400 text-white rounded-xl md:rounded-[24px] flex items-center justify-center shadow-2xl shrink-0">
+                    <Layers className="size-5 md:size-8" />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-black text-white uppercase tracking-widest">Trung tâm chỉnh sửa hàng loạt</h3>
-                    <div className="flex items-center gap-3 mt-2">
-                      <span className="px-3 py-1 bg-primary/20 text-primary border border-primary/30 rounded-lg text-[10px] font-black uppercase tracking-widest">
+                    <h3 className="text-lg md:text-2xl font-black text-white uppercase tracking-widest">Trung tâm chỉnh sửa hàng loạt</h3>
+                    <div className="flex items-center gap-3 mt-1.5 md:mt-2">
+                      <span className="px-2.5 py-0.5 md:px-3 md:py-1 bg-primary/20 text-primary border border-primary/30 rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-widest">
                         Đối tác {multiPartnerEdit.currentIndex + 1} / {partners.length}
                       </span>
-                      <div className="h-1 w-32 bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-1 w-20 md:w-32 bg-white/5 rounded-full overflow-hidden">
                         <div className="h-full bg-primary" style={{ width: `${((multiPartnerEdit.currentIndex + 1) / partners.length) * 100}%` }} />
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="text-right mr-4">
-                    <div className="text-[10px] font-black text-text-dim uppercase tracking-widest mb-1 opacity-60">Tiến độ cập nhật</div>
-                    <div className="text-sm font-black text-white">{Math.round(((multiPartnerEdit.currentIndex + 1) / partners.length) * 100)}% Hoàn tất</div>
+                <div className="flex items-center justify-between w-full md:w-auto gap-4">
+                  <div className="text-left md:text-right mr-0 md:mr-4">
+                    <div className="text-[9px] md:text-[10px] font-black text-text-dim uppercase tracking-widest mb-0.5 opacity-60">Tiến độ cập nhật</div>
+                    <div className="text-xs md:text-sm font-black text-white">{Math.round(((multiPartnerEdit.currentIndex + 1) / partners.length) * 100)}% Hoàn tất</div>
                   </div>
                   <button
                     onClick={() => {
@@ -12792,15 +12796,15 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                         setMultiPartnerEdit(null);
                       }
                     }}
-                    className="size-12 flex items-center justify-center text-text-dim hover:text-white hover:bg-white/10 rounded-2xl transition-all"
+                    className="size-10 md:size-12 flex items-center justify-center text-text-dim hover:text-white hover:bg-white/10 rounded-2xl transition-all shrink-0"
                   >
-                    <X className="size-6" />
+                    <X className="size-5 md:size-6" />
                   </button>
                 </div>
               </div>
 
               {/* Enhanced Batch Content */}
-              <div className="flex-1 overflow-y-auto p-12 custom-scrollbar">
+              <div className="flex-1 overflow-y-auto p-5 md:p-12 custom-scrollbar pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] md:pb-12">
                 {(() => {
                   const currentPartner = partners[multiPartnerEdit.currentIndex];
                   if (!currentPartner) return null;
