@@ -8679,7 +8679,8 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
         )}
       </AnimatePresence>
 
-      <div className="card overflow-hidden shadow-[0_30px_100px_rgba(0,0,0,0.4)] border border-white/10 bg-card-dark/80 backdrop-blur-xl rounded-[40px]">
+      {/* Desktop Table View */}
+      <div className="hidden md:block card overflow-hidden shadow-[0_30px_100px_rgba(0,0,0,0.4)] border border-white/10 bg-card-dark/80 backdrop-blur-xl rounded-[40px]">
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left border-collapse min-w-[1100px]">
             <thead>
@@ -8721,8 +8722,9 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
                 filteredPartners.map((partner) => (
                   <tr
                     key={partner.id}
+                    onClick={() => onEdit(partner)}
                     onContextMenu={(e) => handleContextMenu(e, partner)}
-                    className="hover:bg-primary/5 transition-all duration-300 group relative"
+                    className="cursor-pointer hover:bg-primary/5 transition-all duration-300 group relative"
                   >
                     <td className="px-8 py-8 relative">
                       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -8828,6 +8830,101 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Mobile Card Grid View */}
+      <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-6">
+        {filteredPartners.length === 0 ? (
+          <div className="p-12 text-center bg-card-dark/40 border border-border-dark rounded-3xl opacity-40 col-span-full">
+            <Users className="size-12 mx-auto mb-2 text-white" />
+            <p className="text-[11px] font-black uppercase tracking-wider text-white">Chưa có dữ liệu đối tác</p>
+          </div>
+        ) : (
+          filteredPartners.map((partner) => (
+            <div
+              key={partner.id}
+              onClick={() => onEdit(partner)}
+              className="p-6 rounded-[32px] bg-card-dark border border-white/10 hover:border-primary/50 transition-all duration-300 flex flex-col gap-4 shadow-xl active:scale-[0.98] cursor-pointer group relative overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              
+              {/* Header: Name and Tax Code */}
+              <div className="flex items-start justify-between gap-2 border-b border-white/5 pb-3 relative z-10">
+                <div className="space-y-1 max-w-[75%]">
+                  <div className="font-bold text-white group-hover:text-primary transition-colors text-[15px] tracking-tight leading-snug">
+                    {partner.name}
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-white/5 border border-white/10 rounded-lg">
+                    <Hash className="size-3 text-primary/60" />
+                    <span className="text-[10px] font-black text-text-dim uppercase tracking-wider">MST: {partner.taxCode}</span>
+                  </div>
+                </div>
+                {/* Delete Button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    onDelete(partner.id);
+                  }}
+                  className="size-9 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-md shrink-0 relative z-20"
+                  title="Xóa đối tác"
+                >
+                  <Trash2 className="size-4" />
+                </button>
+              </div>
+
+              {/* Addresses section */}
+              <div className="space-y-3 relative z-10">
+                <div className="flex gap-2">
+                  <div className="shrink-0 size-8 rounded-xl bg-white/5 flex items-center justify-center border border-white/10 mt-0.5">
+                    <History className="size-3.5 text-text-dim" />
+                  </div>
+                  <div className="text-xs text-text-dim leading-relaxed font-medium">
+                    <span className="text-[8px] font-black text-primary/40 uppercase block tracking-widest mb-0.5">Địa chỉ cũ</span>
+                    {partner.address}
+                  </div>
+                </div>
+                {partner.addressPostMerger && (
+                  <div className="flex gap-2 p-3.5 bg-primary/5 rounded-2xl border border-primary/20">
+                    <div className="shrink-0 size-8 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30 mt-0.5">
+                      <MapPin className="size-3.5 text-primary" />
+                    </div>
+                    <div className="text-xs text-primary leading-relaxed font-bold">
+                      <span className="text-[8px] font-black text-primary/60 uppercase block tracking-widest mb-0.5">Địa chỉ mới (2025)</span>
+                      {partner.addressPostMerger}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Bank & Representative details (Grid layout) */}
+              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-white/5 relative z-10">
+                {/* Bank account details */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-[8px] font-black text-text-dim/40 uppercase tracking-widest flex items-center gap-1"><CreditCard className="size-3" /> TK Ngân Hàng</span>
+                  <div className="text-[13px] font-bold text-white truncate">{partner.accountNumber || '---'}</div>
+                  <div className="text-[9px] text-text-dim truncate uppercase font-bold tracking-wider opacity-60">{partner.bankName || '---'}</div>
+                </div>
+                {/* Representative details */}
+                <div className="flex flex-col gap-1 border-l border-white/5 pl-3">
+                  <span className="text-[8px] font-black text-text-dim/40 uppercase tracking-widest flex items-center gap-1"><UserIcon className="size-3" /> Đại Diện</span>
+                  <div className="text-[13px] font-bold text-white truncate">
+                    <span className="text-primary/60 mr-0.5 font-black">
+                      {(() => {
+                        const g = partner.gender?.toLowerCase();
+                        if (g === 'nam' || g === 'm' || g === 'male' || g === 'ông') return 'Ông.';
+                        if (g === 'nữ' || g === 'f' || g === 'female' || g === 'bà') return 'Bà.';
+                        return '';
+                      })()}
+                    </span>
+                    {partner.representative || '---'}
+                  </div>
+                  <div className="text-[9px] text-text-dim truncate uppercase font-bold tracking-wider italic opacity-60">{partner.position || 'Giám đốc'}</div>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Context Menu Thật sự - Được gắn vào body hoặc container riêng để tránh bị cắt bởi table overflow */}
