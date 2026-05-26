@@ -562,7 +562,7 @@ const ReviewModal = ({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: "100%" }}
         transition={{ type: "spring", damping: 25, stiffness: 250 }}
-        className="bg-card-dark rounded-t-[32px] md:rounded-[32px] border border-border-dark shadow-2xl w-full max-w-5xl h-[82vh] md:h-auto md:max-h-[90vh] flex flex-col overflow-hidden"
+        className="bg-card-dark rounded-t-[32px] md:rounded-[32px] border border-border-dark shadow-2xl w-full max-w-5xl h-[91vh] md:h-auto md:max-h-[90vh] flex flex-col overflow-hidden"
       >
         <div className="p-4 sm:p-5 md:p-8 pt-[calc(1rem+env(safe-area-inset-top,0px))] md:pt-8 border-b border-border-dark flex justify-between items-center bg-white/5 shrink-0 select-none">
           <div>
@@ -8560,56 +8560,61 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
 
   return (
     <div className="space-y-6" onClick={closeContextMenu}>
-      <div className="flex justify-between items-center bg-card-dark p-6 rounded-[24px] border border-border-dark shadow-2xl">
-        <div className="flex items-center gap-4">
-          <div className="size-10 bg-primary/10 rounded-xl flex items-center justify-center">
-            <Users className="size-5 text-primary" />
+      <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center bg-card-dark p-4 sm:p-6 rounded-[28px] border border-border-dark shadow-2xl gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 select-none">
+          <div className="size-8 sm:size-10 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
+            <Users className="size-4 sm:size-5 text-primary" />
           </div>
           <div>
-            <h2 className="text-xl font-black text-white tracking-tighter uppercase">Đối tác & Khách hàng</h2>
-            <div className="text-[10px] font-black text-text-dim uppercase tracking-[0.2em] mt-1">
+            <h2 className="text-base sm:text-xl font-black text-white tracking-tighter uppercase">Đối tác & Khách hàng</h2>
+            <div className="text-[8px] sm:text-[10px] font-black text-text-dim uppercase tracking-[0.2em] mt-0.5 sm:mt-1">
               {partners.length} Công ty liên kết
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Search className="size-4 absolute left-4 top-1/2 -translate-y-1/2 text-text-dim" />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+          <div className="relative w-full sm:w-72 group">
+            <Search className="size-4 absolute left-4 top-1/2 -translate-y-1/2 text-text-dim group-focus-within:text-primary transition-all" />
             <input
               type="text"
               placeholder="Tìm kiếm đối tác..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-11 pr-4 py-2.5 bg-sidebar-dark border border-border-dark rounded-2xl text-sm focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all w-72 text-white placeholder:text-text-dim"
+              className="pl-11 pr-4 py-2.5 bg-sidebar-dark border border-border-dark rounded-2xl text-xs sm:text-sm focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all w-full text-white placeholder:text-text-dim shadow-inner"
             />
           </div>
-          <div className="w-px h-8 bg-border-dark" />
-          <button
-            onClick={() => setShowAddressTool(!showAddressTool)}
-            className={cn(
-              "flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border shadow-sm",
-              showAddressTool
-                ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
-                : "bg-white/5 border-border-dark text-text-dim hover:text-white hover:bg-white/10"
-            )}
-          >
-            <MapPin className="size-4" />
-            AI Address
-          </button>
-          <button
-            onClick={() => onEdit({ id: 'new', name: '', taxCode: '', address: '' })}
-            className="btn-primary"
-          >
-            <Plus className="size-4" />
-            THÊM MỚI
-          </button>
-          <button
-            onClick={onBatchEdit}
-            className="btn-secondary"
-          >
-            <Edit2 className="size-4" />
-            CHỈNH SỬA
-          </button>
+          <div className="hidden sm:block w-px h-8 bg-border-dark" />
+          <div className="grid grid-cols-3 gap-2 w-full sm:w-auto md:flex md:w-auto md:gap-3 items-center shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowAddressTool(!showAddressTool)}
+              className={cn(
+                "flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-2.5 px-2 sm:px-4 rounded-xl sm:rounded-2xl text-[9px] sm:text-xs font-black uppercase tracking-wider transition-all border shadow-sm cursor-pointer select-none active:scale-95 touch-none",
+                showAddressTool
+                  ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
+                  : "bg-white/5 border-border-dark text-text-dim hover:text-white hover:bg-white/10"
+              )}
+            >
+              <MapPin className="size-3.5 sm:size-4 shrink-0" />
+              <span className="truncate">AI Address</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onEdit({ id: 'new', name: '', taxCode: '', address: '' })}
+              className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-2.5 px-2 sm:px-4 rounded-xl sm:rounded-2xl text-[9px] sm:text-xs font-black uppercase tracking-wider bg-primary hover:bg-primary/90 text-white transition-all border border-primary/10 shadow-sm cursor-pointer select-none active:scale-95 touch-none"
+            >
+              <Plus className="size-3.5 sm:size-4 shrink-0" />
+              <span className="truncate">THÊM MỚI</span>
+            </button>
+            <button
+              type="button"
+              onClick={onBatchEdit}
+              className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-2.5 px-2 sm:px-4 rounded-xl sm:rounded-2xl text-[9px] sm:text-xs font-black uppercase tracking-wider bg-white/5 border border-border-dark hover:bg-white/10 text-white transition-all shadow-sm cursor-pointer select-none active:scale-95 touch-none"
+            >
+              <Edit2 className="size-3.5 sm:size-4 shrink-0" />
+              <span className="truncate">CHỈNH SỬA</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -12574,10 +12579,10 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 250 }}
-              className="bg-card-dark rounded-t-[32px] md:rounded-[48px] shadow-[0_50px_100px_rgba(0,0,0,0.6)] w-full max-w-4xl overflow-hidden border border-white/10 flex flex-col h-[82vh] md:h-auto md:max-h-[88vh]"
+              className="bg-card-dark rounded-t-[32px] md:rounded-[48px] shadow-[0_50px_100px_rgba(0,0,0,0.6)] w-full max-w-4xl overflow-hidden border border-white/10 flex flex-col h-[91vh] md:h-auto md:max-h-[88vh]"
             >
               {/* Modern Header */}
-              <div className="p-4 sm:p-5 md:p-10 border-b border-white/5 flex justify-between items-center bg-white/5 relative overflow-hidden shrink-0 select-none pt-[calc(1rem+env(safe-area-inset-top,0px))] md:pt-10">
+              <div className="p-4 sm:p-5 md:p-10 border-b border-white/5 flex justify-between items-center bg-white/5 relative overflow-hidden shrink-0 select-none pt-5 sm:pt-6 md:pt-10">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-orange-400 to-primary/20" />
                 <div className="flex items-center gap-3 md:gap-5 relative z-10">
                   <div className="size-8 md:size-16 bg-primary/20 text-primary rounded-xl md:rounded-[24px] flex items-center justify-center border border-primary/30 shadow-2xl shrink-0">
@@ -12771,10 +12776,10 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 250 }}
-              className="bg-card-dark rounded-t-[32px] md:rounded-[56px] shadow-[0_60px_150px_rgba(0,0,0,0.7)] w-full max-w-6xl overflow-hidden border border-white/10 flex flex-col h-[82vh] md:h-auto md:max-h-[88vh]"
+              className="bg-card-dark rounded-t-[32px] md:rounded-[56px] shadow-[0_60px_150px_rgba(0,0,0,0.7)] w-full max-w-6xl overflow-hidden border border-white/10 flex flex-col h-[91vh] md:h-auto md:max-h-[88vh]"
             >
               {/* Premium Batch Header */}
-              <div className="p-4 sm:p-5 md:p-10 border-b border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center bg-white/5 relative gap-3 sm:gap-4 shrink-0 select-none pt-[calc(1rem+env(safe-area-inset-top,0px))] md:pt-10">
+              <div className="p-4 sm:p-5 md:p-10 border-b border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center bg-white/5 relative gap-3 sm:gap-4 shrink-0 select-none pt-5 sm:pt-6 md:pt-10">
                 <div className="absolute bottom-0 left-0 h-[2px] bg-primary transition-all duration-500 shadow-[0_0_20px_rgba(249,115,22,0.5)]" style={{ width: `${((multiPartnerEdit.currentIndex + 1) / partners.length) * 100}%` }} />
 
                 <div className="flex items-center gap-3 md:gap-6">
@@ -13106,10 +13111,10 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
               initial={{ opacity: 0, y: "100%" }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: "100%" }}
-              className="bg-card-dark w-full max-w-[1240px] h-[82vh] md:h-[90vh] rounded-t-[32px] md:rounded-[40px] shadow-2xl flex flex-col overflow-hidden border border-border-dark"
+              className="bg-card-dark w-full max-w-[1240px] h-[91vh] md:h-[90vh] rounded-t-[32px] md:rounded-[40px] shadow-2xl flex flex-col overflow-hidden border border-border-dark"
             >
               {/* Modal Header */}
-              <div className="p-4 sm:p-6 border-b border-border-dark flex items-center justify-between bg-white/5 relative z-50 shadow-sm shrink-0 pt-[calc(1rem+env(safe-area-inset-top,0px))] md:pt-6">
+              <div className="p-4 sm:p-6 border-b border-border-dark flex items-center justify-between bg-white/5 relative z-50 shadow-sm shrink-0 pt-5 sm:pt-6 md:pt-6">
                 <div className="flex items-center gap-4">
                   <div className="size-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary border border-primary/30 shadow-xl shadow-none">
                     <ShoppingBag className="size-6" />
