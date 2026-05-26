@@ -71,7 +71,7 @@ import { useDropzone } from 'react-dropzone';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import {
-  signInWithPopup,
+  signInWithRedirect,
   GoogleAuthProvider,
   signOut,
   onAuthStateChanged
@@ -210,7 +210,7 @@ const Sidebar = ({
 
     try {
       console.log("Starting Google login...");
-      await signInWithPopup(auth, provider);
+      await signInWithRedirect(auth, provider);
     } catch (error: any) {
       console.error("Login failed:", error);
       toast(`Lỗi đăng nhập: ${error.message}`, "error");
