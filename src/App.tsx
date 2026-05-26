@@ -11052,10 +11052,16 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
       console.log("%c=== DIAGNOSTIC SYSTEM ENDED ===", "color: #ff007f; font-weight: bold; font-size: 14px;");
     };
 
+    console.log("[DEBUG] useEffect auth hook mounted. Firebase auth object:", auth);
+    console.log("[DEBUG] Current Firebase currentUser:", auth.currentUser);
+
     getRedirectResult(auth)
       .then((result) => {
+        console.log("[DEBUG] getRedirectResult successfully completed. Result:", result);
         if (result?.user) {
-          console.log("[DEBUG] Google Redirect Sign-In successful:", result.user.email);
+          console.log("[DEBUG] Google Redirect Sign-In successful. User:", result.user.email);
+        } else {
+          console.log("[DEBUG] getRedirectResult returned null (no redirect payload found in URL/cookies).");
         }
       })
       .catch((error) => {
@@ -11064,6 +11070,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
       });
 
     const unsubAuth = onAuthStateChanged(auth, async (u) => {
+      console.log("[DEBUG] onAuthStateChanged fired. User:", u ? u.email : "null");
       setUser(u);
       if (u) {
         setIsLoadingInvoices(true);
