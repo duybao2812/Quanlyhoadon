@@ -11727,7 +11727,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
   };
 
   const stats = {
-    pending: invoices.filter(i => i.status === 'processing').length,
+    pending: contracts.filter(c => !c.partyAId || !c.partyBId).length,
     partners: partners.length,
     invoices: invoices.length,
     recentInvoices: invoices
