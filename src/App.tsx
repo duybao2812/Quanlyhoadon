@@ -71,6 +71,7 @@ import { useDropzone } from 'react-dropzone';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import {
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
@@ -206,15 +207,25 @@ const Sidebar = ({
 
   const handleLogin = async () => {
     const provider = new GoogleAuthProvider();
-    // Force standard login flow
     provider.setCustomParameters({ prompt: 'select_account' });
 
     try {
-      console.log("Starting Google login...");
-      await signInWithRedirect(auth, provider);
+      console.log("[DEBUG] Attempting Google Sign-In with Popup...");
+      await signInWithPopup(auth, provider);
+      console.log("[DEBUG] Google Popup Sign-In successful!");
     } catch (error: any) {
-      console.error("Login failed:", error);
-      toast(`Lỗi đăng nhập: ${error.message}`, "error");
+      if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
+        console.warn("[DEBUG] Popup blocked or cancelled. Falling back to Redirect...");
+        try {
+          await signInWithRedirect(auth, provider);
+        } catch (redirectErr: any) {
+          console.error("[DEBUG] Google Redirect Sign-In error:", redirectErr);
+          toast(`Lỗi đăng nhập: ${redirectErr.message}`, "error");
+        }
+      } else {
+        console.error("[DEBUG] Google Popup Sign-In error:", error);
+        toast(`Lỗi đăng nhập: ${error.message}`, "error");
+      }
     }
   };
 
