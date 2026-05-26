@@ -52,6 +52,19 @@ const SUGGESTED_ACTIONS = [
 ];
 
 export const AIChatBox: React.FC<AIChatBoxProps> = ({ stats }) => {
+  const [dimensions, setDimensions] = useState({ width: 1200, height: 800 });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setDimensions({ width: window.innerWidth, height: window.innerHeight });
+      const handleResize = () => {
+        setDimensions({ width: window.innerWidth, height: window.innerHeight });
+      };
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+  }, []);
+
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -226,14 +239,23 @@ export const AIChatBox: React.FC<AIChatBoxProps> = ({ stats }) => {
 
   return (
     <>
-      {/* Floating Button */}
+      {/* Floating Button - Draggable */}
       <motion.button
         id="ai-chat-trigger"
+        drag
+        dragConstraints={{
+          left: -dimensions.width + 80,
+          right: 0,
+          top: -dimensions.height + 140,
+          bottom: 0
+        }}
+        dragElastic={0.05}
+        dragMomentum={false}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(true)}
         className={cn(
-          "fixed bottom-6 right-6 p-4 rounded-full shadow-2xl z-50 transition-colors",
+          "fixed bottom-6 right-6 p-4 rounded-full shadow-2xl z-50 transition-colors cursor-grab active:cursor-grabbing select-none touch-none",
           "bg-indigo-600 hover:bg-indigo-700 text-white",
           isOpen && "hidden"
         )}

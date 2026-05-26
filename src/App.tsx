@@ -3749,6 +3749,18 @@ const DashboardView = ({
                   </p>
                 </div>
 
+                {/* Mobile-Only Search Input */}
+                <div className="md:hidden w-full relative group">
+                  <Search className="size-4 absolute left-4 top-1/2 -translate-y-1/2 text-text-dim group-focus-within:text-primary transition-colors" />
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm hóa đơn (PDF & XML)..."
+                    value={fileSearchTerm}
+                    onChange={(e) => setFileSearchTerm(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 bg-black/40 border border-border-dark rounded-2xl text-xs focus:outline-none focus:border-primary/40 focus:ring-4 focus:ring-primary/5 transition-all font-bold text-white placeholder:text-text-dim shadow-inner"
+                  />
+                </div>
+
                 {/* Smart Filter Button & Dropdown */}
                 <div className="relative">
                   <button
@@ -11849,11 +11861,11 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
       />
 
       <main className="flex-1 flex flex-col h-full overflow-hidden">
-        <header className="h-[64px] bg-sidebar-dark border-b border-border-dark flex items-center justify-between px-6 shrink-0 shadow-sm">
+        <header className="h-[calc(64px+env(safe-area-inset-top,0px))] md:h-[64px] pt-[env(safe-area-inset-top,0px)] md:pt-0 bg-sidebar-dark border-b border-border-dark flex items-center justify-between px-4 md:px-6 shrink-0 shadow-sm">
           <div className="flex items-center gap-2 text-text-dim text-sm italic shrink-0">
-            <span>DocuForge AI</span>
-            <span className="text-text-dim/50">/</span>
-            <span className="text-white font-bold not-italic uppercase text-xs">
+            <span className="hidden md:inline">DocuForge AI</span>
+            <span className="hidden md:inline text-text-dim/50">/</span>
+            <span className="text-white font-black not-italic uppercase text-xs bg-white/5 md:bg-transparent px-3 py-1.5 md:p-0 rounded-xl border border-border-dark md:border-transparent tracking-wider">
               {(() => {
                 switch (activeTab) {
                   case 'dashboard': return 'Bảng điều khiển';
@@ -11869,7 +11881,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
 
           {/* Relocated Global Search Bar */}
           {activeTab === 'dashboard' && !selectedInvoice && (
-            <div className="flex-1 max-w-xl mx-8 relative group">
+            <div className="hidden md:block flex-1 max-w-xl mx-8 relative group">
               <Search className="size-4 absolute left-4 top-1/2 -translate-y-1/2 text-text-dim group-focus-within:text-[#FF7A00] transition-colors" />
               <input
                 type="text"
@@ -11881,8 +11893,8 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
             </div>
           )}
 
-          <div className="flex items-center gap-6 shrink-0">
-            <div className="flex items-center bg-white/5 rounded-2xl p-1.5 border border-border-dark gap-1">
+          <div className="flex items-center gap-3 md:gap-6 shrink-0">
+            <div className="hidden md:flex items-center bg-white/5 rounded-2xl p-1.5 border border-border-dark gap-1">
               <button
                 onClick={() => handleTabChange('upload')}
                 className="btn-primary py-3"
@@ -11891,7 +11903,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                 <span>Bắt đầu lượt mới</span>
               </button>
             </div>
-            <div className="size-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-black text-primary shadow-inner">
+            <div className="size-10 md:size-12 rounded-xl md:rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-black text-primary shadow-inner shrink-0">
               {user?.displayName ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : "GA"}
             </div>
           </div>
