@@ -100,7 +100,7 @@ import { SystemMonitorView } from './components/SystemMonitorView';
 
 
 // --- Types ---
-type Tab = 'dashboard' | 'upload' | 'partners' | 'templates' | 'docs' | 'contract' | 'system';
+type Tab = 'dashboard' | 'upload' | 'partners' | 'docs' | 'contract' | 'system';
 
 interface Partner {
   id: string;
@@ -197,7 +197,6 @@ const Sidebar = ({
     { id: 'upload', icon: UploadCloud, label: 'Tải lên hóa đơn' },
     { id: 'partners', icon: Users, label: 'Đối tác' },
     { id: 'contract', icon: PlusSquare, label: 'Tạo hợp đồng' },
-    { id: 'templates', icon: FileText, label: 'Mẫu tài liệu' },
     { id: 'docs', icon: Files, label: 'Tài liệu đã tạo' },
     { id: 'system', icon: Database, label: 'Theo dõi hệ thống' },
   ];
@@ -4716,7 +4715,34 @@ const getFriendlyLabel = (tag: string | undefined | null): string => {
 
 const toVietnameseTitleCase = (str: string): string => {
   if (!str) return '';
-  return str.toLowerCase().replace(/(^|\s)\S/g, (l) => l.toUpperCase());
+  let result = str.toLowerCase().replace(/(^|\s)\S/g, (l) => l.toUpperCase());
+  
+  // Custom styling rules for Vietnamese companies
+  result = result.replace(/\bCông Ty\b/g, 'Công ty');
+  result = result.replace(/\bTnhh\b/g, 'TNHH');
+  result = result.replace(/\bCp\b/g, 'CP');
+  result = result.replace(/\bMtv\b/g, 'MTV');
+  result = result.replace(/\bTm\b/g, 'TM');
+  result = result.replace(/\bDv\b/g, 'DV');
+  result = result.replace(/\bSx\b/g, 'SX');
+  result = result.replace(/\bXnk\b/g, 'XNK');
+  result = result.replace(/\bXd\b/g, 'XD');
+  result = result.replace(/\bPccc\b/g, 'PCCC');
+  result = result.replace(/\bVlxd\b/g, 'VLXD');
+  result = result.replace(/\bVncn\b/g, 'VNCN');
+  result = result.replace(/E&c/g, 'E&C');
+  result = result.replace(/\bInt\b/g, 'INT');
+  result = result.replace(/\bVn\b/g, 'VN');
+  result = result.replace(/\bJs\b/g, 'JS');
+  result = result.replace(/\bJsc\b/g, 'JSC');
+  result = result.replace(/\bVat\b/g, 'VAT');
+  result = result.replace(/\bStk\b/g, 'STK');
+  result = result.replace(/\bHtx\b/g, 'HTX');
+  result = result.replace(/\bGtvt\b/g, 'GTVT');
+  result = result.replace(/\bKcn\b/g, 'KCN');
+  result = result.replace(/\bCn\b/g, 'CN');
+  
+  return result;
 };
 
 interface GdnRow {
@@ -4731,25 +4757,44 @@ const generateGdnDocxTable = (rows: GdnRow[]): string => {
     const boldTag = bold ? '<w:b/><w:bCs/>' : '';
     const shadeTag = shade ? `<w:shd w:val="clear" w:color="auto" w:fill="${shade}"/>` : '';
     const escapedText = escapeXml(text);
-    return `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/>${shadeTag}</w:tcPr><w:p><w:pPr><w:jc w:val="${align}"/></w:pPr><w:r><w:rPr>${boldTag}<w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve">${escapedText}</w:t></w:r></w:p></w:tc>`;
+    return `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="pct"/>${shadeTag}<w:vAlign w:val="center"/></w:tcPr><w:p><w:pPr><w:jc w:val="${align}"/><w:spacing w:before="80" w:after="80"/></w:pPr><w:r><w:rPr>${boldTag}<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t xml:space="preserve">${escapedText}</w:t></w:r></w:p></w:tc>`;
   };
 
-  const headerRow = `<w:tr><w:trPr><w:trHeight w:val="400"/><w:tblHeader/></w:trPr>${makeCell('STT', true, 'center', 'D9D9D9', '800')}${makeCell('Nội dung đề nghị', true, 'center', 'D9D9D9', '4200')}${makeCell('Đơn vị', true, 'center', 'D9D9D9', '1000')}${makeCell('Số tiền', true, 'center', 'D9D9D9', '2500')}</w:tr>`;
+  const headerRow = `<w:tr><w:trPr><w:trHeight w:val="400"/><w:tblHeader/></w:trPr>${makeCell('STT', true, 'center', 'D9D9D9', '500')}${makeCell('Nội dung đề nghị', true, 'center', 'D9D9D9', '2500')}${makeCell('Đơn vị', true, 'center', 'D9D9D9', '600')}${makeCell('Số tiền', true, 'center', 'D9D9D9', '1400')}</w:tr>`;
 
   const dataRows = rows.map(row => {
     const amountNum = parseInt(row.giatri, 10) || 0;
     const amountStr = amountNum > 0 ? amountNum.toLocaleString('vi-VN') : '';
-    return `<w:tr><w:trPr><w:trHeight w:val="350"/></w:trPr>${makeCell(row.stt, false, 'center', '', '800')}${makeCell(row.noidung, false, 'left', '', '4200')}${makeCell(row.donvi, false, 'center', '', '1000')}${makeCell(amountStr, false, 'right', '', '2500')}</w:tr>`;
+    return `<w:tr><w:trPr><w:trHeight w:val="350"/></w:trPr>${makeCell(row.stt, false, 'center', '', '500')}${makeCell(row.noidung, false, 'left', '', '2500')}${makeCell(row.donvi, false, 'center', '', '600')}${makeCell(amountStr, false, 'right', '', '1400')}</w:tr>`;
   }).join('');
 
   const totalVal = rows.reduce((acc, r) => acc + (parseInt(r.giatri, 10) || 0), 0);
   const totalStr = totalVal > 0 ? totalVal.toLocaleString('vi-VN') : '0';
-  const totalRow = `<w:tr><w:trPr><w:trHeight w:val="400"/></w:trPr>${makeCell('TỔNG CỘNG', true, 'center', 'F2F2F2', '800')}${makeCell('', false, 'left', 'F2F2F2', '4200')}${makeCell('Đồng', true, 'center', 'F2F2F2', '1000')}${makeCell(totalStr, true, 'right', 'F2F2F2', '2500')}</w:tr>`;
+  const totalRow = `<w:tr>
+    <w:trPr><w:trHeight w:val="400"/></w:trPr>
+    <w:tc>
+      <w:tcPr>
+        <w:gridSpan w:val="2"/>
+        <w:tcW w:w="3000" w:type="pct"/>
+        <w:shd w:val="clear" w:color="auto" w:fill="F2F2F2"/>
+        <w:vAlign w:val="center"/>
+      </w:tcPr>
+      <w:p>
+        <w:pPr><w:jc w:val="left"/><w:spacing w:before="80" w:after="80"/></w:pPr>
+        <w:r>
+          <w:rPr><w:b/><w:bCs/><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr>
+          <w:t xml:space="preserve">TỔNG CỘNG</w:t>
+        </w:r>
+      </w:p>
+    </w:tc>
+    ${makeCell('Đồng', true, 'center', 'F2F2F2', '600')}
+    ${makeCell(totalStr, true, 'right', 'F2F2F2', '1400')}
+  </w:tr>`;
 
-  const columns = [{ width: '800' }, { width: '4200' }, { width: '1000' }, { width: '2500' }];
-  return `<w:tbl>
+  const columns = [{ width: '500' }, { width: '2500' }, { width: '600' }, { width: '1400' }];
+  return `<w:tbl xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
     <w:tblPr>
-      <w:tblW w:w="8500" w:type="dxa"/>
+      <w:tblW w:w="5000" w:type="pct"/>
       <w:tblBorders>
         <w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/>
         <w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/>
@@ -5179,7 +5224,7 @@ const InlineEditableSpan = ({
         }
       }}
       className={cn(
-        "border-b border-dashed border-stone-400 hover:border-primary focus:border-primary font-bold px-0.5 cursor-text transition-all font-sans text-xs outline-none focus:bg-stone-50/50",
+        "border-b-[1.5px] border-dashed border-stone-400 hover:border-primary focus:border-primary focus:border-solid font-bold px-2 py-1 cursor-text transition-all font-sans text-[14px] outline-none focus:bg-stone-100 hover:bg-stone-50/80 rounded-t-md mx-0.5",
         showPlaceholder ? "text-stone-400 font-normal italic" : "text-stone-900",
         className
       )}
@@ -5263,8 +5308,8 @@ const InlineField = ({
           handleFieldChange(tag, nextVal);
         }}
         className={cn(
-          "bg-transparent border-b border-dashed border-stone-400 hover:border-primary focus:border-primary text-stone-900 font-bold focus:outline-none focus:ring-0 px-1 py-0 text-center transition-all inline-block font-sans text-xs max-w-full",
-          displayVal ? "border-stone-300" : "text-stone-400"
+          "bg-transparent border-b-[1.5px] border-dashed border-stone-400 hover:border-primary focus:border-primary focus:border-solid text-stone-900 font-bold focus:outline-none focus:ring-0 px-2 py-1 text-center transition-all inline-block font-sans text-[14px] max-w-full hover:bg-stone-50/80 focus:bg-stone-100 rounded-t-md cursor-pointer focus:cursor-text",
+          displayVal ? "border-stone-400" : "text-stone-400 italic"
         )}
         style={{ width: dynamicWidth }}
       />
@@ -6493,16 +6538,26 @@ const generateDocxBlobForContract = async (
     return foundKey ? formData[foundKey] : '';
   };
 
-  const tamUng = getFormVal('TAMUNG-THANHTOAN') || getFormVal('TAMUNG_THANHTOAN') || '';
+  const tamUng = getFormVal('TAMUNG-THANHTOAN') || getFormVal('TAMUNG_THANHTOAN') || (templateId === 'GDNTT' ? 'tạm ứng' : '');
   const benDuoc = getFormVal('BEN_DUOC_DE_NGHI') || getFormVal('BENDUOCDENGHI') || '';
   const benDeNghi = getFormVal('BEN_DE_NGHI') || getFormVal('BENDENGHI') || '';
 
-  dataToRender['TAMUNG-THANHTOAN_TITLE'] = toVietnameseTitleCase(tamUng) || "....................";
+  dataToRender['TAMUNG-THANHTOAN_TITLE'] = (templateId === 'GDNTT' ? tamUng.toUpperCase() : toVietnameseTitleCase(tamUng)) || "....................";
   dataToRender['TAMUNG-THANHTOAN'] = tamUng || "....................";
-  dataToRender['BEN_DUOC_DE_NGHI_TITLE'] = toVietnameseTitleCase(benDuoc) || "....................";
-  dataToRender['BEN_DUOC_DE_NGHI'] = benDuoc || "....................";
+  dataToRender['BEN_DUOC_DE_NGHI_TITLE'] = (templateId === 'GDNTT' ? benDuoc.toUpperCase() : toVietnameseTitleCase(benDuoc)) || "....................";
+  dataToRender['BEN_DUOC_DE_NGHI'] = (templateId === 'GDNTT' ? toVietnameseTitleCase(benDuoc) : benDuoc) || "....................";
   dataToRender['BEN_DE_NGHI_TITLE'] = toVietnameseTitleCase(benDeNghi) || "....................";
-  dataToRender['BEN_DE_NGHI'] = benDeNghi || "....................";
+  dataToRender['BEN_DE_NGHI'] = (templateId === 'GDNTT' ? toVietnameseTitleCase(benDeNghi) : benDeNghi) || "....................";
+
+  // Combine GDNTT date fields for Word templates that have a single [NGAY_GDN] tag
+  const dayGdn = getFormVal('DAY_GDN') || '';
+  const monthGdn = getFormVal('MONTH_GDN') || '';
+  const yearGdn = getFormVal('YEAR_GDN') || '';
+  if (dayGdn || monthGdn || yearGdn) {
+    dataToRender['NGAY_GDN'] = `ngày ${dayGdn || '....'} tháng ${monthGdn || '....'} năm ${yearGdn || '....'}`;
+  } else {
+    dataToRender['NGAY_GDN'] = getFormVal('NGAY_GDN') || "ngày .... tháng .... năm ....";
+  }
 
   // Step 1: Read raw XML from template before initializing Docxtemplater
   const zip = new PizZip(buffer);
@@ -6675,6 +6730,9 @@ const ContractView = ({
 
     const updateRows = (newRows: GdnRow[]) => {
       handleFieldChange('BANG_GDN', JSON.stringify(newRows));
+      const totalVal = newRows.reduce((acc, r) => acc + (parseInt(r.giatri.replace(/\D/g, ''), 10) || 0), 0);
+      const words = totalVal > 0 ? numberToVietnameseWords(totalVal) : '';
+      handleFieldChange('SOTIENBANGCHU', words);
     };
 
     const handleCellChange = (index: number, field: keyof GdnRow, val: string) => {
@@ -6802,8 +6860,22 @@ const ContractView = ({
             <div className="text-xs text-stone-600 mt-1 pl-1">
               Số: <InlineField tag="SO_GDN" placeholder="..........." width="100px" />
             </div>
-            <div className="text-xs italic pl-1 mt-1 text-stone-500">
-              (V/v: Đề nghị <InlineField tag="TAMUNG-THANHTOAN" placeholder="tạm ứng / thanh toán" width="160px" />)
+            <div className="text-xs italic pl-1 mt-1 text-stone-500 flex items-center gap-1">
+              <span>(V/v: Đề nghị</span>
+              <select
+                value={formData['TAMUNG-THANHTOAN'] || 'tạm ứng'}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  handleFieldChange('TAMUNG-THANHTOAN', val);
+                  handleFieldChange('TAMUNG-THANHTOAN_TITLE', val.toUpperCase());
+                }}
+                className="bg-stone-50/80 border-b-[1.5px] border-dashed border-stone-400 hover:border-primary focus:border-primary text-stone-900 font-bold focus:outline-none focus:ring-0 px-2 py-0.5 text-center transition-all inline-block font-sans text-[14px] cursor-pointer rounded-t-md hover:bg-stone-100/50"
+                style={{ width: '130px', appearance: 'none', WebkitAppearance: 'none' }}
+              >
+                <option value="tạm ứng">tạm ứng</option>
+                <option value="thanh toán">thanh toán</option>
+              </select>
+              <span>)</span>
             </div>
           </div>
           <div className="text-center font-bold">
@@ -6813,13 +6885,21 @@ const ContractView = ({
           </div>
         </div>
 
-        <div className="text-right italic mt-4">
-          TP. Hồ Chí Minh, <InlineField tag="NGAY_GDN" placeholder="ngày .... tháng .... năm ...." width="220px" />
+        <div className="text-right italic mt-4 flex items-center justify-end gap-1.5 font-serif text-[13px]">
+          <span>TP. Hồ Chí Minh, ngày</span>
+          <InlineField tag="DAY_GDN" placeholder="ngày" width="40px" maxLength={2} isNumeric />
+          <span>tháng</span>
+          <InlineField tag="MONTH_GDN" placeholder="tháng" width="40px" maxLength={2} isNumeric />
+          <span>năm</span>
+          <InlineField tag="YEAR_GDN" placeholder="năm" width="60px" maxLength={4} isNumeric />
         </div>
 
         <div className="text-center mt-6">
           <h1 className="text-lg font-bold uppercase tracking-wide">
-            GIẤY ĐỀ NGHỊ <InlineField tag="TAMUNG-THANHTOAN_TITLE" placeholder="TẠM ỨNG / THANH TOÁN" width="220px" />
+            GIẤY ĐỀ NGHỊ{' '}
+            <span className="border-b-[1.5px] border-dashed border-stone-400 px-2 py-0.5 font-bold text-stone-900 text-[18px] inline-block min-w-[200px] text-center bg-stone-50/30 rounded-t-md">
+              {(formData['TAMUNG-THANHTOAN'] || 'tạm ứng').toUpperCase()}
+            </span>
           </h1>
         </div>
 
@@ -6832,21 +6912,37 @@ const ContractView = ({
             - Căn cứ Hợp đồng số: <InlineField tag="SO_HOPDONG" placeholder="[Số hợp đồng]" width="140px" /> được ký vào ngày <InlineField tag="NGAY_KY_HOP_DONG" placeholder="[Ngày ký hợp đồng]" width="140px" /> về việc <InlineField tag="NOI_DUNG_HOP_DONG" placeholder="[Nội dung hợp đồng]" width="280px" /> giữa <InlineField tag="BEN_DUOC_DE_NGHI" placeholder="[Bên được đề nghị]" width="180px" /> và <InlineField tag="BEN_DE_NGHI" placeholder="[Bên đề nghị]" width="180px" />.
           </p>
           <p>
-            Hôm nay, <InlineField tag="BEN_DE_NGHI" placeholder="[Bên đề nghị]" width="180px" /> kính đề nghị <InlineField tag="BEN_DUOC_DE_NGHI" placeholder="[Bên được đề nghị]" width="180px" /> <InlineField tag="TAMUNG-THANHTOAN" placeholder="tạm ứng / thanh toán" width="160px" /> giá trị với nội dung cụ thể như sau:
+            Hôm nay, <InlineField tag="BEN_DE_NGHI" placeholder="[Bên đề nghị]" width="180px" /> kính đề nghị <InlineField tag="BEN_DUOC_DE_NGHI" placeholder="[Bên được đề nghị]" width="180px" />{' '}
+            <span className="border-b-[1.5px] border-dashed border-stone-400 px-2 py-0.5 font-bold text-stone-900 text-[14px] inline-block min-w-[120px] text-center bg-stone-50/30 rounded-t-md">
+              {(formData['TAMUNG-THANHTOAN'] || 'tạm ứng').toLowerCase()}
+            </span>{' '}
+            giá trị với nội dung cụ thể như sau:
           </p>
 
           {renderGdnTable()}
 
           <p className="mt-2 font-bold">
-            (Bằng chữ: <InlineField tag="SOTIENBANGCHU" placeholder="[Số tiền bằng chữ]" width="480px" />)
+            (Bằng chữ:{' '}
+            <span className="border-b-[1.5px] border-dashed border-stone-400 px-2 py-0.5 font-bold text-stone-900 text-[13px] inline-block min-w-[320px] bg-stone-50/30 rounded-t-md">
+              {formData['SOTIENBANGCHU'] || '................................'}
+            </span>
+            )
           </p>
 
           <p className="mt-2">
-            Số tiền đề nghị <InlineField tag="TAMUNG-THANHTOAN" placeholder="tạm ứng / thanh toán" width="160px" /> sẽ được chuyển khoản vào tài khoản của <InlineField tag="BEN_DE_NGHI" placeholder="[Bên đề nghị]" width="180px" />, số tài khoản: <InlineField tag="STK_BEN_DE_NGHI" placeholder="[Số tài khoản]" width="150px" /> tại <InlineField tag="NGAN_HANG_BEN_DE_NGHI" placeholder="[Ngân hàng]" width="200px" />.
+            Số tiền đề nghị{' '}
+            <span className="border-b-[1.5px] border-dashed border-stone-400 px-2 py-0.5 font-bold text-stone-900 text-[14px] inline-block min-w-[120px] text-center bg-stone-50/30 rounded-t-md">
+              {(formData['TAMUNG-THANHTOAN'] || 'tạm ứng').toLowerCase()}
+            </span>{' '}
+            sẽ được chuyển khoản vào tài khoản của <InlineField tag="BEN_DE_NGHI" placeholder="[Bên đề nghị]" width="180px" />, số tài khoản: <InlineField tag="STK_BEN_DE_NGHI" placeholder="[Số tài khoản]" width="150px" /> tại <InlineField tag="NGAN_HANG_BEN_DE_NGHI" placeholder="[Ngân hàng]" width="200px" />.
           </p>
 
           <p>
-            Rất mong được <InlineField tag="BEN_DUOC_DE_NGHI" placeholder="[Bên được đề nghị]" width="180px" /> xem xét, chấp thuận và thực hiện <InlineField tag="TAMUNG-THANHTOAN" placeholder="tạm ứng / thanh toán" width="160px" /> để tạo điều kiện hỗ trợ chi phí cho Công ty.
+            Rất mong được <InlineField tag="BEN_DUOC_DE_NGHI" placeholder="[Bên được đề nghị]" width="180px" /> xem xét, chấp thuận và thực hiện{' '}
+            <span className="border-b-[1.5px] border-dashed border-stone-400 px-2 py-0.5 font-bold text-stone-900 text-[14px] inline-block min-w-[120px] text-center bg-stone-50/30 rounded-t-md">
+              {(formData['TAMUNG-THANHTOAN'] || 'tạm ứng').toLowerCase()}
+            </span>{' '}
+            để tạo điều kiện hỗ trợ chi phí cho Công ty.
           </p>
 
           <p className="italic mt-1">Xin chân thành cảm ơn !</p>
@@ -7694,7 +7790,7 @@ const ContractView = ({
     const abbrName = abbreviateCompanyName(partner.name);
     const effectiveAddress = getEffectiveAddressByCurrentDate(partner);
 
-    return {
+    const mapping: Record<string, string> = {
       [`${prefix}_TEN`]: partner.name,
       [`${prefix}_TEN_VT`]: abbrName,
       [`BEN_${prefix}`]: partner.name,
@@ -7707,22 +7803,36 @@ const ContractView = ({
       [`DIACHI_${isA ? 'A' : 'B'}`]: effectiveAddress,
       [`MST_${prefix}`]: partner.taxCode,
       [`MST${prefix}`]: partner.taxCode,
-      [`DAI_DIEN_${prefix}`]: partner.representative,
-      [`DAIDIEN_${prefix}`]: partner.representative,
-      [`CHUC_VU_${prefix}`]: partner.position,
-      [`CHUCVU_${prefix}`]: partner.position,
-      [`GIOI_TINH_${prefix}`]: partner.gender,
-      [`STK_${prefix}`]: partner.accountNumber,
-      [`NH_${prefix}`]: partner.bankName,
+      [`DAI_DIEN_${prefix}`]: partner.representative || '',
+      [`DAIDIEN_${prefix}`]: partner.representative || '',
+      [`CHUC_VU_${prefix}`]: partner.position || '',
+      [`CHUCVU_${prefix}`]: partner.position || '',
+      [`GIOI_TINH_${prefix}`]: partner.gender || 'Ông',
+      [`STK_${prefix}`]: partner.accountNumber || '',
+      [`NH_${prefix}`]: partner.bankName || '',
       // Common variations
       [`${isA ? 'BENA' : 'BENB'}`]: partner.name,
       [`${isA ? 'BENA' : 'BENB'}_VT`]: abbrName,
       [`DIA_CHI_${isA ? 'BEN_A' : 'BEN_B'}`]: effectiveAddress,
       [`DIACHI_${isA ? 'BEN_A' : 'BEN_B'}`]: effectiveAddress,
       [`MST_${isA ? 'BEN_A' : 'BEN_B'}`]: partner.taxCode,
-      [`DAI_DIEN_${isA ? 'BEN_A' : 'BEN_B'}`]: partner.representative,
-      [`CHUC_VU_${isA ? 'BEN_A' : 'BEN_B'}`]: partner.position,
+      [`DAI_DIEN_${isA ? 'BEN_A' : 'BEN_B'}`]: partner.representative || '',
+      [`CHUC_VU_${isA ? 'BEN_A' : 'BEN_B'}`]: partner.position || '',
     };
+
+    if (isA) {
+      mapping['BEN_DUOC_DE_NGHI'] = toVietnameseTitleCase(partner.name);
+      mapping['BEN_DUOC_DE_NGHI_TITLE'] = partner.name.toUpperCase();
+    } else {
+      mapping['BEN_DE_NGHI'] = toVietnameseTitleCase(partner.name);
+      mapping['BEN_DE_NGHI_TITLE'] = toVietnameseTitleCase(partner.name);
+      mapping['DAI_DIEN_BEN_DE_NGHI'] = partner.representative || '';
+      mapping['STK_BEN_DE_NGHI'] = partner.accountNumber || '';
+      mapping['NGAN_HANG_BEN_DE_NGHI'] = partner.bankName || '';
+      mapping['TEN_CTY_VIET_TAT'] = abbrName;
+    }
+
+    return mapping;
   };
 
   const handlePartyChange = (partnerId: string, type: 'A' | 'B') => {
@@ -7736,7 +7846,7 @@ const ContractView = ({
     const mapping = getMappingForPartner(partner, type);
 
     // Chúng ta lặp qua danh sách tag từ template + các tag ảo để đảm bảo cập nhật đầy đủ
-    const allTags = new Set([...tags, 'DIA_CHI_A', 'DIA_CHI_B', 'DIACHI_A', 'DIACHI_B', 'DIA_CHI_BEN_A', 'DIA_CHI_BEN_B']);
+    const allTags = new Set([...tags, 'DIA_CHI_A', 'DIA_CHI_B', 'DIACHI_A', 'DIACHI_B', 'DIA_CHI_BEN_A', 'DIA_CHI_BEN_B', 'BEN_DUOC_DE_NGHI_TITLE', 'BEN_DE_NGHI_TITLE', 'TEN_CTY_VIET_TAT']);
 
     allTags.forEach(tag => {
       const upperTag = tag.toUpperCase();
@@ -7745,8 +7855,8 @@ const ContractView = ({
         newFormData[tag] = mapping[upperTag]!;
       } else {
         // Try fuzzy matching for common patterns - use stricter checks
-        const isSideA = upperTag.includes('BENA') || upperTag.includes('BEN_A') || upperTag.includes('BEN A') || upperTag.endsWith('_A') || upperTag.startsWith('A_');
-        const isSideB = upperTag.includes('BENB') || upperTag.includes('BEN_B') || upperTag.includes('BEN B') || upperTag.endsWith('_B') || upperTag.startsWith('B_');
+        const isSideA = upperTag.includes('BENA') || upperTag.includes('BEN_A') || upperTag.includes('BEN A') || upperTag.endsWith('_A') || upperTag.startsWith('A_') || upperTag.includes('BEN_DUOC_DE_NGHI') || upperTag.includes('BENDUOCDENGHI');
+        const isSideB = upperTag.includes('BENB') || upperTag.includes('BEN_B') || upperTag.includes('BEN B') || upperTag.endsWith('_B') || upperTag.startsWith('B_') || (upperTag.includes('BEN_DE_NGHI') && !upperTag.includes('BEN_DUOC_DE_NGHI')) || (upperTag.includes('BENDENGHI') && !upperTag.includes('BENDUOCDENGHI'));
 
         const isCorrectSide = (type === 'A' && isSideA) || (type === 'B' && isSideB);
 
@@ -7827,14 +7937,18 @@ const ContractView = ({
             upperTag.includes('BEN_A') ||
             upperTag.includes('BEN A') ||
             upperTag.includes('BENA') ||
-            upperTag.startsWith('A_');
+            upperTag.startsWith('A_') ||
+            upperTag.includes('BEN_DUOC_DE_NGHI') ||
+            upperTag.includes('BENDUOCDENGHI');
 
           const isSideB =
             upperTag.endsWith('_B') ||
             upperTag.includes('BEN_B') ||
             upperTag.includes('BEN B') ||
             upperTag.includes('BENB') ||
-            upperTag.startsWith('B_');
+            upperTag.startsWith('B_') ||
+            (upperTag.includes('BEN_DE_NGHI') && !upperTag.includes('BEN_DUOC_DE_NGHI')) ||
+            (upperTag.includes('BENDENGHI') && !upperTag.includes('BENDUOCDENGHI'));
 
           const isCorrectSide = (type === 'A' && isSideA) || (type === 'B' && isSideB);
 
@@ -9340,17 +9454,6 @@ const BulkExportModal = ({
 // --- Helpers ---
 const getTemplateBuffer = async (templateId: string): Promise<ArrayBuffer> => {
   try {
-    const local = await loadTemplates();
-    const found = local.find(t => t.id === templateId);
-    if (found) {
-      const binaryString = window.atob(found.data);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      return bytes.buffer;
-    }
-
     // Determine the best base path for templates
     let basePath = (import.meta as any).env?.BASE_URL || './';
     if (basePath === './') {
@@ -9377,7 +9480,6 @@ const TAB_CONFIG: Record<Tab, { hash: string, label: string }> = {
   dashboard: { hash: 'tong-quan', label: 'Bảng điều khiển' },
   upload: { hash: 'tai-len', label: 'Tải lên hóa đơn' },
   partners: { hash: 'doi-tac', label: 'Đối tác & Khách hàng' },
-  templates: { hash: 'mau-tai-lieu', label: 'Mẫu tài liệu' },
   docs: { hash: 'tai-lieu-da-tao', label: 'Tài liệu đã tạo' },
   contract: { hash: 'tao-hop-dong', label: 'Tạo hợp đồng' },
   system: { hash: 'theo-doi-he-thong', label: 'Theo dõi hệ thống' }
@@ -10412,22 +10514,6 @@ export default function App() {
     setEditingPartner(null);
   };
 
-  useEffect(() => {
-    // Load persisted templates on start
-    const loadPersisted = async () => {
-      try {
-        const stored = await loadTemplates();
-        if (stored.length > 0) {
-          toast(`Đã tải ${stored.length} mẫu tài liệu từ bộ nhớ trình duyệt`, 'info');
-          // We can't easily tell the server about these unless we upload them
-          // But for now, we'll try to sync or at least show which ones are local
-        }
-      } catch (err) {
-        console.error("Failed to load local templates:", err);
-      }
-    };
-    loadPersisted();
-  }, [toast]);
 
   useEffect(() => {
     if (requestCount > 0) {
@@ -10455,67 +10541,6 @@ export default function App() {
     };
   }, [requestCount]);
 
-
-  const [availableTemplates, setAvailableTemplates] = useState<string[]>([]);
-  const [localTemplates, setLocalTemplates] = useState<StoredTemplate[]>([]);
-
-  const fetchTemplates = async () => {
-    try {
-      const staticTemplates = ['BB_VT', 'BB_CM', 'BB_TC'];
-      const local = await loadTemplates();
-      setLocalTemplates(local);
-      const localIds = local.map(t => t.id);
-
-      const all = Array.from(new Set([...staticTemplates, ...localIds]));
-      setAvailableTemplates(all);
-    } catch (e) {
-      console.error("Failed to fetch templates:", e);
-      setAvailableTemplates(['BB_VT', 'BB_CM', 'BB_TC']);
-    }
-  };
-
-  useEffect(() => {
-    fetchTemplates();
-    loadTemplates().then(setLocalTemplates).catch(console.error);
-  }, [activeTab]);
-
-  const restoreTemplate = async (id: string) => {
-    const local = localTemplates.find(t => t.id === id);
-    if (!local) return;
-
-    setIsProcessing(true);
-    try {
-      // Convert base64 to blob
-      const byteCharacters = atob(local.data);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: local.type });
-      const file = new File([blob], local.name, { type: local.type });
-
-      const formData = new FormData();
-      formData.append('templateType', id);
-      formData.append('template', file);
-
-      const res = await fetch('/api/upload-template', {
-        method: 'POST',
-        body: formData
-      });
-
-      if (res.ok) {
-        toast(`Đã khôi phục mẫu ${local.category} từ bộ nhớ`, 'success');
-        fetchTemplates();
-      } else {
-        throw new Error("Restore failed");
-      }
-    } catch (err) {
-      toast("Lỗi khi khôi phục mẫu tài liệu", "error");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
 
   const handleUpdatePartner = async (id: string, updates: Partial<Partner>) => {
     if (!user) return;
@@ -11763,7 +11788,6 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                   case 'dashboard': return 'Bảng điều khiển';
                   case 'upload': return 'Tải lên hóa đơn';
                   case 'partners': return 'Đối tác';
-                  case 'templates': return 'Mẫu tài liệu';
                   case 'docs': return 'Tài liệu đã tạo';
                   case 'system': return 'Theo dõi hệ thống';
                   default: return activeTab;
@@ -11984,8 +12008,8 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                         const rawT = selectedInvoice.extractedData?.classification;
                         const tType = typeof rawT === 'object' ? rawT.type : (rawT || 'BB_CM');
 
-                        if (!availableTemplates.includes(tType)) {
-                          alert(`Vui lòng tải lên template "${tType}" trong tab Templates trước.`);
+                        if (!['BB_VT', 'BB_CM', 'BB_TC'].includes(tType)) {
+                          alert(`Mẫu "${tType}" không được hỗ trợ trong hệ thống.`);
                           return;
                         }
 
@@ -12109,120 +12133,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                 onDelete={handleDeletePartner}
               />
             )}
-            {activeTab === 'templates' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {[
-                  { id: 'BB_CM', label: 'Biên bản Ca Máy', icon: HardHat, desc: 'Dành cho các hóa đơn thuê máy móc, thiết bị.' },
-                  { id: 'BB_VT', label: 'Biên bản Vật Tư', icon: Box, desc: 'Dành cho các hóa đơn mua bán vật tư, hàng hóa.' },
-                  { id: 'BB_TC', label: 'Biên bản Thi Công', icon: Construction, desc: 'Dành cho các hóa đơn dịch vụ xây dựng, lắp đặt.' },
-                ].map((t) => {
-                  const isAvailableOnServer = availableTemplates.includes(t.id);
-                  const isAvailableLocally = localTemplates.some(lt => lt.id === t.id);
 
-                  return (
-                    <div key={t.id} className="card p-8 flex flex-col items-center text-center group relative overflow-hidden transition-all hover:translate-y-[-4px]">
-                      <div className="absolute top-0 right-0 size-24 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
-                      {isAvailableLocally && !isAvailableOnServer && (
-                        <div className="absolute top-4 right-4 flex items-center gap-1 bg-orange-500/10 text-orange-500 text-[8px] font-black px-2 py-1 uppercase rounded-lg border border-orange-500/20 animate-pulse">
-                          <Zap className="size-2" />
-                          Cần khôi phục
-                        </div>
-                      )}
-                      <div className={cn(
-                        "size-16 rounded-[24px] flex items-center justify-center mb-6 transition-all duration-500 shadow-2xl",
-                        isAvailableOnServer
-                          ? "bg-emerald-500/10 text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white"
-                          : "bg-white/5 text-text-dim group-hover:bg-primary group-hover:text-white"
-                      )}>
-                        <t.icon className="size-8" />
-                      </div>
-                      <h4 className="text-lg font-black text-white mb-2 tracking-tighter uppercase">{t.label}</h4>
-                      <p className="text-text-dim text-xs font-semibold leading-relaxed mb-8 flex-1">{t.desc}</p>
-
-                      <div className="w-full space-y-2">
-                        <label className="block w-full">
-                          <input
-                            type="file"
-                            className="hidden"
-                            accept=".docx"
-                            onChange={async (e) => {
-                              const file = e.target.files?.[0];
-                              if (!file) return;
-
-                              // Persistence: save to IndexedDB
-                              const reader = new FileReader();
-                              reader.onload = async () => {
-                                try {
-                                  const base64 = (reader.result as string).split(',')[1];
-                                  await saveTemplate({
-                                    id: t.id,
-                                    name: file.name,
-                                    type: file.type,
-                                    data: base64,
-                                    category: t.label,
-                                    createdAt: Date.now()
-                                  });
-                                  loadTemplates().then(setLocalTemplates);
-                                } catch (err) {
-                                  console.error("Failed to save template locally:", err);
-                                }
-                              };
-                              reader.readAsDataURL(file);
-
-                              const formData = new FormData();
-                              formData.append('templateType', t.id);
-                              formData.append('template', file);
-                              try {
-                                const res = await fetch('/api/upload-template', {
-                                  method: 'POST',
-                                  body: formData
-                                });
-                                if (res.ok) {
-                                  fetchTemplates();
-                                  toast(`Tải lên mẫu ${t.label} thành công. Tệp đã được lưu cục bộ.`, "success");
-                                } else {
-                                  throw new Error("Upload failed");
-                                }
-                              } catch (err) {
-                                toast("Lỗi khi tải mẫu tài liệu lên máy chủ", "error");
-                              }
-                            }}
-                          />
-                          <div className={cn(
-                            "cursor-pointer py-2 px-4 rounded-lg text-xs font-bold transition-all border-2 border-dashed",
-                            isAvailableOnServer
-                              ? "bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20"
-                              : "bg-sidebar-dark text-text-dim border-border-dark hover:border-primary/50 hover:text-primary"
-                          )}>
-                            {isAvailableOnServer ? 'Cập nhật Template (.docx)' : 'Tải lên Template (.docx)'}
-                          </div>
-                        </label>
-
-                        {isAvailableLocally && !isAvailableOnServer && (
-                          <button
-                            onClick={() => restoreTemplate(t.id)}
-                            className="w-full py-1.5 px-4 bg-amber-100 text-amber-700 rounded-lg text-[10px] font-bold hover:bg-amber-200 transition-all flex items-center justify-center gap-1"
-                          >
-                            <CheckCircle2 className="size-3" />
-                            Khôi phục từ bộ nhớ
-                          </button>
-                        )}
-
-                        {isAvailableOnServer ? (
-                          <div className="text-[10px] text-green-500 flex items-center justify-center gap-1 font-bold">
-                            <div className="size-1.5 rounded-full bg-green-500 animate-pulse" /> Đã sẵn sàng trên máy chủ
-                          </div>
-                        ) : (
-                          <div className="text-[10px] text-text-dim flex items-center justify-center gap-1 font-bold">
-                            <div className="size-1.5 rounded-full bg-text-dim" /> Chưa có trên máy chủ
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
             {activeTab === 'docs' && (
               <DocsView
                 items={generatedDocs}

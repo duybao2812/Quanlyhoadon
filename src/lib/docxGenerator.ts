@@ -297,5 +297,5 @@ export async function generateDocxBlob({
   }
 
   const zipData = doc.getZip().generate({ type: 'uint8array', compression: 'DEFLATE' });
-  return new Blob([zipData], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+  return new Blob([zipData as any], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 }
