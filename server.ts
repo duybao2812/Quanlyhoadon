@@ -540,9 +540,18 @@ async function startServer() {
 
   app.post('/api/generate', (req, res) => {
     const { templateType, data, partnerA, partnerB, contractNumber, contractDate } = req.body;
-    const templatePath = path.join(process.cwd(), 'uploads/templates', `${templateType}.docx`);
+    let templatePath = path.join(process.cwd(), 'uploads/templates', `${templateType}.docx`);
 
     try {
+      if (!fs.existsSync(templatePath)) {
+        // Fallback for default templates
+        if (templateType.startsWith('Template_HD')) {
+          templatePath = path.join(process.cwd(), 'templatesHopDong', `${templateType}.docx`);
+        } else {
+          templatePath = path.join(process.cwd(), 'templates', `${templateType}.docx`);
+        }
+      }
+
       if (!fs.existsSync(templatePath)) {
         return res.status(404).json({ error: `Template ${templateType} not found.` });
       }
@@ -784,33 +793,37 @@ async function startServer() {
     }
   });
 
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { 
-        middlewareMode: true,
-        host: true 
-      },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+  if (!process.env.VERCEL) {
+    if (process.env.NODE_ENV !== 'production') {
+      const vite = await createViteServer({
+        server: { 
+          middlewareMode: true,
+          host: true 
+        },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } else {
+      const distPath = path.join(process.cwd(), 'dist');
+      app.use(express.static(distPath));
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+    }
+
+    const networkIP = getNetworkAddress();
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log('\n----------------------------------------');
+      console.log('  Server running:');
+      console.log(`  Local:   http://localhost:${PORT}`);
+      if (networkIP) {
+        console.log(`  Network: http://${networkIP}:${PORT}`);
+      }
+      console.log('----------------------------------------\n');
     });
   }
-
-  const networkIP = getNetworkAddress();
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log('\n----------------------------------------');
-    console.log('  Server running:');
-    console.log(`  Local:   http://localhost:${PORT}`);
-    if (networkIP) {
-      console.log(`  Network: http://${networkIP}:${PORT}`);
-    }
-    console.log('----------------------------------------\n');
-  });
 }
 
 startServer();
+
+export default app;
