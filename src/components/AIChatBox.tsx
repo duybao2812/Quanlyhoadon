@@ -275,7 +275,7 @@ export const AIChatBox: React.FC<AIChatBoxProps> = ({ stats }) => {
             className="fixed inset-y-0 right-0 w-full sm:w-[450px] bg-white dark:bg-slate-900 shadow-2xl z-50 flex flex-col border-l border-slate-200 dark:border-slate-800"
           >
             {/* Header */}
-            <div className="p-4 border-bottom border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50">
+            <div className="p-4 pt-[calc(1rem+env(safe-area-inset-top,0px))] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50 shrink-0 select-none">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
                   <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
@@ -383,7 +383,7 @@ export const AIChatBox: React.FC<AIChatBoxProps> = ({ stats }) => {
             </div>
 
             {/* Input Area */}
-            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+            <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
               {messages.length > 0 && !isLoading && (
                 <div className="flex gap-2 overflow-x-auto pb-3 mb-2 scrollbar-none no-scrollbar">
                   {SUGGESTED_ACTIONS.slice(0, 3).map(action => (

@@ -562,19 +562,19 @@ const ReviewModal = ({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: "100%" }}
         transition={{ type: "spring", damping: 25, stiffness: 250 }}
-        className="bg-card-dark rounded-t-[32px] md:rounded-[32px] border border-border-dark shadow-2xl w-full max-w-5xl h-[92vh] md:h-auto md:max-h-[90vh] flex flex-col overflow-hidden"
+        className="bg-card-dark rounded-t-[32px] md:rounded-[32px] border border-border-dark shadow-2xl w-full max-w-5xl h-[82vh] md:h-auto md:max-h-[90vh] flex flex-col overflow-hidden"
       >
-        <div className="p-5 md:p-8 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] md:pt-8 border-b border-border-dark flex justify-between items-center bg-white/5 shrink-0 select-none">
+        <div className="p-4 sm:p-5 md:p-8 pt-[calc(1rem+env(safe-area-inset-top,0px))] md:pt-8 border-b border-border-dark flex justify-between items-center bg-white/5 shrink-0 select-none">
           <div>
-            <h2 className="text-xl md:text-2xl font-black text-white tracking-tighter uppercase">Kiểm tra kết quả bóc tách</h2>
-            <p className="text-text-dim text-[10px] md:text-xs font-bold uppercase tracking-widest mt-1">Vui lòng rà soát lại thông tin trước khi lưu vào hệ thống</p>
+            <h2 className="text-lg md:text-2xl font-black text-white tracking-tighter uppercase">Kiểm tra kết quả bóc tách</h2>
+            <p className="text-text-dim text-[9px] md:text-xs font-bold uppercase tracking-widest mt-1">Vui lòng rà soát lại thông tin trước khi lưu vào hệ thống</p>
           </div>
-          <button onClick={onClose} className="size-10 md:size-12 flex items-center justify-center bg-white/5 hover:bg-red-500/20 text-white rounded-2xl transition-all group">
-            <X className="size-5 md:size-6 group-hover:text-red-500" />
+          <button onClick={onClose} className="size-8 md:size-12 flex items-center justify-center bg-white/5 hover:bg-red-500/20 text-white rounded-2xl transition-all group">
+            <X className="size-4 md:size-6 group-hover:text-red-500" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 md:p-8 space-y-6 md:space-y-10 custom-scrollbar pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] md:pb-8">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 md:p-8 space-y-5 sm:space-y-6 md:space-y-10 custom-scrollbar pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] md:pb-8">
           {/* Thông tin hóa đơn */}
           <section className="space-y-8">
             <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-border-dark">
@@ -598,7 +598,7 @@ const ReviewModal = ({
                 </span>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
               <div>
                 <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2 px-1">Số Hóa Đơn</label>
                 <input
@@ -642,7 +642,7 @@ const ReviewModal = ({
           </section>
 
           {/* Người bán & Người mua */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-10">
             <section className="space-y-6">
               <div className="flex items-center gap-3 text-indigo-600">
                 <Layout className="size-6" />
@@ -822,27 +822,27 @@ const ReviewModal = ({
               <PlusSquare className="size-7" />
               <h3 className="font-black text-lg uppercase tracking-[0.2em]">Tổng cộng quyết toán</h3>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 p-8 bg-sidebar-dark rounded-[32px] border border-border-dark shadow-inner relative overflow-hidden">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-8 p-5 sm:p-8 bg-sidebar-dark rounded-[32px] border border-border-dark shadow-inner relative overflow-hidden">
               <div className="absolute top-0 right-0 size-40 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
               <div>
                 <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2">Tổng cộng tiền hàng</label>
-                <div className="text-2xl font-black text-white">{formatVNNumber(edited.totals?.subtotal)} đ</div>
+                <div className="text-lg sm:text-2xl font-black text-white">{formatVNNumber(edited.totals?.subtotal)} đ</div>
               </div>
               <div>
                 <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2">
                   Tiền thuế GTGT ({edited.invoice?.vatRate !== undefined ? edited.invoice.vatRate : (edited.totals?.subtotal > 0 ? Math.round((Math.abs((edited.totals?.grandTotal || (edited.totals?.subtotal + (edited.totals?.vatAmount || 0))) - edited.totals?.subtotal) / edited.totals?.subtotal) * 100) : 8)}%)
                 </label>
-                <div className="text-2xl font-black text-white">{formatVNNumber(edited.totals?.vatAmount)} đ</div>
+                <div className="text-lg sm:text-2xl font-black text-white">{formatVNNumber(edited.totals?.vatAmount)} đ</div>
               </div>
-              <div>
+              <div className="col-span-2 sm:col-span-1">
                 <label className="block text-[10px] font-black text-primary uppercase tracking-widest mb-2 px-3 border-l-2 border-primary">Tổng tiền thanh toán</label>
-                <div className="text-4xl font-black text-primary tracking-tighter drop-shadow-2xl">{formatVNNumber(edited.totals?.grandTotal)} đ</div>
+                <div className="text-2xl sm:text-4xl font-black text-primary tracking-tighter drop-shadow-2xl">{formatVNNumber(edited.totals?.grandTotal)} đ</div>
               </div>
             </div>
           </section>
         </div>
 
-        <div className="p-5 md:p-8 border-t border-border-dark bg-white/5 flex justify-end gap-4 shrink-0 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] md:pb-8">
+        <div className="p-4 sm:p-5 md:p-8 border-t border-border-dark bg-white/5 flex justify-end gap-3 sm:gap-4 shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] md:pb-8">
           <button onClick={onClose} className="btn-secondary px-6 md:px-8 py-3 md:py-4">
             HỦY BỎ
           </button>
@@ -3790,8 +3790,20 @@ const DashboardView = ({
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 20 }}
                         transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                        className="absolute top-[calc(100%+12px)] right-0 w-[450px] max-h-[620px] bg-[#1E1E1E] border border-border-dark rounded-[32px] shadow-2xl p-6 z-[50] space-y-6 text-left overflow-y-auto custom-scrollbar flex flex-col"
+                        className="fixed inset-x-4 bottom-20 md:absolute md:top-[calc(100%+12px)] md:right-0 md:inset-x-auto md:w-[450px] md:bottom-auto max-h-[70vh] md:max-h-[620px] bg-[#1E1E1E] border border-border-dark rounded-[32px] shadow-2xl p-5 md:p-6 z-[99] space-y-4 md:space-y-6 text-left overflow-y-auto custom-scrollbar flex flex-col pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] md:pb-6"
                       >
+                        {/* Mobile Header Close */}
+                        <div className="flex md:hidden justify-between items-center pb-3 border-b border-white/5 shrink-0 select-none">
+                          <span className="text-[10px] font-black uppercase text-white tracking-widest">Bộ lọc thông minh</span>
+                          <button 
+                            type="button" 
+                            onClick={() => setIsFilterOpen(false)} 
+                            className="size-8 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded-xl text-text-dim hover:text-white transition-all"
+                          >
+                            <X className="size-4" />
+                          </button>
+                        </div>
+
                         {/* Section A: Lọc theo Năm & Quý */}
                         <div className="space-y-2">
                           <h4 className="text-[10px] font-black text-white uppercase tracking-widest">A. Lọc theo Năm & Quý (Dựa trên Ngày xuất)</h4>
@@ -12562,27 +12574,27 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 250 }}
-              className="bg-card-dark rounded-t-[32px] md:rounded-[48px] shadow-[0_50px_100px_rgba(0,0,0,0.6)] w-full max-w-4xl overflow-hidden border border-white/10 flex flex-col h-[92vh] md:h-auto md:max-h-[90vh]"
+              className="bg-card-dark rounded-t-[32px] md:rounded-[48px] shadow-[0_50px_100px_rgba(0,0,0,0.6)] w-full max-w-4xl overflow-hidden border border-white/10 flex flex-col h-[82vh] md:h-auto md:max-h-[88vh]"
             >
               {/* Modern Header */}
-              <div className="p-5 md:p-10 border-b border-white/5 flex justify-between items-center bg-white/5 relative overflow-hidden shrink-0 select-none pt-[calc(1.25rem+env(safe-area-inset-top,0px))] md:pt-10">
+              <div className="p-4 sm:p-5 md:p-10 border-b border-white/5 flex justify-between items-center bg-white/5 relative overflow-hidden shrink-0 select-none pt-[calc(1rem+env(safe-area-inset-top,0px))] md:pt-10">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-orange-400 to-primary/20" />
                 <div className="flex items-center gap-3 md:gap-5 relative z-10">
-                  <div className="size-10 md:size-16 bg-primary/20 text-primary rounded-xl md:rounded-[24px] flex items-center justify-center border border-primary/30 shadow-2xl shrink-0">
-                    <Building2 className="size-5 md:size-8" />
+                  <div className="size-8 md:size-16 bg-primary/20 text-primary rounded-xl md:rounded-[24px] flex items-center justify-center border border-primary/30 shadow-2xl shrink-0">
+                    <Building2 className="size-4 md:size-8" />
                   </div>
                   <div>
-                    <h3 className="text-lg md:text-2xl font-black text-white uppercase tracking-widest">{editingPartner.id === 'new' ? 'Khởi tạo đối tác mới' : 'Cập nhật hồ sơ đối tác'}</h3>
-                    <p className="text-text-dim text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] mt-1 md:mt-1.5 opacity-60">Chuẩn hóa dữ liệu hệ thống doanh nghiệp</p>
+                    <h3 className="text-sm sm:text-lg md:text-2xl font-black text-white uppercase tracking-widest">{editingPartner.id === 'new' ? 'Khởi tạo đối tác mới' : 'Cập nhật hồ sơ đối tác'}</h3>
+                    <p className="text-text-dim text-[8px] md:text-xs font-bold uppercase tracking-[0.2em] mt-0.5 md:mt-1.5 opacity-60">Chuẩn hóa dữ liệu hệ thống doanh nghiệp</p>
                   </div>
                 </div>
-                <button type="button" onClick={() => handlePartnerEditSelect(null)} className="size-10 md:size-12 flex items-center justify-center text-text-dim hover:text-white hover:bg-white/10 rounded-2xl transition-all shrink-0">
-                  <X className="size-5 md:size-6" />
+                <button type="button" onClick={() => handlePartnerEditSelect(null)} className="size-8 md:size-12 flex items-center justify-center text-text-dim hover:text-white hover:bg-white/10 rounded-2xl transition-all shrink-0">
+                  <X className="size-4 md:size-6" />
                 </button>
               </div>
 
               <form
-                className="flex-1 overflow-y-auto p-5 md:p-12 space-y-6 md:space-y-12 custom-scrollbar pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] md:pb-12"
+                className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-12 space-y-5 sm:space-y-8 md:space-y-12 custom-scrollbar pb-[calc(1rem+env(safe-area-inset-bottom,0px))] md:pb-12"
                 onSubmit={async (e) => {
                   e.preventDefault();
                   const formData = new FormData(e.currentTarget);
@@ -12619,7 +12631,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                     <Fingerprint className="size-5" />
                     <span className="text-[11px] font-black uppercase tracking-[0.3em]">Định danh doanh nghiệp</span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-8">
                     <div className="md:col-span-2">
                       <label className="text-[11px] font-black text-text-dim uppercase block mb-3 tracking-widest ml-1">Tên pháp nhân công ty</label>
                       {editingPartner.id === 'new' ? (
@@ -12649,7 +12661,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                     <MapPin className="size-5" />
                     <span className="text-[11px] font-black uppercase tracking-[0.3em]">Thông tin địa chỉ hành chính</span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-10">
                     <div className="space-y-4">
                       <div className="flex justify-between items-center px-1">
                         <label className="text-[11px] font-black text-text-dim uppercase tracking-widest">Địa chỉ gốc (Trước 1/7/2025)</label>
@@ -12692,7 +12704,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                 </div>
 
                 {/* SECTION 3: FINANCE & REP */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-12">
                   <div className="space-y-6">
                     <div className="flex items-center gap-3 text-primary">
                       <CreditCard className="size-5" />
@@ -12736,7 +12748,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                 </div>
 
                 {/* Footer Buttons */}
-                <div className="pt-10 flex gap-6 border-t border-white/5">
+                <div className="pt-6 sm:pt-10 flex gap-4 sm:gap-6 border-t border-white/5 shrink-0">
                   <button type="submit" disabled={isProcessing} className="flex-1 py-5 bg-primary text-white rounded-[24px] text-sm font-black uppercase tracking-[0.3em] shadow-[0_20px_40px_rgba(249,115,22,0.3)] hover:translate-y-[-4px] active:scale-95 transition-all flex items-center justify-center gap-3">
                     {isProcessing ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}
                     {editingPartner.id === 'new' ? 'Hoàn tất khởi tạo' : 'Lưu thay đổi hồ sơ'}
@@ -12759,23 +12771,23 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 250 }}
-              className="bg-card-dark rounded-t-[32px] md:rounded-[56px] shadow-[0_60px_150px_rgba(0,0,0,0.7)] w-full max-w-6xl overflow-hidden border border-white/10 flex flex-col h-[92vh] md:h-auto md:max-h-[90vh]"
+              className="bg-card-dark rounded-t-[32px] md:rounded-[56px] shadow-[0_60px_150px_rgba(0,0,0,0.7)] w-full max-w-6xl overflow-hidden border border-white/10 flex flex-col h-[82vh] md:h-auto md:max-h-[88vh]"
             >
               {/* Premium Batch Header */}
-              <div className="p-5 md:p-10 border-b border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center bg-white/5 relative gap-4 shrink-0 select-none pt-[calc(1.25rem+env(safe-area-inset-top,0px))] md:pt-10">
+              <div className="p-4 sm:p-5 md:p-10 border-b border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center bg-white/5 relative gap-3 sm:gap-4 shrink-0 select-none pt-[calc(1rem+env(safe-area-inset-top,0px))] md:pt-10">
                 <div className="absolute bottom-0 left-0 h-[2px] bg-primary transition-all duration-500 shadow-[0_0_20px_rgba(249,115,22,0.5)]" style={{ width: `${((multiPartnerEdit.currentIndex + 1) / partners.length) * 100}%` }} />
 
                 <div className="flex items-center gap-3 md:gap-6">
-                  <div className="size-10 md:size-16 bg-gradient-to-tr from-primary to-orange-400 text-white rounded-xl md:rounded-[24px] flex items-center justify-center shadow-2xl shrink-0">
-                    <Layers className="size-5 md:size-8" />
+                  <div className="size-8 md:size-16 bg-gradient-to-tr from-primary to-orange-400 text-white rounded-xl md:rounded-[24px] flex items-center justify-center shadow-2xl shrink-0">
+                    <Layers className="size-4 md:size-8" />
                   </div>
                   <div>
-                    <h3 className="text-lg md:text-2xl font-black text-white uppercase tracking-widest">Trung tâm chỉnh sửa hàng loạt</h3>
-                    <div className="flex items-center gap-3 mt-1.5 md:mt-2">
-                      <span className="px-2.5 py-0.5 md:px-3 md:py-1 bg-primary/20 text-primary border border-primary/30 rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-widest">
+                    <h3 className="text-sm sm:text-lg md:text-2xl font-black text-white uppercase tracking-widest">Trung tâm chỉnh sửa hàng loạt</h3>
+                    <div className="flex items-center gap-3 mt-1 md:mt-2">
+                      <span className="px-2 py-0.5 md:px-3 md:py-1 bg-primary/20 text-primary border border-primary/30 rounded-lg text-[8px] md:text-[10px] font-black uppercase tracking-widest">
                         Đối tác {multiPartnerEdit.currentIndex + 1} / {partners.length}
                       </span>
-                      <div className="h-1 w-20 md:w-32 bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-1 w-16 md:w-32 bg-white/5 rounded-full overflow-hidden">
                         <div className="h-full bg-primary" style={{ width: `${((multiPartnerEdit.currentIndex + 1) / partners.length) * 100}%` }} />
                       </div>
                     </div>
@@ -12784,8 +12796,8 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
 
                 <div className="flex items-center justify-between w-full md:w-auto gap-4">
                   <div className="text-left md:text-right mr-0 md:mr-4">
-                    <div className="text-[9px] md:text-[10px] font-black text-text-dim uppercase tracking-widest mb-0.5 opacity-60">Tiến độ cập nhật</div>
-                    <div className="text-xs md:text-sm font-black text-white">{Math.round(((multiPartnerEdit.currentIndex + 1) / partners.length) * 100)}% Hoàn tất</div>
+                    <div className="text-[8px] md:text-[10px] font-black text-text-dim uppercase tracking-widest mb-0.5 opacity-60">Tiến độ cập nhật</div>
+                    <div className="text-[10px] md:text-sm font-black text-white">{Math.round(((multiPartnerEdit.currentIndex + 1) / partners.length) * 100)}% Hoàn tất</div>
                   </div>
                   <button
                     onClick={() => {
@@ -12796,15 +12808,15 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                         setMultiPartnerEdit(null);
                       }
                     }}
-                    className="size-10 md:size-12 flex items-center justify-center text-text-dim hover:text-white hover:bg-white/10 rounded-2xl transition-all shrink-0"
+                    className="size-8 md:size-12 flex items-center justify-center text-text-dim hover:text-white hover:bg-white/10 rounded-2xl transition-all shrink-0"
                   >
-                    <X className="size-5 md:size-6" />
+                    <X className="size-4 md:size-6" />
                   </button>
                 </div>
               </div>
 
               {/* Enhanced Batch Content */}
-              <div className="flex-1 overflow-y-auto p-5 md:p-12 custom-scrollbar pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] md:pb-12">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-12 custom-scrollbar pb-[calc(1rem+env(safe-area-inset-bottom,0px))] md:pb-12">
                 {(() => {
                   const currentPartner = partners[multiPartnerEdit.currentIndex];
                   if (!currentPartner) return null;
@@ -12831,8 +12843,8 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                   return (
                     <div className="space-y-12">
                       {/* Section: Identity */}
-                      <div className="bg-white/5 p-8 rounded-[32px] border border-white/5 shadow-inner">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                      <div className="bg-white/5 p-4 sm:p-8 rounded-[24px] border border-white/5 shadow-inner">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-10">
                           <div className="space-y-3">
                             <label className="text-[11px] font-black text-text-dim uppercase tracking-widest px-1 flex items-center gap-2">
                               <Building2 className="size-3.5 opacity-50" /> Tên pháp nhân (Hệ thống)
@@ -12853,7 +12865,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                       </div>
 
                       {/* Section: Address Mapping */}
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-12">
                         <div className="space-y-4">
                           <div className="flex justify-between items-center px-1">
                             <label className="text-[11px] font-black text-text-dim uppercase tracking-widest flex items-center gap-2">
@@ -12897,7 +12909,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                       </div>
 
                       {/* Section: Finance & Rep */}
-                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-10">
                         <div className="space-y-4">
                           <label className="text-[11px] font-black text-text-dim uppercase tracking-widest px-1 flex items-center gap-2">
                             <CreditCard className="size-4 opacity-50" /> Tài khoản ngân hàng
@@ -12922,7 +12934,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-10">
                         <div className="space-y-4">
                           <label className="text-[11px] font-black text-text-dim uppercase tracking-widest px-1 flex items-center gap-2">
                             <UserCheck className="size-4 opacity-50" /> Họ tên đại diện
@@ -12967,26 +12979,26 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
               </div>
 
               {/* Professional Footer Bar */}
-              <div className="p-10 bg-white/5 border-t border-white/5 flex flex-col gap-6">
-                <div className="flex items-center justify-between gap-10">
-                  <div className="flex gap-4">
+              <div className="p-4 sm:p-6 md:p-10 bg-white/5 border-t border-white/5 flex flex-col gap-4 sm:gap-6 shrink-0">
+                <div className="flex items-center justify-between gap-4 sm:gap-10">
+                  <div className="flex gap-2 sm:gap-4">
                     <button
                       onClick={() => setMultiPartnerEdit(prev => prev ? { ...prev, currentIndex: Math.max(0, prev.currentIndex - 1) } : null)}
                       disabled={multiPartnerEdit.currentIndex === 0}
-                      className="size-16 flex items-center justify-center rounded-[24px] border border-white/10 bg-white/5 text-text-dim hover:text-white hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-all shadow-xl"
+                      className="size-12 sm:size-16 flex items-center justify-center rounded-[20px] sm:rounded-[24px] border border-white/10 bg-white/5 text-text-dim hover:text-white hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-all shadow-xl shrink-0"
                     >
-                      <ChevronLeft className="size-8" />
+                      <ChevronLeft className="size-6 sm:size-8" />
                     </button>
                     <button
                       onClick={() => setMultiPartnerEdit(prev => prev ? { ...prev, currentIndex: Math.min(partners.length - 1, prev.currentIndex + 1) } : null)}
                       disabled={multiPartnerEdit.currentIndex === partners.length - 1}
-                      className="size-16 flex items-center justify-center rounded-[24px] border border-white/10 bg-white/5 text-text-dim hover:text-white hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-all shadow-xl"
+                      className="size-12 sm:size-16 flex items-center justify-center rounded-[20px] sm:rounded-[24px] border border-white/10 bg-white/5 text-text-dim hover:text-white hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-all shadow-xl shrink-0"
                     >
-                      <ChevronRight className="size-8" />
+                      <ChevronRight className="size-6 sm:size-8" />
                     </button>
                   </div>
 
-                  <div className="flex-1 flex justify-end gap-6">
+                  <div className="flex-1 flex justify-end gap-3 sm:gap-6">
                     <button
                       onClick={() => {
                         if (Object.keys(multiPartnerEdit.drafts).length > 0) {
@@ -12996,9 +13008,9 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                           setMultiPartnerEdit(null);
                         }
                       }}
-                      className="px-10 py-5 bg-white/5 text-text-dim hover:text-white border border-white/10 rounded-[28px] text-sm font-black uppercase tracking-[0.2em] transition-all hover:bg-white/10"
+                      className="px-4 sm:px-10 py-3 sm:py-5 bg-white/5 text-text-dim hover:text-white border border-white/10 rounded-[20px] sm:rounded-[28px] text-[10px] sm:text-sm font-black uppercase tracking-[0.2em] transition-all hover:bg-white/10"
                     >
-                      Thoát phiên làm việc
+                      Thoát
                     </button>
                     <button
                       onClick={async () => {
@@ -13020,14 +13032,14 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                       }}
                       disabled={Object.keys(multiPartnerEdit.drafts).length === 0 || isProcessing}
                       className={cn(
-                        "px-12 py-5 rounded-[28px] text-sm font-black tracking-[0.2em] uppercase shadow-[0_20px_50px_rgba(249,115,22,0.3)] transition-all active:scale-95 flex items-center gap-4",
+                        "px-6 sm:px-12 py-3 sm:py-5 rounded-[20px] sm:rounded-[28px] text-[10px] sm:text-sm font-black tracking-[0.2em] uppercase shadow-[0_20px_50px_rgba(249,115,22,0.3)] transition-all active:scale-95 flex items-center gap-2 sm:gap-4 shrink-0",
                         Object.keys(multiPartnerEdit.drafts).length > 0
                           ? "bg-primary text-white hover:translate-y-[-4px]"
                           : "bg-white/5 text-text-dim cursor-not-allowed opacity-40"
                       )}
                     >
-                      {isProcessing ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}
-                      Lưu tất cả ({Object.keys(multiPartnerEdit.drafts).length} Thay đổi)
+                      {isProcessing ? <Loader2 className="size-4 sm:size-5 animate-spin" /> : <Save className="size-4 sm:size-5" />}
+                      Lưu tất cả ({Object.keys(multiPartnerEdit.drafts).length})
                     </button>
                   </div>
                 </div>
@@ -13087,17 +13099,17 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
       <AnimatePresence>
         {isInvoiceSelectorOpen && (
           <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-0 md:p-8 bg-black/60 backdrop-blur-sm"
             onClick={(e) => e.target === e.currentTarget && setIsInvoiceSelectorOpen(false)}
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-card-dark w-full max-w-[1240px] h-[90vh] rounded-[40px] shadow-2xl flex flex-col overflow-hidden border border-border-dark"
+              initial={{ opacity: 0, y: "100%" }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: "100%" }}
+              className="bg-card-dark w-full max-w-[1240px] h-[82vh] md:h-[90vh] rounded-t-[32px] md:rounded-[40px] shadow-2xl flex flex-col overflow-hidden border border-border-dark"
             >
               {/* Modal Header */}
-              <div className="p-6 border-b border-border-dark flex items-center justify-between bg-white/5 relative z-50 shadow-sm">
+              <div className="p-4 sm:p-6 border-b border-border-dark flex items-center justify-between bg-white/5 relative z-50 shadow-sm shrink-0 pt-[calc(1rem+env(safe-area-inset-top,0px))] md:pt-6">
                 <div className="flex items-center gap-4">
                   <div className="size-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary border border-primary/30 shadow-xl shadow-none">
                     <ShoppingBag className="size-6" />
