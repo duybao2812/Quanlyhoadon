@@ -72,6 +72,7 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import {
   signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   signOut,
   onAuthStateChanged
@@ -11050,6 +11051,17 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
 
       console.log("%c=== DIAGNOSTIC SYSTEM ENDED ===", "color: #ff007f; font-weight: bold; font-size: 14px;");
     };
+
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          console.log("[DEBUG] Google Redirect Sign-In successful:", result.user.email);
+        }
+      })
+      .catch((error) => {
+        console.error("[DEBUG] Google Redirect Sign-In error:", error);
+        toast(`Lỗi đăng nhập: ${error.message}`, "error");
+      });
 
     const unsubAuth = onAuthStateChanged(auth, async (u) => {
       setUser(u);
