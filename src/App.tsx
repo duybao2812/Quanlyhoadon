@@ -76,7 +76,8 @@ import {
   getRedirectResult,
   GoogleAuthProvider,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  signInWithCredential
 } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import imageCompression from 'browser-image-compression';
@@ -206,6 +207,24 @@ const Sidebar = ({
   const { toast } = useToast();
 
   const handleLogin = async () => {
+    // Nếu đang chạy trong iframe (như Wallpaper Engine)
+    if (window.self !== window.top) {
+      alert("HỆ THỐNG HÌNH NỀN DESKTOP:\nGoogle không cho phép đăng nhập trực tiếp trong khung hình nền hình ảnh vì lý do bảo mật.\n\nHệ thống sẽ tự động mở trình duyệt Google Chrome để bạn đăng nhập. Sau khi đăng nhập thành công ở Chrome, hình nền của bạn sẽ tự động kết nối và tải dữ liệu ngay lập tức!");
+      
+      // Gửi yêu cầu mở Chrome thông qua local Node.js server
+      try {
+        await fetch('/api/system/launch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ appName: 'chrome' })
+        });
+      } catch (err) {
+        // Fallback mở link trực tiếp nếu server offline
+        window.open('http://localhost:3000', '_blank');
+      }
+      return;
+    }
+
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
 
@@ -8560,7 +8579,7 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
 
   return (
     <div className="space-y-6" onClick={closeContextMenu}>
-      <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center bg-card-dark p-4 sm:p-6 rounded-[28px] border border-border-dark shadow-2xl gap-4">
+      <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center bg-card-dark p-4 sm:p-6 rounded-[28px] border border-border-dark shadow-2xl gap-4">
         <div className="flex items-center gap-3 sm:gap-4 select-none">
           <div className="size-8 sm:size-10 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
             <Users className="size-4 sm:size-5 text-primary" />
@@ -8584,7 +8603,7 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
             />
           </div>
           <div className="hidden sm:block w-px h-8 bg-border-dark" />
-          <div className="grid grid-cols-3 gap-2 w-full sm:w-auto md:flex md:w-auto md:gap-3 items-center shrink-0">
+          <div className="grid grid-cols-3 gap-2 w-full sm:w-auto lg:flex lg:w-auto lg:gap-3 items-center shrink-0">
             <button
               type="button"
               onClick={() => setShowAddressTool(!showAddressTool)}
@@ -8699,9 +8718,9 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
       </AnimatePresence>
 
       {/* Desktop Table View */}
-      <div className="hidden md:block card overflow-hidden shadow-[0_30px_100px_rgba(0,0,0,0.4)] border border-white/10 bg-card-dark/80 backdrop-blur-xl rounded-[40px]">
+      <div className="hidden lg:block card overflow-hidden shadow-[0_30px_100px_rgba(0,0,0,0.4)] border border-white/10 bg-card-dark/80 backdrop-blur-xl rounded-[40px]">
         <div className="overflow-x-auto custom-scrollbar">
-          <table className="w-full text-left border-collapse min-w-[1100px]">
+          <table className="w-full text-left border-collapse min-w-[900px] lg:min-w-[1000px] xl:min-w-[1100px]">
             <thead>
               <tr className="bg-white/5 border-b border-white/10">
                 <th className="px-8 py-6 text-[11px] font-black text-primary uppercase tracking-[0.25em] w-[22%]">
@@ -8852,7 +8871,7 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
       </div>
 
       {/* Mobile Card Grid View */}
-      <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-6">
         {filteredPartners.length === 0 ? (
           <div className="p-12 text-center bg-card-dark/40 border border-border-dark rounded-3xl opacity-40 col-span-full">
             <Users className="size-12 mx-auto mb-2 text-white" />
@@ -11235,6 +11254,28 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
     console.log("[DEBUG] useEffect auth hook mounted. Firebase auth object:", auth);
     console.log("[DEBUG] Current Firebase currentUser:", auth.currentUser);
 
+    // Tự động kiểm tra và đăng nhập programmatic nếu chạy trong iframe (như Wallpaper Engine)
+    if (window.self !== window.top) {
+      const autoLoginWallpaper = async () => {
+        try {
+          console.log("[DEBUG] Wallpaper Mode: Đang tìm phiên đăng nhập đồng bộ từ Chrome...");
+          const res = await fetch('/api/auth/get-session');
+          if (res.ok) {
+            const session = await res.json();
+            if (session && session.idToken) {
+              console.log("[DEBUG] Wallpaper Mode: Tìm thấy phiên của", session.email, ". Bắt đầu đăng nhập...");
+              const credential = GoogleAuthProvider.credential(session.idToken);
+              await signInWithCredential(auth, credential);
+              console.log("[DEBUG] Wallpaper Mode: Đăng nhập thành công qua Token đồng bộ!");
+            }
+          }
+        } catch (err) {
+          console.error("[DEBUG] Wallpaper Mode: Lỗi tự động đăng nhập:", err);
+        }
+      };
+      autoLoginWallpaper();
+    }
+
     getRedirectResult(auth)
       .then((result) => {
         console.log("[DEBUG] getRedirectResult successfully completed. Result:", result);
@@ -11254,6 +11295,27 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
       setUser(u);
       if (u) {
         setIsLoadingInvoices(true);
+
+        // Tự động đồng bộ hóa phiên đăng nhập sang Local Node Server nếu chạy ở trình duyệt Chrome chính
+        if (window.self === window.top) {
+          try {
+            const idToken = await u.getIdToken();
+            await fetch('/api/auth/save-session', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                uid: u.uid,
+                email: u.email,
+                displayName: u.displayName,
+                photoURL: u.photoURL,
+                idToken: idToken
+              })
+            });
+            console.log("[DEBUG] Đồng bộ phiên đăng nhập sang Server thành công!");
+          } catch (syncErr) {
+            console.error("[DEBUG] Lỗi đồng bộ phiên đăng nhập:", syncErr);
+          }
+        }
 
         // Pass the Firebase UID securely through custom dynamic fetch header to PostgreSQL RLS
         try {
