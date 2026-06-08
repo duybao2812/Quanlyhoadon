@@ -14,6 +14,15 @@ interface Props {
 }
 
 export const InvoiceItemComp: React.FC<Props> = ({ invoice, onDelete, displayName, onGenerateDoc, onUpdate, placement }) => {
+  // Xác định loại hóa đơn điều chỉnh/thay thế
+  const getAdjustmentType = () => {
+    const note = (invoice.note || '').toLowerCase();
+    if (/thay thế|thaythe/.test(note)) return 'thay_the';
+    if (/điều chỉnh|dieuchinh/.test(note)) return 'dieu_chinh';
+    return null;
+  };
+  const adjustmentType = getAdjustmentType();
+
   return (
     <InvoiceResponsiveCard invoice={invoice} onGenerateDoc={onGenerateDoc} placement={placement}>
       <div className="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer border border-transparent hover:border-border-dark group">
@@ -22,7 +31,19 @@ export const InvoiceItemComp: React.FC<Props> = ({ invoice, onDelete, displayNam
             {invoice.type === 'PDF' ? <FileText size={20} /> : <FileCode size={20} />}
           </div>
           <div>
-            <p className="text-sm font-medium text-white truncate max-w-[200px]">{displayName || invoice.invoiceNumber}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium text-white truncate max-w-[200px]">{displayName || invoice.invoiceNumber}</p>
+              {adjustmentType === 'dieu_chinh' && (
+                <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/40 shrink-0">
+                  Điều chỉnh
+                </span>
+              )}
+              {adjustmentType === 'thay_the' && (
+                <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-400 border border-purple-500/40 shrink-0">
+                  Thay thế
+                </span>
+              )}
+            </div>
             <p className="text-xs text-text-dim">{formatDate(invoice.date)} • {invoice.companyName}</p>
           </div>
         </div>

@@ -11,6 +11,7 @@ import axios from 'axios';
 import OpenAI from 'openai';
 import os from 'os';
 import { JSDOM } from 'jsdom';
+import { exec } from 'child_process';
 
 dotenv.config();
 
@@ -38,7 +39,7 @@ Map the data into this EXACT JSON structure:
 {
   "seller": { "name": "", "taxCode": "", "address": "", "accountNumber": "", "bankName": "" },
   "buyer": { "name": "", "taxCode": "", "address": "", "accountNumber": "", "bankName": "" },
-  "invoice": { "number": "", "serial": "", "date": "", "vatRate": 8 },
+  "invoice": { "number": "", "serial": "", "date": "", "vatRate": 8, "note": "" },
   "items": [{ "name": "", "unit": "", "quantity": 0, "unitPrice": 0, "total": 0 }],
   "totals": { "subtotal": 0, "vatAmount": 0, "grandTotal": 0, "amountInWords": "" },
   "classification": "BB_CM | BB_VT | BB_TC"
@@ -52,6 +53,7 @@ Notes:
 - classification: "BB_CM" (Machine/Ca máy), "BB_VT" (Materials/Vật tư), "BB_TC" (Construction/Thi công).
 - If invoice has "Bê tông", it's BB_VT.
 - vatRate = Thuế suất (8, 10).
+- invoice.note: Trích xuất nội dung ghi chú đặc biệt nếu có (VD: "Điều chỉnh cho hóa đơn mẫu số...", "Thay thế hóa đơn...", "Hóa đơn điều chỉnh giảm/tăng"). Nếu không có thì để trống.
 - RETURN ONLY THE JSON.
 `;
 
@@ -234,9 +236,16 @@ async function startServer() {
 
       const responseText = await response.text();
       console.log(`[PROXY] GAS responded with status: ${response.status}`);
+      console.log(`[PROXY] GAS response body:`, responseText.substring(0, 2000));
 
       if (!response.ok) {
+        console.error(`[PROXY] GAS error response:`, responseText);
         return res.status(response.status).send(responseText);
+      }
+
+      if (!responseText || responseText.trim() === "") {
+        console.error(`[PROXY] Empty response from GAS`);
+        return res.status(500).json({ error: 'Máy chủ GAS trả về kết quả rỗng.' });
       }
 
       try {
@@ -427,6 +436,71 @@ async function startServer() {
         error: 'Tất cả các nhà cung cấp AI đều thất bại hoặc chưa được cấu hình.',
         systemLogs: errors
       });
+    }
+  });
+
+  // NEW: System launcher API to bypass browser sandbox in Wallpaper Engine
+  app.post('/api/system/launch', (req, res) => {
+    const { appName } = req.body;
+    console.log(`[SYSTEM] Nhận yêu cầu khởi chạy ứng dụng: ${appName}`);
+    
+    let command = '';
+    switch (appName) {
+      case 'vscode':
+        command = 'code .'; // Open VS Code at current project directory
+        break;
+      case 'spotify':
+        command = 'start spotify:';
+        break;
+      case 'steam':
+        command = 'start steam:';
+        break;
+      case 'chrome':
+        command = 'start chrome https://www.google.com';
+        break;
+      case 'explorer':
+        command = 'explorer .'; // Open explorer at current project directory
+        break;
+      default:
+        return res.status(400).json({ error: `Ứng dụng ${appName} không được hỗ trợ.` });
+    }
+
+    exec(command, (err) => {
+      if (err) {
+        console.error(`Lỗi khởi chạy ${appName}:`, err);
+        return res.status(500).json({ error: `Không thể mở ${appName}`, details: err.message });
+      }
+      res.json({ success: true, message: `Đã mở ${appName} thành công!` });
+    });
+  });
+
+  // NEW: Save and Retrieve Firebase Auth Session for Wallpaper Engine Integration
+  app.post('/api/auth/save-session', (req, res) => {
+    const sessionData = req.body;
+    console.log(`[AUTH] Lưu phiên đăng nhập từ trình duyệt bên ngoài cho user: ${sessionData?.email}`);
+    
+    try {
+      const sessionPath = path.join(process.cwd(), 'uploads', 'session_auth.json');
+      fs.writeFileSync(sessionPath, JSON.stringify(sessionData, null, 2), 'utf-8');
+      res.json({ success: true, message: 'Đã lưu phiên đăng nhập thành công!' });
+    } catch (err: any) {
+      console.error('Lỗi khi lưu phiên đăng nhập:', err);
+      res.status(500).json({ error: 'Không thể lưu phiên đăng nhập', details: err.message });
+    }
+  });
+
+  app.get('/api/auth/get-session', (req, res) => {
+    try {
+      const sessionPath = path.join(process.cwd(), 'uploads', 'session_auth.json');
+      if (fs.existsSync(sessionPath)) {
+        const rawData = fs.readFileSync(sessionPath, 'utf-8');
+        const sessionData = JSON.parse(rawData);
+        return res.json(sessionData);
+      }
+      res.status(404).json({ error: 'Không tìm thấy phiên đăng nhập đã lưu.' });
+    } catch (err: any) {
+      console.error('Lỗi khi đọc phiên đăng nhập:', err);
+      res.status(500).json({ error: 'Không thể đọc phiên đăng nhập', details: err.message });
     }
   });
 

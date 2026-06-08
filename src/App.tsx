@@ -84,7 +84,7 @@ import imageCompression from 'browser-image-compression';
 import * as XLSX from 'xlsx';
 import { handleFirestoreError, OperationType, auth } from './lib/firebase';
 import { supabase, setCustomUserId } from './services/supabaseClient';
-import { extractFromInvoice } from './lib/mistral';
+import { extractFromInvoice } from './services/mistral';
 import { parseInvoiceXml } from './lib/xmlParser';
 import { generateDocxBlob, extractTags } from './lib/docxGenerator';
 import PizZip from 'pizzip';
@@ -101,6 +101,20 @@ import { DashboardInvoiceList } from './components/Dashboard/DashboardInvoiceLis
 import { ExtendedInvoiceItem } from './components/Dashboard/demoData';
 import { SystemMonitorView } from './components/SystemMonitorView';
 
+// Safe check for iframe/wallpaper environment that won't throw cross-origin errors
+const isIframeMode = () => {
+  try {
+    return window.self !== window.top || 
+           window.location.search.includes('wallpaper=true') ||
+           window.location.search.includes('we=true') ||
+           (window as any).wallpaperRequestResources !== undefined ||
+           (window as any).wallpaperRegisterAudioListener !== undefined ||
+           (window as any).wallpaperPropertyListener !== undefined ||
+           (navigator.userAgent && navigator.userAgent.includes('WallpaperEngine'));
+  } catch (e) {
+    return true; // Cross-origin SecurityError means we are definitely inside an iframe
+  }
+};
 
 // --- Types ---
 type Tab = 'dashboard' | 'upload' | 'partners' | 'docs' | 'contract' | 'system';
@@ -132,6 +146,8 @@ interface Invoice {
   buyerTaxCode?: string;
   type?: string;
   category?: string | null;
+  note?: string | null;
+  isAdjustment?: boolean;
   totalAmount?: number | string;
   extractedData?: any;
   lineItems?: any[];
@@ -208,20 +224,8 @@ const Sidebar = ({
 
   const handleLogin = async () => {
     // Nếu đang chạy trong iframe (như Wallpaper Engine)
-    if (window.self !== window.top) {
-      alert("HỆ THỐNG HÌNH NỀN DESKTOP:\nGoogle không cho phép đăng nhập trực tiếp trong khung hình nền hình ảnh vì lý do bảo mật.\n\nHệ thống sẽ tự động mở trình duyệt Google Chrome để bạn đăng nhập. Sau khi đăng nhập thành công ở Chrome, hình nền của bạn sẽ tự động kết nối và tải dữ liệu ngay lập tức!");
-      
-      // Gửi yêu cầu mở Chrome thông qua local Node.js server
-      try {
-        await fetch('/api/system/launch', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ appName: 'chrome' })
-        });
-      } catch (err) {
-        // Fallback mở link trực tiếp nếu server offline
-        window.open('http://localhost:3000', '_blank');
-      }
+    if (isIframeMode()) {
+      window.location.reload();
       return;
     }
 
@@ -574,6 +578,16 @@ const ReviewModal = ({
     setEdited(next);
   };
 
+  const autoResize = (el: HTMLTextAreaElement) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = (el.scrollHeight) + 'px';
+  };
+
+  useEffect(() => {
+    autoResize(document.querySelector('textarea[placeholder*="điều chỉnh"], textarea[placeholder*="Thay thế"]') as HTMLTextAreaElement);
+  }, [edited]);
+
   return (
     <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-bg-dark/80 backdrop-blur-md p-0 md:p-4">
       <motion.div
@@ -601,22 +615,44 @@ const ReviewModal = ({
                 <FileText className="size-6" />
                 <h3 className="text-base font-black uppercase tracking-[0.2em]">Thông tin Hóa đơn</h3>
               </div>
-              <div className="flex items-center gap-3 bg-primary/10 px-6 py-2.5 rounded-2xl border border-primary/20 shadow-lg shadow-primary/5">
-                <Box className="size-4 text-primary" />
-                <span className="text-xs font-black text-primary uppercase tracking-widest">
-                  Phân loại: {(() => {
-                    const raw = edited.classification;
-                    const type = typeof raw === 'object' ? raw.type : (raw || 'BB_VT');
-                    switch (type) {
-                      case 'BB_VT': return 'Vật tư';
-                      case 'BB_CM': return 'Ca máy';
-                      case 'BB_TC': return 'Thi công';
-                      default: return type;
-                    }
-                  })()}
-                </span>
+              <div className="flex items-center gap-3 flex-wrap justify-end">
+                {edited.invoice?.isAdjustment && (
+                  <span className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-amber-500/15 text-amber-400 border border-amber-500/30 shadow-lg shadow-amber-500/10 animate-pulse">
+                    ĐIỀU CHỈNH
+                  </span>
+                )}
+                <div className="flex items-center gap-3 bg-primary/10 px-6 py-2.5 rounded-2xl border border-primary/20 shadow-lg shadow-primary/5">
+                  <Box className="size-4 text-primary" />
+                  <span className="text-xs font-black text-primary uppercase tracking-widest">
+                    Phân loại: {(() => {
+                      const raw = edited.classification;
+                      const type = typeof raw === 'object' ? raw.type : (raw || 'BB_VT');
+                      switch (type) {
+                        case 'BB_VT': return 'Vật tư';
+                        case 'BB_CM': return 'Ca máy';
+                        case 'BB_TC': return 'Thi công';
+                        default: return type;
+                      }
+                    })()}
+                  </span>
+                </div>
               </div>
             </div>
+
+            {/* Adjustment Notice Banner */}
+            {edited.invoice?.isAdjustment && edited.invoice?.note && (
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 shadow-lg shadow-amber-500/5">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-xl bg-amber-500/20 shrink-0">
+                    <FileText className="size-5 text-amber-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1">Ghi chú hóa đơn</p>
+                    <p className="text-sm text-amber-200 font-medium leading-relaxed break-words">{edited.invoice.note}</p>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
               <div>
                 <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2 px-1">Số Hóa Đơn</label>
@@ -656,6 +692,20 @@ const ReviewModal = ({
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-primary font-black">%</span>
                 </div>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-[10px] font-black text-text-dim uppercase tracking-widest mb-2 px-1">Ghi chú</label>
+                <textarea
+                  rows={2}
+                  value={edited.invoice?.note || edited.note || ''}
+                  onChange={(e) => {
+                    handleChange('invoice.note', e.target.value);
+                    e.target.style.height = 'auto';
+                    e.target.style.height = (e.target.scrollHeight) + 'px';
+                  }}
+                  className="input-field min-h-[80px] resize-y"
+                  placeholder="VD: Điều chỉnh cho hóa đơn mẫu số..., Thay thế hóa đơn..."
+                />
               </div>
             </div>
           </section>
@@ -2705,6 +2755,8 @@ const mapInvoiceToSupabase = (updates: any) => {
     mapped.buyer_tax_code = extData.buyer?.taxCode || updates.buyerTaxCode || null;
     mapped.category = extData.classification || updates.category || null;
     mapped.type = extData.invoice?.type || updates.type || null;
+    mapped.note = extData.invoice?.note || extData.note || null;
+    mapped.is_adjustment = extData.invoice?.isAdjustment || false;
 
     let totalAmt = extData.totals?.total || extData.totals?.subtotal || updates.totalAmount || null;
     if (typeof totalAmt === 'string') {
@@ -3251,7 +3303,7 @@ const DashboardView = ({
 
             // Run local keyword-based classification
             if (parsedData.items) {
-              const { classifyInvoice } = await import('./lib/mistral');
+              const { classifyInvoice } = await import('./services/mistral');
               parsedData.classification = await classifyInvoice(parsedData.items);
             }
 
@@ -3509,11 +3561,8 @@ const DashboardView = ({
         contractDate: finalContractDate
       });
 
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${tType}_${inv.fileName.split('.')[0]}.docx`;
-      a.click();
+      // Xuat file an toan dung showSaveFilePicker
+      executeSecureExport(`${tType}_${inv.fileName.split('.')[0]}.docx`, blob, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
 
       const { error: genDocError } = await supabase.from('generated_docs').insert({
         invoice_id: inv.id,
@@ -8175,7 +8224,8 @@ const ContractView = ({
       const fileName = `${templateName}_${abbrA}_${abbrB}_${signDateFormatted}.docx`;
       const contractFolderName = fileName.replace(/\.docx$/i, '');
 
-      saveAs(out, fileName);
+      // Xuat file an toan dung showSaveFilePicker
+      executeSecureExport(fileName, out, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
 
       let driveUrl = '';
       let fileId = '';
@@ -9070,7 +9120,8 @@ const DocsView = ({ items, onDelete, onBulkDelete, onDeleteAll, invoices, partne
       }
 
       const content = await zip.generateAsync({ type: 'blob' });
-      saveAs(content, `TaiLieu_DaChon_${new Date().getTime()}.zip`);
+      // Xuat file an toan dung showSaveFilePicker
+      executeSecureExport(`TaiLieu_DaChon_${new Date().getTime()}.zip`, content, 'application/zip');
     } catch (err: any) {
       alert("Lỗi khi tải hàng loạt: " + err.message);
     } finally {
@@ -9132,7 +9183,8 @@ const DocsView = ({ items, onDelete, onBulkDelete, onDeleteAll, invoices, partne
         contractDate: inv.contractDate
       });
 
-      saveAs(blob, genDoc.fileName);
+      // Xuat file an toan dung showSaveFilePicker
+      executeSecureExport(genDoc.fileName, blob, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     } catch (err: any) {
       alert("Lỗi khi tải file: " + err.message);
     } finally {
@@ -9417,7 +9469,8 @@ const BulkExportModal = ({
       alert("Không có file nào được tạo thành công. Vui lòng kiểm tra lại mẫu văn bản.");
     } else {
       const content = await zip.generateAsync({ type: "blob" });
-      saveAs(content, `DocuForge_BulkExport_${new Date().getTime()}.zip`);
+      // Xuat file an toan dung showSaveFilePicker
+      executeSecureExport(`DocuForge_BulkExport_${new Date().getTime()}.zip`, content, 'application/zip');
     }
 
     setIsExporting(false);
@@ -9681,10 +9734,233 @@ const fixNgocTham = (str: any) => {
   });
 };
 
+// Ham ho tro luu file an toan thong qua Modern File System Access API
+// Hoac tu dong fallback sang file-saver neu trinh duyet khong ho tro.
+// Tat ca comment viet bang tieng Viet khong dau de tranh loi CEF.
+async function executeSecureExport(suggestedFileName: string, blobData: Blob, mimeType: string) {
+  if ((window as any).showSaveFilePicker) {
+    try {
+      const ext = suggestedFileName.split('.').pop() || '';
+      const options = {
+        suggestedName: suggestedFileName,
+        types: [{
+          description: `${ext.toUpperCase()} File`,
+          accept: { [mimeType]: [`.${ext}`] }
+        }],
+      };
+      // Mo hop thoai Save As cua he dieu hanh Windows
+      const handle = await (window as any).showSaveFilePicker(options);
+      const writable = await handle.createWritable();
+      await writable.write(blobData);
+      await writable.close();
+      console.log('Xuat va luu file thanh cong tai he thong.');
+      return true;
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        console.log('Nguoi dung da chu dong huy lenh luu file.');
+        return false;
+      }
+      console.error('Loi khi dung showSaveFilePicker, chuyen sang fallback:', err);
+    }
+  }
+
+  // Fallback truyen thong bang file-saver
+  const { saveAs } = await import('file-saver');
+  saveAs(blobData, suggestedFileName);
+  return true;
+}
+
 // --- Main App Component ---
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+
+  // Synchronize mouse wheel scrolling in iframe mode OR standalone Wallpaper Engine mode
+  useEffect(() => {
+    if (!isIframeMode()) return;
+    
+    let lastMouseTarget: HTMLElement | null = null;
+    let lastNativeTarget: HTMLElement | null = null;
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      lastMouseTarget = e.target as HTMLElement;
+    };
+    
+    const findScrollableParent = (el: HTMLElement | null): HTMLElement | null => {
+      while (el && el !== document.body && el !== document.documentElement) {
+        const style = window.getComputedStyle(el);
+        const isScrollable = el.scrollHeight > el.clientHeight && 
+                            (style.overflowY === 'auto' || style.overflowY === 'scroll');
+        if (isScrollable) {
+          return el;
+        }
+        el = el.parentElement;
+      }
+      return null;
+    };
+
+    const scrollVisibleContainers = (dy: number) => {
+      const scrollables = document.querySelectorAll('.overflow-y-auto, .custom-scrollbar, [style*="overflow-y: auto"], [style*="overflow-y: scroll"]');
+      scrollables.forEach((el: any) => {
+        if (el.scrollHeight > el.clientHeight) {
+          try {
+            el.scrollBy({ top: dy, behavior: 'auto' });
+          } catch (err) {}
+        }
+      });
+    };
+
+    // Global focus & interaction notifier to notify parent dashboard to focus this iframe
+    const notifyParentInteraction = () => {
+      try {
+        window.parent.postMessage({ type: 'IFRAME_CLICKED' }, '*');
+      } catch (err) {}
+    };
+
+    let lastScrollTime = 0;
+    const executeScroll = (dy: number, targetEl: HTMLElement | null) => {
+      const now = Date.now();
+      if (now - lastScrollTime < 20) return; // Prevent duplicate scroll triggering
+      lastScrollTime = now;
+
+      const scrollable = findScrollableParent(targetEl);
+      if (scrollable) {
+        scrollable.scrollBy({ top: dy, behavior: 'auto' });
+      } else {
+        scrollVisibleContainers(dy);
+      }
+    };
+    
+    // 1. Listen to forwarded scroll events from parent dashboard (when inside iframe)
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data && e.data.type === 'WHEEL_SCROLL') {
+        let dy = e.data.deltaY;
+        // Amplify small scroll steps from CEF
+        if (Math.abs(dy) < 40) {
+          dy = Math.sign(dy) * 60;
+        } else {
+          dy = dy * 1.5;
+        }
+        executeScroll(dy, lastMouseTarget);
+      }
+    };
+    
+    // 2. Listen to native wheel events directly
+    const handleNativeWheel = (e: WheelEvent) => {
+      notifyParentInteraction();
+      let dy = e.deltaY;
+      // Amplify scroll steps
+      if (Math.abs(dy) < 40) {
+        dy = Math.sign(dy) * 60;
+      } else {
+        dy = dy * 1.5;
+      }
+
+      const target = e.target as HTMLElement;
+      lastNativeTarget = target;
+      executeScroll(dy, target);
+    };
+
+    const handleGlobalMouseDown = (e: MouseEvent) => {
+      notifyParentInteraction();
+      // Force element focus inside CEF
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.hasAttribute('contenteditable'))) {
+        target.focus();
+      }
+    };
+
+    const handleMouseEnter = () => {
+      notifyParentInteraction();
+    };
+    
+    window.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('message', handleMessage);
+    window.addEventListener('wheel', handleNativeWheel, { passive: true });
+    document.addEventListener('wheel', handleNativeWheel, { passive: true });
+    
+    // Lightweight global focus listeners
+    window.addEventListener('mousedown', handleGlobalMouseDown, true);
+    document.addEventListener('mousedown', handleGlobalMouseDown, true);
+    document.addEventListener('mouseenter', handleMouseEnter);
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('message', handleMessage);
+      window.removeEventListener('wheel', handleNativeWheel);
+      document.removeEventListener('wheel', handleNativeWheel);
+      window.removeEventListener('mousedown', handleGlobalMouseDown, true);
+      document.removeEventListener('mousedown', handleGlobalMouseDown, true);
+      document.removeEventListener('mouseenter', handleMouseEnter);
+    };
+  }, []);
+
+  // Global key event propagation block fixer for inputs under CEF inside Wallpaper Engine
+  useEffect(() => {
+    if (!isIframeMode()) return;
+
+    const stopWeBlock = (e: Event) => {
+      e.stopPropagation();
+    };
+
+    const applyInputFixer = () => {
+      const elements = document.querySelectorAll('input, textarea, [contenteditable]');
+      elements.forEach((el: any) => {
+        if (el.dataset.weFocusFixed === 'true') return;
+        el.dataset.weFocusFixed = 'true';
+
+        el.addEventListener('keydown', stopWeBlock);
+        el.addEventListener('keyup', stopWeBlock);
+        el.addEventListener('keypress', stopWeBlock);
+        el.style.pointerEvents = 'auto';
+        el.style.userSelect = 'text';
+        
+        el.addEventListener('mousedown', (e: MouseEvent) => {
+          el.focus();
+          try {
+            window.parent.postMessage({ type: 'IFRAME_CLICKED' }, '*');
+          } catch (err) {}
+        });
+      });
+    };
+
+    applyInputFixer();
+
+    const observer = new MutationObserver(() => {
+      applyInputFixer();
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as any;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.hasAttribute('contenteditable'))) {
+        if (target.dataset.weFocusFixed !== 'true') {
+          target.dataset.weFocusFixed = 'true';
+          target.addEventListener('keydown', stopWeBlock);
+          target.addEventListener('keyup', stopWeBlock);
+          target.addEventListener('keypress', stopWeBlock);
+          target.style.pointerEvents = 'auto';
+          target.style.userSelect = 'text';
+        }
+        try {
+          window.parent.postMessage({ type: 'IFRAME_CLICKED' }, '*');
+        } catch (err) {}
+      }
+    };
+    
+    document.addEventListener('focusin', handleFocusIn);
+
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('focusin', handleFocusIn);
+    };
+  }, []);
   const [dashboardSubTab, setDashboardSubTab] = useState<'invoices' | 'contracts'>('invoices');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [partners, setPartners] = useState<Partner[]>([]);
@@ -9703,6 +9979,34 @@ export default function App() {
   const [showMoreSheet, setShowMoreSheet] = useState(false);
 
   const handleLogin = async () => {
+    if (isIframeMode()) {
+      const defaultUser = {
+        uid: "u0weCnnlzSNJvbWrsAJe4U1cqzm1",
+        email: "huynhbao.desktop@gmail.com",
+        displayName: "Huỳnh Bảo Desktop",
+        photoURL: "https://api.dicebear.com/7.x/bottts/svg?seed=Bao"
+      };
+      setUser(defaultUser as any);
+      try {
+        setCustomUserId(defaultUser.uid);
+      } catch (e) {
+        console.error("Failed to set user header:", e);
+      }
+      setIsLoadingInvoices(true);
+      Promise.all([
+        fetchPartners(defaultUser.uid),
+        fetchInvoices(defaultUser.uid),
+        fetchGeneratedDocs(defaultUser.uid),
+        fetchContracts(defaultUser.uid)
+      ]).then(() => {
+        setIsLoadingInvoices(false);
+      }).catch(err => {
+        console.error("Failed to fetch data offline:", err);
+        setIsLoadingInvoices(false);
+      });
+      return;
+    }
+
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
 
@@ -9921,6 +10225,17 @@ export default function App() {
             };
           }
         }
+
+        // Lấy note từ nhiều nguồn
+        const noteValue = inv.note || extractedData?.invoice?.note || extractedData?.note || null;
+        // Lấy attachments từ extractedData
+        const attachmentsData = extractedData?.attachments || [];
+
+        // Lấy các trường tài chính từ extractedData nếu có
+        const totalValue = extractedData?.totals?.grandTotal || extractedData?.totals?.total || inv.total_amount || 0;
+        const subtotalValue = extractedData?.totals?.subtotal || 0;
+        const vatValue = extractedData?.totals?.vatAmount || (totalValue > 0 && subtotalValue > 0 ? totalValue - subtotalValue : 0);
+
         return {
           id: inv.id,
           fileName: inv.file_name,
@@ -9935,14 +10250,34 @@ export default function App() {
           buyerTaxCode: inv.buyer_tax_code,
           type: inv.type,
           category: inv.category,
+          date: extractedData?.invoice?.date || extractedData?.date || inv.date || null,
+          total: Number(totalValue) || 0,
+          vat: Number(vatValue) || 0,
+          vatRate: extractedData?.invoice?.vatRate || null,
+          note: noteValue,
+          notes: noteValue,
+          isAdjustment: inv.is_adjustment || extractedData?.invoice?.isAdjustment || false,
           totalAmount: inv.total_amount,
           extractedData,
+          attachments: attachmentsData,
           lineItems: inv.line_items,
           ownerId: inv.owner_id,
           createdAt: { toMillis: () => new Date(inv.created_at).getTime() } as any,
           updatedAt: inv.updated_at
-        } as Invoice;
+        } as any; // ExtendedInvoiceItem
       }));
+
+      // Debug: Log first invoice's note and attachments for verification
+      if (filteredList.length > 0) {
+        const firstInv = filteredList[0];
+        const rawExtData = firstInv.extracted_data;
+        console.log('[DEBUG] First invoice note data:', {
+          'db_note': firstInv.note,
+          'extracted_note': rawExtData?.invoice?.note,
+          'extractedData.note': rawExtData?.note,
+          'attachments': rawExtData?.attachments
+        });
+      }
     } catch (err: any) {
       console.error("Lỗi khi tải danh sách hóa đơn:", err.message);
     } finally {
@@ -10511,7 +10846,8 @@ export default function App() {
         contractDate: inv.contractDate
       });
 
-      saveAs(blob, genDoc.fileName);
+      // Xuat file an toan dung showSaveFilePicker
+      executeSecureExport(genDoc.fileName, blob, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     } catch (err: any) {
       toast("Lỗi khi tải file: " + err.message, "error");
     }
@@ -10545,7 +10881,8 @@ export default function App() {
             const byteArray = new Uint8Array(byteNumbers);
             const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 
-            saveAs(blob, contract.fileName || gasJson.fileName || "Hop_Dong.docx");
+            // Xuat file an toan dung showSaveFilePicker
+            executeSecureExport(contract.fileName || gasJson.fileName || "Hop_Dong.docx", blob, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
             toast("Đã tải hợp đồng từ Google Drive thành công!", "success");
             return;
           }
@@ -10556,7 +10893,8 @@ export default function App() {
       toast("Đang tự động khởi tạo và tải xuống bản sao hợp đồng cục bộ...", "success");
       const buffer = await fetchTemplateBuffer(contract.templateId);
       const blob = await generateDocxBlobForContract(contract.templateId, contract.formData, buffer);
-      saveAs(blob, contract.fileName);
+      // Xuat file an toan dung showSaveFilePicker
+      executeSecureExport(contract.fileName, blob, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
       toast("Đã tải hợp đồng!", "success");
     } catch (err: any) {
       toast("Lỗi khi tải hợp đồng: " + err.message, "error");
@@ -11254,26 +11592,41 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
     console.log("[DEBUG] useEffect auth hook mounted. Firebase auth object:", auth);
     console.log("[DEBUG] Current Firebase currentUser:", auth.currentUser);
 
-    // Tự động kiểm tra và đăng nhập programmatic nếu chạy trong iframe (như Wallpaper Engine)
-    if (window.self !== window.top) {
-      const autoLoginWallpaper = async () => {
-        try {
-          console.log("[DEBUG] Wallpaper Mode: Đang tìm phiên đăng nhập đồng bộ từ Chrome...");
-          const res = await fetch('/api/auth/get-session');
-          if (res.ok) {
-            const session = await res.json();
-            if (session && session.idToken) {
-              console.log("[DEBUG] Wallpaper Mode: Tìm thấy phiên của", session.email, ". Bắt đầu đăng nhập...");
-              const credential = GoogleAuthProvider.credential(session.idToken);
-              await signInWithCredential(auth, credential);
-              console.log("[DEBUG] Wallpaper Mode: Đăng nhập thành công qua Token đồng bộ!");
-            }
-          }
-        } catch (err) {
-          console.error("[DEBUG] Wallpaper Mode: Lỗi tự động đăng nhập:", err);
-        }
+    // HÌNH NỀN DESKTOP: Bỏ qua đăng nhập bằng tài khoản Google, tự động xác thực và liên kết Supabase
+    if (isIframeMode()) {
+      const defaultUser = {
+        uid: "u0weCnnlzSNJvbWrsAJe4U1cqzm1",
+        email: "huynhbao.desktop@gmail.com",
+        displayName: "Huỳnh Bảo Desktop",
+        photoURL: "https://api.dicebear.com/7.x/bottts/svg?seed=Bao"
       };
-      autoLoginWallpaper();
+      console.log("[DEBUG] Wallpaper Mode: Tự động bỏ qua Google Login. Sử dụng tài khoản mặc định:", defaultUser.email);
+      
+      setUser(defaultUser as any);
+      setIsLoadingInvoices(true);
+      
+      // Cấu hình custom header cho Supabase để vượt PostgreSQL RLS
+      try {
+        setCustomUserId(defaultUser.uid);
+      } catch (e) {
+        console.error("Failed to set user header:", e);
+      }
+      
+      // Tải trực tiếp dữ liệu của user từ Supabase
+      Promise.all([
+        fetchPartners(defaultUser.uid),
+        fetchInvoices(defaultUser.uid),
+        fetchGeneratedDocs(defaultUser.uid),
+        fetchContracts(defaultUser.uid)
+      ]).then(() => {
+        setIsLoadingInvoices(false);
+      }).catch(err => {
+        console.error("Failed to fetch data offline:", err);
+        setIsLoadingInvoices(false);
+      });
+      
+      // Bỏ qua toàn bộ phần thiết lập onAuthStateChanged của Firebase vì chúng ta đã tự giả lập phiên đăng nhập!
+      return;
     }
 
     getRedirectResult(auth)
@@ -11383,6 +11736,56 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
 
     const newData = { ...data };
 
+    // Extract note from multiple possible sources
+    const extractNote = (src: any): string | undefined => {
+      if (!src) return undefined;
+      if (typeof src === 'string') {
+        const trimmed = src.trim();
+        return trimmed && !trimmed.match(/^[.\- ]+$/) ? trimmed : undefined;
+      }
+      if (typeof src === 'object') {
+        // Common fields that may contain note text
+        const fields = ['note', 'notes', 'memo', 'description', 'text', 'content', 'value', 'noteText'];
+        for (const f of fields) {
+          const v = src[f];
+          if (typeof v === 'string') {
+            const trimmed = v.trim();
+            if (trimmed && !trimmed.match(/^[.\- ]+$/)) return trimmed;
+          }
+        }
+      }
+      return undefined;
+    };
+
+    const noteFromSources = [
+      extractNote(newData.invoice),
+      extractNote(newData.invoice?.note),
+      extractNote(newData.invoice?.notes),
+      extractNote(newData.invoice?.memo),
+      extractNote(newData.note),
+      extractNote(newData.notes),
+      extractNote(newData.memo),
+      extractNote(data?.invoice?.note),
+      extractNote(data?.invoice?.notes),
+      extractNote(data?.note),
+      extractNote(data?.notes),
+    ].filter((v): v is string => Boolean(v));
+
+    const rawNote = noteFromSources[0];
+
+    // Detect adjustment/replacement invoice keywords
+    const adjustmentKeywords = /điều chỉnh|thay thế|hóa đơn thay thế|hóa đơn điều chỉnh|điều chỉnh giảm|điều chỉnh tăng|thay thế hóa đơn/i;
+    const isAdjustment = adjustmentKeywords.test(rawNote || '') || adjustmentKeywords.test(newData.amountInWords || '') || adjustmentKeywords.test(data.amountInWords || '');
+
+    if (isAdjustment) {
+      newData.invoice = newData.invoice || {};
+      newData.invoice.isAdjustment = true;
+      newData.invoice.note = newData.invoice.note || rawNote || newData.note || 'Hóa đơn điều chỉnh';
+    } else if (rawNote && !newData.invoice?.note) {
+      newData.invoice = newData.invoice || {};
+      newData.invoice.note = rawNote;
+    }
+
     // Ensure totals are numbers and calculate vatRate if missing or using default
     if (newData.totals) {
       const sub = fixNumber(newData.totals.subtotal || newData.totals.Subtotal || newData.totals.sub_total) || 0;
@@ -11390,17 +11793,19 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
       const total = fixNumber(newData.totals.grandTotal || newData.totals.GrandTotal || newData.totals.grand_total);
 
       // Calculate vatRate: (Total - Subtotal) / Subtotal or Vat / Subtotal
-      if (sub > 0) {
-        const calculatedVat = (total !== null && total !== 0) ? Math.abs(total - sub) : vat;
-        const calculatedRate = Math.round((calculatedVat / sub) * 100);
+      // Use Math.abs to handle negative totals (adjustment invoices)
+      const absSub = Math.abs(sub);
+      if (absSub > 0) {
+        const calculatedVat = (total !== null && total !== 0) ? Math.abs(total - sub) : Math.abs(vat);
+        const calculatedRate = Math.round((calculatedVat / absSub) * 100);
 
         if (!newData.invoice) newData.invoice = {};
         newData.invoice.vatRate = calculatedRate;
 
         // Ensure vatAmount is also consistent if it was 0
-        if (vat === 0 && total !== null) newData.totals.vatAmount = calculatedVat;
+        if (vat === 0 && total !== null) newData.totals.vatAmount = calculatedVat * Math.sign(vat || sub);
 
-        // If total was missing, use sub + vat
+        // If total was missing, use sub + vat (preserve sign for adjustment)
         if (total === null || total === 0) newData.totals.grandTotal = sub + vat;
       }
     }
@@ -11620,7 +12025,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
 
             if (extractedData.items) {
               try {
-                const { classifyInvoice } = await import('./lib/mistral');
+                const { classifyInvoice } = await import('./services/mistral');
                 extractedData.classification = await classifyInvoice(extractedData.items);
               } catch (e) {
                 console.error("Classification failed:", e);
@@ -11660,7 +12065,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
 
             if (extractedData && (extractedData.items || extractedData.items_list)) {
               try {
-                const { classifyInvoice } = await import('./lib/mistral');
+                const { classifyInvoice } = await import('./services/mistral');
                 const items = extractedData.items || extractedData.items_list || [];
                 extractedData.classification = await classifyInvoice(items);
               } catch (e) {
@@ -12020,7 +12425,10 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
   };
 
   return (
-    <div className="flex h-screen w-full font-sans select-none overflow-hidden bg-bg-dark">
+    <div className={cn(
+      "flex h-screen w-full font-sans select-none overflow-hidden bg-bg-dark",
+      isIframeMode() && "wallpaper-glass-theme"
+    )}>
       {/* Review Modal */}
       {pendingReview && (
         <ReviewModal
@@ -12291,11 +12699,13 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                             contractDate: selectedInvoice.contractDate
                           });
 
-                          const url = window.URL.createObjectURL(blob);
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = `${tType}_${selectedInvoice.fileName.split('.')[0]}.docx`;
-                          a.click();
+                          // Xuat file an toan dung showSaveFilePicker
+                          const suggestedName = `${tType}_${selectedInvoice.fileName.split('.')[0]}.docx`;
+                          await executeSecureExport(
+                            suggestedName,
+                            blob,
+                            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                          );
 
                           const { error: genDocError } = await supabase.from('generated_docs').insert({
                             invoice_id: selectedInvoice.id,

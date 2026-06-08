@@ -101,3 +101,106 @@
     @apply text-[12px] leading-[18px] font-semibold uppercase tracking-wider text-text-dim;
   }
 }
+
+/* ==========================================================================
+   WALLPAPER GLASS THEME - Giao dien sieu cao cap cho man hinh nen
+   ========================================================================== */
+.wallpaper-glass-theme {
+  --color-primary: #9d4ede !important; /* Mau Tim Neon chu dao */
+  --color-primary-hover: #00f2fe !important; /* Mau Xanh Cyan cho Hover */
+  
+  background: rgba(8, 8, 16, 0.65) !important;
+  backdrop-filter: blur(16px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(160%) !important;
+}
+
+.wallpaper-glass-theme main,
+.wallpaper-glass-theme aside,
+.wallpaper-glass-theme header,
+.wallpaper-glass-theme footer {
+  background: rgba(10, 10, 20, 0.5) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-color: rgba(157, 78, 221, 0.1) !important;
+}
+
+.wallpaper-glass-theme .card,
+.wallpaper-glass-theme .bg-card-dark,
+.wallpaper-glass-theme .bg-sidebar-dark {
+  background: rgba(8, 8, 16, 0.65) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(157, 78, 221, 0.15) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Hologram text shadow cho cac tieu de lớn */
+.wallpaper-glass-theme h1,
+.wallpaper-glass-theme h2,
+.wallpaper-glass-theme h3,
+.wallpaper-glass-theme .page-title,
+.wallpaper-glass-theme .section-title {
+  text-shadow: 0 0 8px rgba(157, 78, 221, 0.5) !important;
+}
+
+.wallpaper-glass-theme .text-primary {
+  color: #9d4ede !important;
+  text-shadow: 0 0 8px rgba(157, 78, 221, 0.4) !important;
+}
+
+.wallpaper-glass-theme .bg-primary {
+  background-color: #9d4ede !important;
+  box-shadow: 0 0 12px rgba(157, 78, 221, 0.4) !important;
+}
+
+/* Hieu ung phat sang box-shadow khi hover cac nut bam primary */
+.wallpaper-glass-theme button.btn-primary:hover,
+.wallpaper-glass-theme .bg-primary:hover {
+  background-color: #00f2fe !important;
+  color: #0d0d16 !important;
+  box-shadow: 0 0 20px rgba(0, 242, 254, 0.6) !important;
+  transform: translateY(-1px);
+}
+
+.wallpaper-glass-theme .border-primary {
+  border-color: #9d4ede !important;
+}
+
+/* Hieu ung hang bang bieu khi di chuot qua */
+.wallpaper-glass-theme tr {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(157, 78, 221, 0.08) !important;
+  transition: all 0.25s ease !important;
+}
+
+.wallpaper-glass-theme tr:hover {
+  background: rgba(157, 78, 221, 0.05) !important;
+  box-shadow: inset 0 0 12px rgba(157, 78, 221, 0.03) !important;
+}
+
+/* Mo khoa cuon chuot va tuong tac cho bang bieu, danh sach, menu */
+.wallpaper-glass-theme .overflow-y-auto,
+.wallpaper-glass-theme main > div,
+.wallpaper-glass-theme table,
+.wallpaper-glass-theme tbody,
+.wallpaper-glass-theme nav,
+.wallpaper-glass-theme .custom-scrollbar {
+  pointer-events: auto !important;
+  overflow-y: auto !important;
+  overflow-x: hidden;
+}
+
+/* Thanh cuon tim va cyan sieu mong cho toan bo ung dung */
+.wallpaper-glass-theme ::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.wallpaper-glass-theme ::-webkit-scrollbar-thumb {
+  background: rgba(157, 78, 221, 0.3) !important;
+  border-radius: 4px;
+}
+.wallpaper-glass-theme ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 242, 254, 0.6) !important;
+}
+

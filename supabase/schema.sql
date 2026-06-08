@@ -5,6 +5,17 @@
 -- Bật extension pgcrypto để tạo ID ngẫu nhiên nếu cần
 create extension if not exists "pgcrypto";
 
+-- Migration: Add note and is_adjustment columns to invoices table (if not exists)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'note') THEN
+        ALTER TABLE public.invoices ADD COLUMN note text;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'is_adjustment') THEN
+        ALTER TABLE public.invoices ADD COLUMN is_adjustment boolean DEFAULT false;
+    END IF;
+END $$;
+
 -- 1. BẢNG ĐỐI TÁC (partners)
 create table if not exists public.partners (
     id text primary key default gen_random_uuid()::text,

@@ -30,6 +30,15 @@ export const InvoiceCardContent: React.FC<Props> = ({ invoice, onGenerateDoc }) 
     }
   };
 
+  // Xác định loại hóa đơn điều chỉnh/thay thế
+  const getAdjustmentType = () => {
+    const note = (invoice.note || '').toLowerCase();
+    if (/thay thế|thaythe/.test(note)) return 'thay_the';
+    if (/điều chỉnh|dieuchinh/.test(note)) return 'dieu_chinh';
+    return null;
+  };
+  const adjustmentType = getAdjustmentType();
+
   const labels = getPartyNames();
 
   return (
@@ -37,11 +46,23 @@ export const InvoiceCardContent: React.FC<Props> = ({ invoice, onGenerateDoc }) 
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
-            <FileText className="w-5 h-5 text-primary" />
-            Hóa đơn {invoice.invoiceNumber}
-          </h3>
-          <div className="flex items-center gap-3 mt-1">
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <FileText className="w-5 h-5 text-primary" />
+              Hóa đơn {invoice.invoiceNumber}
+            </h3>
+            {adjustmentType === 'dieu_chinh' && (
+              <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/40 shadow-sm">
+                Điều chỉnh
+              </span>
+            )}
+            {adjustmentType === 'thay_the' && (
+              <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-400 border border-purple-500/40 shadow-sm">
+                Thay thế
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 mt-1 flex-wrap">
             <p className="text-sm text-stone-400">Ngày lập: {formatDate(invoice.date)}</p>
             <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-primary/15 text-primary border border-primary/30">
               Phân loại: {getClassificationName()}

@@ -10,24 +10,21 @@ export async function extractFromInvoice(file: File): Promise<any> {
       reader.readAsDataURL(file);
     });
 
-    const gasUrl = (import.meta as any).env.VITE_GAS_WEB_APP_URL;
-    
-    // Instead of calling GAS directly (which causes CORS issues), 
-    // we call our local server proxy which handles the cross-origin request.
-    const proxyUrl = '/api/proxy-gas';
+    // Use local server's process-document endpoint which handles Mistral OCR server-side
+    // This avoids CORS issues and uses the server's MISTRAL_API_KEY
+    const processUrl = '/api/process-document';
 
-    console.log(`${logPrefix} Sending request via local proxy: ${proxyUrl}`);
+    console.log(`${logPrefix} Sending request to: ${processUrl}`);
     const startTime = Date.now();
 
-    const res = await fetch(proxyUrl, {
+    const res = await fetch(processUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         base64Data,
-        fileType: file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'application/xml'),
-        fileName: file.name
+        fileType: file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'application/xml')
       })
     });
 
@@ -38,7 +35,7 @@ export async function extractFromInvoice(file: File): Promise<any> {
     
     if (!res.ok) {
       console.error(`${logPrefix} Backend error (HTTP ${res.status}):`, responseText);
-      let errorMsg = "Lỗi xử lý tại máy chủ proxy.";
+      let errorMsg = "Lỗi xử lý tại máy chủ.";
       try {
         const errorData = JSON.parse(responseText);
         errorMsg = errorData.details || errorData.error || errorMsg;

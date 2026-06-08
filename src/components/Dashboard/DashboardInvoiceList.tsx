@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Lightbulb } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Lightbulb, ChevronUp, ChevronDown } from 'lucide-react';
 import { ExtendedInvoiceItem } from './demoData';
 import { DashboardInvoiceRow } from './DashboardInvoiceRow';
 import { DashboardInvoiceModal } from './DashboardInvoiceModal';
 import './DashboardInvoice.css';
+
+type SortField = 'invoiceNumber' | 'date' | 'seller' | 'buyer' | 'category' | 'type' | null;
+type SortDirection = 'asc' | 'desc';
 
 interface Props {
   invoices: ExtendedInvoiceItem[];
@@ -31,6 +34,8 @@ export const DashboardInvoiceList: React.FC<Props> = ({
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [isMobile, setIsMobile] = useState(false);
   const [selectedInvoiceForModal, setSelectedInvoiceForModal] = useState<ExtendedInvoiceItem | null>(null);
+  const [sortField, setSortField] = useState<SortField>('date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   // Responsive design check
   useEffect(() => {
@@ -41,6 +46,58 @@ export const DashboardInvoiceList: React.FC<Props> = ({
     window.addEventListener('resize', checkViewport);
     return () => window.removeEventListener('resize', checkViewport);
   }, [mobileFallbackThreshold]);
+
+  // Handle sorting
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New field, start with ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Sort invoices (default: sort by date descending when first loaded)
+  const sortedInvoices = useMemo(() => {
+    const sorted = [...invoices].sort((a, b) => {
+      let comparison = 0;
+
+      switch (sortField) {
+        case 'invoiceNumber':
+          const numA = a.invoiceNumber || '';
+          const numB = b.invoiceNumber || '';
+          comparison = numA.localeCompare(numB, 'vi', { numeric: true });
+          break;
+        case 'date':
+          const dateA = new Date(a.date || 0).getTime();
+          const dateB = new Date(b.date || 0).getTime();
+          comparison = dateA - dateB;
+          break;
+        case 'seller':
+          comparison = (a.companyName || '').localeCompare(b.companyName || '', 'vi');
+          break;
+        case 'buyer':
+          comparison = (a.buyerName || '').localeCompare(b.buyerName || '', 'vi');
+          break;
+        case 'category':
+          comparison = (a.classification || '').localeCompare(b.classification || '', 'vi');
+          break;
+        case 'type':
+          comparison = (a.type || '').localeCompare(b.type || '', 'vi');
+          break;
+        default:
+          // Default sort: by date descending
+          const dA = new Date(a.date || 0).getTime();
+          const dB = new Date(b.date || 0).getTime();
+          comparison = dA - dB;
+      }
+
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+    return sorted;
+  }, [invoices, sortField, sortDirection]);
 
   // Handle toggling of a row
   const handleToggle = (invoice: ExtendedInvoiceItem) => {
@@ -65,7 +122,24 @@ export const DashboardInvoiceList: React.FC<Props> = ({
     });
   };
 
-  const showVirtualizationRecommendation = invoices.length > 200;
+  const showVirtualizationRecommendation = sortedInvoices.length > 200;
+
+  // Sortable Header Component
+  const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
+    <button
+      onClick={() => handleSort(field)}
+      className={`flex items-center gap-1 hover:text-white transition-colors ${
+        sortField === field ? 'text-white' : 'text-text-dim'
+      }`}
+    >
+      {children}
+      {sortField === field ? (
+        sortDirection === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />
+      ) : (
+        <span className="opacity-30"><ChevronUp size={12} /></span>
+      )}
+    </button>
+  );
 
   return (
     <div className="space-y-4">
@@ -83,25 +157,25 @@ export const DashboardInvoiceList: React.FC<Props> = ({
       )}
 
       {/* 2. Unified Header for Desktop Grid */}
-      {!isMobile && invoices.length > 0 && (
+      {!isMobile && sortedInvoices.length > 0 && (
         <div className="invoice-table-header invoice-row-grid rounded-2xl border border-border-dark select-none py-3 px-6 text-[10px]">
           <div>STT</div>
-          <div>Số hóa đơn</div>
-          <div className="invoice-col-date-header text-center">Ngày xuất</div>
-          <div>Bên Bán</div>
-          <div className="invoice-col-buyer-header">Bên Mua</div>
+          <div><SortableHeader field="invoiceNumber">Số hóa đơn</SortableHeader></div>
+          <div className="invoice-col-date-header text-center"><SortableHeader field="date">Ngày xuất</SortableHeader></div>
+          <div><SortableHeader field="seller">Bên Bán</SortableHeader></div>
+          <div className="invoice-col-buyer-header"><SortableHeader field="buyer">Bên Mua</SortableHeader></div>
           <div className="invoice-col-contract-header">Số hợp đồng</div>
           <div className="invoice-col-contract-date-header">Ngày ký HĐ</div>
           <div>Tổng giá trị</div>
-          <div>Trạng thái</div>
-          <div>Nguồn</div>
+          <div><SortableHeader field="category">Trạng thái</SortableHeader></div>
+          <div><SortableHeader field="type">Nguồn</SortableHeader></div>
           <div className="text-right"></div>
         </div>
       )}
 
       {/* 3. List of Unified Rows */}
       <div className="space-y-3">
-        {invoices.map((inv, index) => {
+        {sortedInvoices.map((inv, index) => {
           const displayInvoiceNumber = inv.invoiceNumber || '---';
           const displaySymbol = inv.invoiceSymbol || '';
           const localRank = index + 1;

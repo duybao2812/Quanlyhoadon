@@ -11,6 +11,8 @@ export interface InvoiceItem {
   status: 'paid' | 'pending' | 'draft';
   type: 'PDF' | 'XML';
   classification?: string;
+  note?: string;
+  isAdjustment?: boolean;
   total: number;
   vat: number;
   contractNumber?: string;

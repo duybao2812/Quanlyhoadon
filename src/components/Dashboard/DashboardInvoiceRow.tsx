@@ -84,9 +84,30 @@ export const DashboardInvoiceRow: React.FC<Props> = ({
   displayName,
   lazyRender = true
 }) => {
-  const [localNotes, setLocalNotes] = useState(invoice.notes || '');
+  // Ghi chú từ extractedData hoặc từ trường note/notes của invoice
+  // Ưu tiên: invoice.note > invoice.notes > extractedData.invoice.note > extractedData.note
+  const getExtractedNote = () => {
+    return invoice.note || invoice.notes || invoice.extractedData?.invoice?.note || invoice.extractedData?.note || '';
+  };
+  const extractedNote = getExtractedNote();
+  const [localNotes, setLocalNotes] = useState(extractedNote);
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
+
+  // Lấy attachments từ nhiều nguồn
+  const attachments = invoice.attachments || invoice.extractedData?.attachments || [];
+
+  // Xác định loại hóa đơn điều chỉnh/thay thế
+  const getAdjustmentType = () => {
+    const note = extractedNote.toLowerCase();
+    if (/thay thế|thaythe/.test(note)) return 'thay_the';
+    if (/điều chỉnh|dieuchinh/.test(note)) return 'dieu_chinh';
+    return null;
+  };
+  const adjustmentType = getAdjustmentType();
+
+  // So sánh với tất cả các nguồn ghi chú
+  const originalNote = getExtractedNote();
 
   const initialDate = invoice.date ? formatVietnameseDate(invoice.date) : '';
   const initialContractDate = invoice.contractDate ? formatVietnameseDate(invoice.contractDate) : '';
@@ -97,21 +118,25 @@ export const DashboardInvoiceRow: React.FC<Props> = ({
   const [isSavingFields, setIsSavingFields] = useState(false);
 
   // States for Column 2 (Project & Content editable details)
-  const [tempPackage, setTempPackage] = useState(invoice.extractedData?.project?.packageName || invoice.extractedData?.project?.package || 'Xây lắp.');
-  const [tempProject, setTempProject] = useState(invoice.extractedData?.project?.projectName || invoice.extractedData?.project?.name || 'Kênh cặp đường kênh 1 ấp 5, xã Phạm Văn Hai.');
+  // Chỉ dùng giá trị thực từ extractedData, không có default cứng
+  const extractedPackage = invoice.extractedData?.project?.packageName || invoice.extractedData?.project?.package || '';
+  const extractedProject = invoice.extractedData?.project?.projectName || invoice.extractedData?.project?.name || '';
+  const [tempPackage, setTempPackage] = useState(extractedPackage);
+  const [tempProject, setTempProject] = useState(extractedProject);
   const [tempContent, setTempContent] = useState(invoice.extractedData?.content || (invoice.items && invoice.items.map((it: any) => `- ${it.description}`).join('\n')) || '');
   const [isSavingProject, setIsSavingProject] = useState(false);
 
   // Sync state if invoice notes or other fields change from parent
   useEffect(() => {
-    setLocalNotes(invoice.notes || '');
+    const note = invoice.note || invoice.notes || invoice.extractedData?.invoice?.note || invoice.extractedData?.note || '';
+    setLocalNotes(note);
     setTempDate(invoice.date ? formatVietnameseDate(invoice.date) : '');
     setTempContractNumber(invoice.contractNumber || '');
     setTempContractDate(invoice.contractDate ? formatVietnameseDate(invoice.contractDate) : '');
-    setTempPackage(invoice.extractedData?.project?.packageName || invoice.extractedData?.project?.package || 'Xây lắp.');
-    setTempProject(invoice.extractedData?.project?.projectName || invoice.extractedData?.project?.name || 'Kênh cặp đường kênh 1 ấp 5, xã Phạm Văn Hai.');
+    setTempPackage(invoice.extractedData?.project?.packageName || invoice.extractedData?.project?.package || '');
+    setTempProject(invoice.extractedData?.project?.projectName || invoice.extractedData?.project?.name || '');
     setTempContent(invoice.extractedData?.content || (invoice.items && invoice.items.map((it: any) => `- ${it.description}`).join('\n')) || '');
-  }, [invoice.notes, invoice.date, invoice.contractNumber, invoice.contractDate, invoice.extractedData, invoice.items]);
+  }, [invoice.note, invoice.notes, invoice.date, invoice.contractNumber, invoice.contractDate, invoice.extractedData, invoice.items]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -126,7 +151,7 @@ export const DashboardInvoiceRow: React.FC<Props> = ({
     
     setIsSavingNote(true);
     setTimeout(() => {
-      onUpdate(invoice.id, { notes: localNotes });
+      onUpdate(invoice.id, { notes: localNotes, note: localNotes });
       setIsSavingNote(false);
     }, 400);
   };
@@ -235,7 +260,26 @@ export const DashboardInvoiceRow: React.FC<Props> = ({
     }
   };
 
-  const vatPercent = invoice.total > 0 && invoice.vat ? Math.round((invoice.vat / (invoice.total - invoice.vat)) * 100) : 8;
+  // Tính VAT % từ nhiều nguồn, ưu tiên extractedData.invoice.vatRate > invoice.vatRate > tính từ số liệu
+  const vatPercent = (() => {
+    // Ưu tiên 1: extractedData.invoice.vatRate
+    if (invoice.extractedData?.invoice?.vatRate !== undefined && invoice.extractedData.invoice.vatRate !== null) {
+      return invoice.extractedData.invoice.vatRate;
+    }
+    // Ưu tiên 2: invoice.vatRate
+    if (invoice.vatRate !== undefined && invoice.vatRate !== null) {
+      return invoice.vatRate;
+    }
+    // Ưu tiên 3: Tính từ số liệu gốc (total và vat)
+    if (invoice.total > 0 && invoice.vat) {
+      const sub = invoice.total - invoice.vat;
+      if (sub > 0) {
+        return Math.round((invoice.vat / sub) * 100);
+      }
+    }
+    // Mặc định 10%
+    return 10;
+  })();
 
   const isThiCong = invoice.classification === 'BB_TC';
 
@@ -265,9 +309,20 @@ export const DashboardInvoiceRow: React.FC<Props> = ({
 
         {/* Column 2: Số hóa đơn & Symbol */}
         <div className="flex flex-col min-w-0">
-          <span className="text-xs font-extrabold text-white tracking-tight truncate">
-            {invoice.invoiceNumber || '---'}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-extrabold text-white tracking-tight truncate">
+              {invoice.invoiceNumber || '---'}
+            </span>
+            {adjustmentType && (
+              <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider shrink-0 ${
+                adjustmentType === 'thay_the'
+                  ? 'bg-red-500/25 text-red-400 border border-red-500/40'
+                  : 'bg-amber-500/25 text-amber-400 border border-amber-500/40'
+              }`}>
+                {adjustmentType === 'thay_the' ? 'Thay thế' : 'Điều chỉnh'}
+              </span>
+            )}
+          </div>
           {invoice.invoiceSymbol && (
             <span className="text-[9px] text-text-dim font-bold mt-0.5 tracking-wide">
               {invoice.invoiceSymbol}
@@ -349,7 +404,19 @@ export const DashboardInvoiceRow: React.FC<Props> = ({
                     {invoice.type === 'PDF' ? <FileText size={20} /> : <FileCode size={20} />}
                   </div>
                   <div>
-                    <h4 className="text-sm font-black text-white">{displayName || 'Hóa đơn'}</h4>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-sm font-black text-white">{displayName || 'Hóa đơn'}</h4>
+                      {adjustmentType === 'dieu_chinh' && (
+                        <span className="px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/40 shrink-0">
+                          Điều chỉnh
+                        </span>
+                      )}
+                      {adjustmentType === 'thay_the' && (
+                        <span className="px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-400 border border-purple-500/40 shrink-0">
+                          Thay thế
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[10px] text-text-dim font-bold mt-0.5 uppercase tracking-wider">
                       {formatVietnameseDate(invoice.date)} • {invoice.companyName}
                     </p>
@@ -624,7 +691,7 @@ export const DashboardInvoiceRow: React.FC<Props> = ({
                         />
                         <button 
                           onClick={handleSaveNotes}
-                          disabled={isSavingNote || localNotes === invoice.notes}
+                          disabled={isSavingNote || localNotes === originalNote}
                           className="absolute right-2 bottom-2 bg-[#FF7A00] hover:bg-[#E06C00] text-white text-[9px] font-black uppercase tracking-wider py-1 px-2.5 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed hover-scale-btn"
                         >
                           Lưu lại
@@ -632,7 +699,7 @@ export const DashboardInvoiceRow: React.FC<Props> = ({
                       </div>
 
                       {/* Attachments Box */}
-                      {invoice.attachments && invoice.attachments.length > 0 ? (
+                      {attachments && attachments.length > 0 ? (
                         <div className="space-y-1.5">
                           {invoice.attachments.map((file, i) => (
                             <div key={i} className="flex items-center justify-between p-2.5 bg-black/40 border border-border-dark rounded-xl">
