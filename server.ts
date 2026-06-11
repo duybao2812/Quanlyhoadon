@@ -1,5 +1,5 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
+import { createServer as createViteServer, type ViteDevServer } from 'vite';
 import path from 'path';
 import fs from 'fs';
 import PizZip from 'pizzip';
@@ -8,18 +8,21 @@ import multer from 'multer';
 import { Mistral } from '@mistralai/mistralai';
 import dotenv from 'dotenv';
 import axios from 'axios';
+import FormData from 'form-data';
 import OpenAI from 'openai';
 import os from 'os';
 import { JSDOM } from 'jsdom';
 import { exec } from 'child_process';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 dotenv.config();
 
 const app = express();
 const PORT = 3000;
 
-// Increase limit for base64 payloads
-app.use(express.json({ limit: '50mb' }));
+// Increase limit for base64 payloads to handle large PDFs
+app.use(express.json({ limit: '150mb' }));
+app.use(express.urlencoded({ limit: '150mb', extended: true }));
 app.use('/templates', express.static(path.join(process.cwd(), 'templates')));
 app.use('/templatesHopDong', express.static(path.join(process.cwd(), 'templatesHopDong')));
 app.use('/templates_muc_phu', express.static(path.join(process.cwd(), 'templates_muc_phu')));
@@ -175,7 +178,95 @@ function getNetworkAddress() {
   return null;
 }
 
+async function createDevViteServer() {
+  return createViteServer({
+    server: {
+      middlewareMode: true,
+      host: true,
+      hmr: {
+        port: 24679,
+      },
+    },
+    appType: 'custom',
+  });
+}
+
+function killProcessOnPort(port: number): Promise<void> {
+  return new Promise((resolve) => {
+    const cmdFind = `netstat -ano | findstr :${port}`;
+    exec(cmdFind, (err, stdout) => {
+      if (err || !stdout) {
+        resolve();
+        return;
+      }
+      const lines = stdout.split('\n');
+      const pids = new Set<string>();
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        const parts = trimmed.split(/\s+/);
+        const pid = parts[parts.length - 1];
+        if (pid && /^\d+$/.test(pid) && pid !== '0' && pid !== String(process.pid)) {
+          pids.add(pid);
+        }
+      }
+      
+      if (pids.size === 0) {
+        resolve();
+        return;
+      }
+
+      console.log(`[SERVER] Phat hien ${pids.size} tien trinh dang chiem dung cong ${port}. Dang giai phong...`);
+      const killPromises = Array.from(pids).map(pid => {
+        return new Promise<void>((resKill) => {
+          exec(`taskkill /F /PID ${pid}`, (killErr) => {
+            if (killErr) {
+              console.error(`[SERVER] Khong the tat tien trinh ${pid}:`, killErr.message);
+            } else {
+              console.log(`[SERVER] Da tat tien trinh ${pid} dang chiem dung cong ${port}.`);
+            }
+            resKill();
+          });
+        });
+      });
+
+      Promise.all(killPromises).then(() => {
+        setTimeout(resolve, 1000);
+      });
+    });
+  });
+}
+
+async function listenOnPort(port: number) {
+  await killProcessOnPort(port);
+  return new Promise<void>((resolve, reject) => {
+    const server = app.listen(port, '0.0.0.0', () => {
+      const networkIP = getNetworkAddress();
+      console.log('');
+      console.log('========================================');
+      console.log(`👉 May chu dang chay tai: http://localhost:${port}`);
+      if (networkIP) {
+        console.log(`👉 Truy cap trong mang noi bo: http://${networkIP}:${port}`);
+      }
+      console.log('========================================');
+      console.log('');
+      resolve();
+    });
+
+    server.once('error', (error: NodeJS.ErrnoException) => {
+      if (error.code === 'EADDRINUSE') {
+        reject(new Error(`Cong ${port} dang duoc su dung. Hay dung tien trinh cu hoac doi cong khac.`));
+        return;
+      }
+      reject(error);
+    });
+  });
+}
+
 async function startServer() {
+  console.log("👉 Buoc 1: Bat dau khoi dong...");
+  console.log('[SERVER] Bat dau khoi dong ung dung...');
+
   if (!fs.existsSync('uploads/templates')) {
     fs.mkdirSync('uploads/templates', { recursive: true });
   }
@@ -502,6 +593,416 @@ async function startServer() {
       console.error('Lỗi khi đọc phiên đăng nhập:', err);
       res.status(500).json({ error: 'Không thể đọc phiên đăng nhập', details: err.message });
     }
+  });
+
+  interface ContractTask {
+    status: 'pending' | 'processing' | 'success' | 'failed';
+    progress: string;
+    result?: any;
+    error?: string;
+    updatedAt: number;
+  }
+  const contractTasks: Record<string, ContractTask> = {};
+
+  // Don dep task cu sau moi 30 phut de tranh ro ri RAM
+  setInterval(() => {
+    const now = Date.now();
+    const expiryTime = 30 * 60 * 1000; // 30 phut
+    for (const taskId of Object.keys(contractTasks)) {
+      if (now - contractTasks[taskId].updatedAt > expiryTime) {
+        console.log(`[CONTRACT-TASK] Dang xoa task het han: ${taskId}`);
+        delete contractTasks[taskId];
+      }
+    }
+  }, 10 * 60 * 1000); // chay moi 10 phut
+
+  async function extractTextFromPdfBuffer(buffer: Buffer): Promise<string> {
+    try {
+      const data = new Uint8Array(buffer);
+      const loadingTask = pdfjsLib.getDocument({ data });
+      const pdf = await loadingTask.promise;
+      let fullText = '';
+      
+      // Chi parse toi da 5 trang dau tien de tranh loi Out of Memory (OOM) tren server Node.js khi load file rat lon
+      const pagesToScan = Math.min(5, pdf.numPages);
+      console.log(`[PDF-PARSE] Dang quet nhanh local ${pagesToScan}/${pdf.numPages} trang...`);
+
+      for (let i = 1; i <= pagesToScan; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ');
+        fullText += `--- PAGE ${i} ---\n` + pageText + '\n\n';
+      }
+      return fullText;
+    } catch (error) {
+      console.error('[PDF-PARSE] Loi khi parse PDF local:', error);
+      return '';
+    }
+  }
+
+  // API kiem tra trang thai cua task hop dong
+  app.get('/api/process-contract/status/:taskId', (req, res) => {
+    const { taskId } = req.params;
+    const task = contractTasks[taskId];
+    if (!task) {
+      return res.status(404).json({ error: 'Khong tim thay nhiem vu boc tach.' });
+    }
+    res.json(task);
+  });
+
+  // API xu ly va trich xuat du lieu Hop Dong (Bat dong bo - Polling)
+  app.post('/api/process-contract', async (req, res) => {
+    try {
+      const { base64Data, fileType, prompt } = req.body;
+      if (!base64Data) {
+        return res.status(400).json({ error: 'Thieu base64Data' });
+      }
+
+      const taskId = `task_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      contractTasks[taskId] = {
+        status: 'pending',
+        progress: 'Đang chuẩn bị dữ liệu tệp tin...',
+        updatedAt: Date.now()
+      };
+
+      console.log(`[CONTRACT-TASK] Khoi tao task ${taskId} cho tep ${fileType}`);
+
+      // Phan hoi ngay lap tuc ma taskId cho client
+      res.json({ taskId });
+
+      // Chay xu ly ngam o background
+      (async () => {
+        let uploadedFileId: string | null = null;
+        try {
+          contractTasks[taskId].status = 'processing';
+          const isPdf = fileType === 'application/pdf';
+          const buffer = Buffer.from(base64Data, 'base64');
+          
+          let fullText = '';
+          let isDigitalPdf = false;
+
+          // Chi thuc hien doc local neu la file PDF
+          if (isPdf) {
+            contractTasks[taskId].progress = 'Đang kiểm tra định dạng PDF local...';
+            try {
+              // Lay so trang cua PDF de tinh toan trung binh ky tu tren moi trang
+              const data = new Uint8Array(buffer);
+              const loadingTask = pdfjsLib.getDocument({ data });
+              const pdf = await loadingTask.promise;
+              const numPages = pdf.numPages;
+
+              const localText = await extractTextFromPdfBuffer(buffer);
+              const textLength = localText.trim().length;
+
+              const pagesToScan = Math.min(5, numPages);
+              const avgCharsPerPage = pagesToScan > 0 ? textLength / pagesToScan : 0;
+              console.log(`[CONTRACT] Kiem tra Hybrid: So trang = ${numPages}, So trang da quet = ${pagesToScan}, Tong ky tu quet = ${textLength}, Trung binh/trang = ${avgCharsPerPage.toFixed(1)}`);
+
+              // Dieu kien de duoc coi la Digital PDF hop le:
+              // 1. Tong so ky tu quet phai lon hon 500 (vi chi quet toi da 5 trang dau)
+              // 2. Trung binh moi trang phai co it nhat 150 ky tu (loai bo truong hop file scan chua text an rac)
+              if (textLength > 500 && avgCharsPerPage >= 150) {
+                fullText = localText;
+                isDigitalPdf = true;
+                contractTasks[taskId].progress = `Đang đọc nội dung văn bản (${numPages} trang)...`;
+                
+                // Neu la Digital PDF, chúng ta can doc not phan text con lai cua cac trang sau de AI phan tich day du
+                if (numPages > 5) {
+                  console.log(`[CONTRACT] PDF co ${numPages} trang. Dang doc tiep cac trang con lai...`);
+                  let remainingText = '';
+                  for (let i = 6; i <= numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map((item: any) => item.str).join(' ');
+                    remainingText += `--- PAGE ${i} ---\n` + pageText + '\n\n';
+                  }
+                  fullText += remainingText;
+                  console.log(`[CONTRACT] Da doc xong toan bo ${numPages} trang.`);
+                }
+              } else {
+                console.log('[CONTRACT] PDF co the la ban scan hoac chua text an rac/it. Fallback sang Mistral OCR Cloud...');
+              }
+            } catch (pdfError) {
+              console.error('[CONTRACT] Loi khi doc cau truc trang PDF local, fallback sang OCR:', pdfError);
+            }
+          }
+
+          // Neu khong phai Digital PDF, dung Mistral OCR Cloud nhu binh thuong
+          if (!isDigitalPdf) {
+            const fileName = isPdf ? 'contract.pdf' : 'contract_image.png';
+            contractTasks[taskId].progress = 'Đang tải tệp tin lên máy chủ Mistral AI...';
+            
+            const formData = new FormData();
+            formData.append('purpose', 'ocr');
+            formData.append('file', buffer, { filename: fileName, contentType: fileType });
+
+            const uploadRes = await axios.post('https://api.mistral.ai/v1/files', formData, {
+              headers: {
+                'Authorization': `Bearer ${MISTRAL_API_KEY}`,
+                ...formData.getHeaders()
+              },
+              timeout: 900000, // 15 phut
+              maxContentLength: Infinity,
+              maxBodyLength: Infinity
+            });
+            uploadedFileId = uploadRes.data.id;
+            
+            contractTasks[taskId].progress = 'Đang tạo liên kết tạm thời...';
+            const signedUrlRes = await axios.get(
+              `https://api.mistral.ai/v1/files/${uploadedFileId}/url?expiry=24`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${MISTRAL_API_KEY}`
+                },
+                timeout: 180000 // 3 phut
+              }
+            );
+            const signedUrlValue = signedUrlRes.data.url;
+
+            contractTasks[taskId].progress = 'Đang nhận diện chữ quang học (Mistral OCR Cloud)...';
+            
+            // Dung Axios thay cho global fetch de tranh timeout 300s mac dinh cua Node
+            const ocrAxiosRes = await axios.post('https://api.mistral.ai/v1/ocr', {
+              model: "mistral-ocr-latest",
+              document: {
+                type: "document_url",
+                document_url: signedUrlValue,
+              }
+            }, {
+              headers: {
+                'Authorization': `Bearer ${MISTRAL_API_KEY}`,
+                'Content-Type': 'application/json'
+              },
+              timeout: 900000 // 15 phut
+            });
+
+            const ocrResponse = ocrAxiosRes.data;
+            fullText = (ocrResponse as any).pages.map((page: any) => page.markdown).join('\n\n');
+          }
+
+          contractTasks[taskId].progress = 'Đang bóc tách dữ liệu và dựng Markdown bằng Mistral Large...';
+
+          // Buoc 2: Trich xuat du lieu Hop Dong qua Mistral Large
+          const contractPrompt = `Ban la chuyen gia phan tich van ban Hop Dong tai chanh Vietnamese.
+Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau truc:
+{
+  "contract": { 
+    "templateId": "HDCM hoac HDTC hoac HDNT", // HDCM: hop dong thue ca may/xe/thiet bi, HDTC: hop dong thi cong xay dung/xay lap, HDNT: hop dong mua ban vat tu/nguyen tac cung cap
+    "number": "So hop dong", 
+    "date": "Ngay ky (DD/MM/YYYY)", 
+    "effectiveDate": "Ngay hieu luc", 
+    "expiredDate": "Ngay het han" 
+  },
+  "parties": {
+    "partyA": { "name": "", "taxCode": "", "address": "", "representative": "", "position": "", "gender": "", "accountNumber": "", "bankName": "", "phone": "", "email": "" },
+    "partyB": { "name": "", "taxCode": "", "address": "", "representative": "", "position": "", "gender": "", "accountNumber": "", "bankName": "", "phone": "", "email": "" }
+  },
+  "project": { "name": "", "address": "", "value": 0, "valueInWords": "" },
+  "work": { 
+    "description": "", 
+    "startDate": "", 
+    "endDate": "", 
+    "items": [] // Danh sach hang muc tu bang gia tri hop dong. Khóa cua cac truong trong doi tuong phai la ten cot chu HOA tieng Viet co dau dung nhu tren bang. Chi dien vao day neu trong van ban hop dong thuc su co bang phan ra chi tiet kem don gia/thanh tien. Neu khong co bang chi tiet, de "items" la [] (mang rong). Tuyet doi khong tu tao/gia lap ra mot dong du lieu.
+  },
+  "payment": { 
+    "method": "", 
+    "term": "", 
+    "advancePercentage": 0, 
+    "vatRate": 10,
+    "values": [
+      {
+        "type": "Loai gia tri (VD: Gia tri tam ung, Gia tri bao hanh, Gia tri bao lanh thuc hien hop dong, Phat vi pham...)",
+        "value": 0,
+        "valueInWords": "So tien bang chu cua gia tri nay",
+        "description": "Mo ta chi tiet ve phan tram %, dieu kien tam ung/giai ngan hoac cac rang buoc lien quan"
+      }
+    ]
+  },
+  "terms": { "warranty": "", "penalty": "", "termination": "", "disputeResolution": "", "other": "" },
+  "markdownContent": "Toan bo noi dung hop dong da duoc dinh dang lai sang Markdown co cau truc. Dung # cho ten hop dong, ## cho cac dieu khoan lon (VD: ## Dieu 1: Pham vi cong viec), ### cho muc con, - cho danh sach, va | cho bang. Hay lam sach, sua cac loi ky tu (neu co) va cai thien van phong tieng Viet mot cach tu nhien, chuyen nghiep nhat."
+}`;
+
+          const chatRes = await axios.post('https://api.mistral.ai/v1/chat/completions', {
+            model: "mistral-large-latest",
+            messages: [
+              {
+                role: "user",
+                content: `${contractPrompt}\n\nNOI DUNG HOP DONG THO:\n${fullText}`
+              }
+            ],
+            response_format: { type: "json_object" }
+          }, {
+            headers: {
+              'Authorization': `Bearer ${MISTRAL_API_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            timeout: 900000 // 15 phut
+          });
+
+          const result = chatRes.data.choices?.[0]?.message?.content;
+          
+          let parsedResult: any;
+          try {
+            parsedResult = typeof result === 'string' ? JSON.parse(result) : result;
+          } catch (e) {
+            console.error('[CONTRACT] Loi parse JSON:', result);
+            throw new Error("Dữ liệu trả về từ AI không hợp lệ, không thể parse JSON.");
+          }
+
+          console.log(`[CONTRACT-TASK] Task ${taskId} hoan thanh thanh cong.`);
+          contractTasks[taskId].status = 'success';
+          contractTasks[taskId].result = parsedResult;
+          contractTasks[taskId].updatedAt = Date.now();
+          
+        } catch (error: any) {
+          console.error(`[CONTRACT-TASK] Task ${taskId} bi loi:`, error);
+          contractTasks[taskId].status = 'failed';
+          contractTasks[taskId].error = error.message || 'Lỗi không xác định trong quá trình bóc tách.';
+          contractTasks[taskId].updatedAt = Date.now();
+        } finally {
+          // Don dep file tren Mistral storage
+          if (uploadedFileId) {
+            try {
+              console.log(`[CONTRACT] Dang xoa file tam tren Mistral storage: ${uploadedFileId}`);
+              await axios.delete(`https://api.mistral.ai/v1/files/${uploadedFileId}`, {
+                headers: {
+                  'Authorization': `Bearer ${MISTRAL_API_KEY}`
+                },
+                timeout: 60000 // 1 phut
+              });
+              console.log(`[CONTRACT] Da xoa file tam thanh cong.`);
+            } catch (delError: any) {
+              console.error(`[CONTRACT] Loi khi xoa file tam tren Mistral:`, delError.message);
+            }
+          }
+        }
+      })();
+
+    } catch (error: any) {
+      console.error("[CONTRACT] Mistral Backend Initial Error:", error);
+      res.status(500).json({ 
+        error: "Không thể khởi tạo tiến trình xử lý hợp đồng.",
+        details: error.message 
+      });
+    }
+  });
+
+  // API luu hop dong vao database
+  app.post('/api/contracts/save', async (req, res) => {
+    try {
+      const contractData = req.body;
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_ANON_KEY || ''
+      );
+
+      const { data, error } = await supabase
+        .from('contracts')
+        .upsert({
+          id: contractData.id,
+          template_id: contractData.templateId || 'default',
+          party_a_id: contractData.partyAId,
+          party_b_id: contractData.partyBId,
+          form_data: contractData.formData,
+          file_name: contractData.fileName || 'hop-dong.pdf',
+          owner_id: contractData.ownerId,
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      res.json(data);
+    } catch (error: any) {
+      console.error("[CONTRACT] Loi luu hop dong:", error);
+      res.status(500).json({ 
+        error: "Khong the luu hop dong.",
+        details: error.message 
+      });
+    }
+  });
+
+  // API lay danh sach hop dong
+  app.get('/api/contracts', async (req, res) => {
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_ANON_KEY || ''
+      );
+
+      const ownerId = req.headers['x-custom-user-id'] as string || req.query.ownerId as string;
+      
+      const { data, error } = await supabase
+        .from('contracts')
+        .select('*')
+        .eq('owner_id', ownerId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      res.json(data || []);
+    } catch (error: any) {
+      console.error("[CONTRACT] Loi lay danh sach:", error);
+      res.status(500).json({ 
+        error: "Khong the lay danh sach hop dong.",
+        details: error.message 
+      });
+    }
+  });
+
+  // API xoa hop dong
+  app.delete('/api/contracts/:id', async (req, res) => {
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_ANON_KEY || ''
+      );
+
+      const { error } = await supabase
+        .from('contracts')
+        .delete()
+        .eq('id', req.params.id);
+
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[CONTRACT] Loi xoa hop dong:", error);
+      res.status(500).json({ 
+        error: "Khong the xoa hop dong.",
+        details: error.message 
+      });
+    }
+  });
+
+  // API upload tai lieu hop dong
+  app.post('/api/contracts/upload', (req: any, res) => {
+    const uploadHandler = upload.single('contractFile');
+    uploadHandler(req, res, async (err: any) => {
+      if (err) {
+        return res.status(400).json({ error: 'Loi upload file', details: err.message });
+      }
+      
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ error: 'Khong co file' });
+      }
+
+      try {
+        const fileUrl = `/uploads/contracts/${file.filename}`;
+        res.json({
+          success: true,
+          fileName: file.originalname,
+          fileUrl: fileUrl,
+          filePath: file.path
+        });
+      } catch (error: any) {
+        res.status(500).json({ error: 'Loi xu ly file', details: error.message });
+      }
+    });
   });
 
   app.post('/api/parse-xml', async (req, res) => {
@@ -861,22 +1362,34 @@ async function startServer() {
         'Content-Disposition': `attachment; filename=${templateType}_${data.invoice.number || 'DOC'}.docx`,
       });
       res.send(buf);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       res.status(500).json({ error: 'Failed to generate document' });
     }
   });
 
   if (!process.env.VERCEL) {
+    console.log(`[SERVER] Dang khoi tao che do ${process.env.NODE_ENV || 'development'}...`);
+
     if (process.env.NODE_ENV !== 'production') {
-      const vite = await createViteServer({
-        server: { 
-          middlewareMode: true,
-          host: true 
-        },
-        appType: 'spa',
-      });
+      console.log('[SERVER] Dang ket noi Vite middleware vao Express...');
+      console.log("👉 Buoc 2: Nap cau hinh Vite...");
+      const vite = await createDevViteServer();
+      console.log("👉 Da nap cau hinh Vite xong.");
       app.use(vite.middlewares);
+
+      app.use('*', async (req, res, next) => {
+        try {
+          const url = req.originalUrl;
+          const indexHtmlPath = path.resolve(process.cwd(), 'index.html');
+          let template = fs.readFileSync(indexHtmlPath, 'utf-8');
+          template = await vite.transformIndexHtml(url, template);
+          res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+        } catch (error) {
+          vite.ssrFixStacktrace(error as Error);
+          next(error);
+        }
+      });
     } else {
       const distPath = path.join(process.cwd(), 'dist');
       app.use(express.static(distPath));
@@ -885,19 +1398,15 @@ async function startServer() {
       });
     }
 
-    const networkIP = getNetworkAddress();
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log('\n----------------------------------------');
-      console.log('  Server running:');
-      console.log(`  Local:   http://localhost:${PORT}`);
-      if (networkIP) {
-        console.log(`  Network: http://${networkIP}:${PORT}`);
-      }
-      console.log('----------------------------------------\n');
-    });
+    console.log("👉 Buoc 3: Chuan bi listen...");
+    await listenOnPort(PORT);
+    console.log("👉 Da listen thanh cong tren port " + PORT);
   }
 }
 
-startServer();
+startServer().catch((error: any) => {
+  console.error('[SERVER] Loi khoi dong:', error.message || error);
+  process.exit(1);
+});
 
 export default app;

@@ -221,3 +221,86 @@ with check (bucket_id = 'generated_docs' and (storage.foldername(name))[1] = aut
 create index if not exists contracts_party_a_id_idx on public.contracts(party_a_id);
 create index if not exists contracts_party_b_id_idx on public.contracts(party_b_id);
 create index if not exists generated_docs_invoice_id_idx on public.generated_docs(invoice_id);
+
+-- ==========================================
+-- MIGRATION: NÂNG CẤP PHÂN HỆ HỢP ĐỒNG (YÊU CẦU 1 & YÊU CẦU 2)
+-- ==========================================
+
+DO $$
+BEGIN
+    -- Thêm các cột đơn lẻ cho bảng contracts nếu chưa có
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'contracts' AND column_name = 'contract_number') THEN
+        ALTER TABLE public.contracts ADD COLUMN contract_number text;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'contracts' AND column_name = 'contract_date') THEN
+        ALTER TABLE public.contracts ADD COLUMN contract_date text;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'contracts' AND column_name = 'party_a_tax_code') THEN
+        ALTER TABLE public.contracts ADD COLUMN party_a_tax_code text;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'contracts' AND column_name = 'party_b_tax_code') THEN
+        ALTER TABLE public.contracts ADD COLUMN party_b_tax_code text;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'contracts' AND column_name = 'party_a_address') THEN
+        ALTER TABLE public.contracts ADD COLUMN party_a_address text;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'contracts' AND column_name = 'party_b_address') THEN
+        ALTER TABLE public.contracts ADD COLUMN party_b_address text;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'contracts' AND column_name = 'party_a_representative') THEN
+        ALTER TABLE public.contracts ADD COLUMN party_a_representative text;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'contracts' AND column_name = 'party_b_representative') THEN
+        ALTER TABLE public.contracts ADD COLUMN party_b_representative text;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'contracts' AND column_name = 'project_name') THEN
+        ALTER TABLE public.contracts ADD COLUMN project_name text;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'contracts' AND column_name = 'pdf_url') THEN
+        ALTER TABLE public.contracts ADD COLUMN pdf_url text;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'contracts' AND column_name = 'contract_type') THEN
+        ALTER TABLE public.contracts ADD COLUMN contract_type text DEFAULT 'word_docx';
+    END IF;
+END $$;
+
+-- 5. BẢNG PHỤ CHI TIẾT MẶT HÀNG HỢP ĐỒNG (contract_items)
+create table if not exists public.contract_items (
+    id text primary key default gen_random_uuid()::text,
+    contract_id text references public.contracts(id) on delete cascade,
+    stt text,
+    item_code text,
+    item_name text,
+    unit text,
+    quantity numeric,
+    unit_price numeric,
+    amount numeric,
+    raw_data jsonb,
+    owner_id text not null,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Kích hoạt RLS cho bảng contract_items
+alter table public.contract_items enable row level security;
+
+-- Chính sách bảo mật RLS cho contract_items
+CREATE POLICY "Users can manage their own contract_items"
+ON public.contract_items FOR ALL
+TO public
+USING (
+  COALESCE(
+    (SELECT public.get_custom_user_id()),
+    (SELECT auth.uid())::text
+  ) = owner_id
+)
+WITH CHECK (
+  COALESCE(
+    (SELECT public.get_custom_user_id()),
+    (SELECT auth.uid())::text
+  ) = owner_id
+);
+
+-- Chỉ mục khóa ngoại cho contract_items
+create index if not exists contract_items_contract_id_idx on public.contract_items(contract_id);
+

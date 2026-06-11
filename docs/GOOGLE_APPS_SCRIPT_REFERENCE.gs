@@ -88,6 +88,11 @@ function doPost(e) {
         fileName
       );
       const file = contractSubfolder.createFile(blob);
+      try {
+        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      } catch (e) {
+        Logger.log("Failed to set file sharing: " + e.toString());
+      }
       
       return createJsonResponse({ 
         success: true, 
@@ -134,6 +139,11 @@ function doPost(e) {
         fileName || "Hop_Dong_Cap_Nhat.docx"
       );
       const newFile = contractSubfolder.createFile(blob);
+      try {
+        newFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      } catch (e) {
+        Logger.log("Failed to set file sharing: " + e.toString());
+      }
       
       return createJsonResponse({ 
         success: true, 
@@ -142,33 +152,69 @@ function doPost(e) {
       }, 200);
     }
 
-    // Action to save a contract PDF scan to its unique folder
+    // Action to save a contract PDF scan to its AI-extraction subfolder
+    // Supports: contractFolder (name of subfolder), parentFolderName (optional override for root folder)
     if (requestData.action === "save_contract_pdf") {
-      const { base64Data, fileName, contractFolder } = requestData;
-      if (!base64Data || !fileName || !contractFolder) {
-        return createJsonResponse({ error: "Missing base64Data, fileName or contractFolder" }, 400);
+      const { base64Data, fileName, contractFolder, parentFolderName } = requestData;
+      if (!base64Data || !fileName) {
+        return createJsonResponse({ error: "Missing base64Data or fileName" }, 400);
       }
       
-      const folders = getOrCreateFolderStructure();
-      const contractSubfolder = getOrCreateContractSubfolder(folders, contractFolder);
+      // Step 1: Find or create root folder (default: "Hệ Thống Quản Lý Hóa Đơn")
+      const rootFolderName = parentFolderName || "Hệ Thống Quản Lý Hóa Đơn";
+      let rootFolder;
+      const rootFolderIter = DriveApp.getFoldersByName(rootFolderName);
+      if (rootFolderIter.hasNext()) {
+        rootFolder = rootFolderIter.next();
+      } else {
+        rootFolder = DriveApp.createFolder(rootFolderName);
+        try {
+          rootFolder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        } catch (e) {
+          Logger.log("Could not set sharing on root folder: " + e.toString());
+        }
+      }
       
-      // Delete any duplicate PDF scan with the same name in the contract folder
+      // Step 2: Find or create contractFolder directly inside root folder
+      // e.g. "Hợp đồng trích xuất AI" inside "Hệ Thống Quản Lý Hóa Đơn"
+      const subfolderName = contractFolder || "Hợp đồng trích xuất AI";
+      let contractSubfolder;
+      const subIter = rootFolder.getFoldersByName(subfolderName);
+      if (subIter.hasNext()) {
+        contractSubfolder = subIter.next();
+      } else {
+        contractSubfolder = rootFolder.createFolder(subfolderName);
+        try {
+          contractSubfolder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        } catch (e) {
+          Logger.log("Could not set sharing on contract subfolder: " + e.toString());
+        }
+      }
+      
+      // Step 3: Delete any duplicate PDF scan with the same name in the target folder
       const existing = contractSubfolder.getFilesByName(fileName);
       while (existing.hasNext()) {
         existing.next().setTrashed(true);
       }
       
+      // Step 4: Create the file
       const blob = Utilities.newBlob(
         Utilities.base64Decode(base64Data), 
         "application/pdf", 
         fileName
       );
       const file = contractSubfolder.createFile(blob);
+      try {
+        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      } catch (e) {
+        Logger.log("Failed to set file sharing: " + e.toString());
+      }
       
       return createJsonResponse({ 
         success: true, 
         driveUrl: file.getUrl(), 
-        fileId: file.getId() 
+        fileId: file.getId(),
+        folderUrl: contractSubfolder.getUrl()
       }, 200);
     }
 
@@ -211,6 +257,11 @@ function doPost(e) {
         fileName
       );
       const file = voucherSubfolder.createFile(blob);
+      try {
+        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      } catch (e) {
+        Logger.log("Failed to set file sharing: " + e.toString());
+      }
       
       return createJsonResponse({ 
         success: true, 
@@ -530,6 +581,11 @@ function saveToDrive(base64, type, name) {
   }
   
   const file = targetFolder.createFile(blob);
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (e) {
+    Logger.log("Failed to set file sharing: " + e.toString());
+  }
   return file.getUrl();
 }
 
@@ -732,6 +788,11 @@ function getOrCreateContractSubfolder(folders, contractFolderName) {
     contractSubfolder = existing.next();
   } else {
     contractSubfolder = folders.contractsFolder.createFolder(cleanFolderName);
+    try {
+      contractSubfolder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (e) {
+      Logger.log("Failed to set folder sharing: " + e.toString());
+    }
   }
   return contractSubfolder;
 }

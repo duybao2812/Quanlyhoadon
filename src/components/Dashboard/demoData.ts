@@ -10,6 +10,7 @@ export interface ExtendedInvoiceItem extends InvoiceItem {
     type: 'pdf' | 'jpg' | 'xml' | 'png';
   }>;
   extractedData?: any;
+  vatRate?: number;
 }
 
 export const sampleInvoices: ExtendedInvoiceItem[] = [

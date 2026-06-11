@@ -100,6 +100,7 @@ import { InvoiceItem as MappedInvoiceItem } from './types/invoiceData';
 import { DashboardInvoiceList } from './components/Dashboard/DashboardInvoiceList';
 import { ExtendedInvoiceItem } from './components/Dashboard/demoData';
 import { SystemMonitorView } from './components/SystemMonitorView';
+import { ContractUploadView } from './components/Contract/ContractUploadView';
 
 // Safe check for iframe/wallpaper environment that won't throw cross-origin errors
 const isIframeMode = () => {
@@ -117,7 +118,7 @@ const isIframeMode = () => {
 };
 
 // --- Types ---
-type Tab = 'dashboard' | 'upload' | 'partners' | 'docs' | 'contract' | 'system';
+type Tab = 'dashboard' | 'upload' | 'partners' | 'docs' | 'contract' | 'contract_upload' | 'system';
 
 interface Partner {
   id: string;
@@ -168,10 +169,11 @@ interface SmartContract {
   templateId: string;
   partyAId: string;
   partyBId: string;
-  formData: Record<string, string>;
+  formData: any;
   fileName: string;
   ownerId: string;
   createdAt: any;
+  contractType?: 'ocr_pdf' | 'word_docx';
 }
 
 // --- Components ---
@@ -216,6 +218,7 @@ const Sidebar = ({
     { id: 'upload', icon: UploadCloud, label: 'Tải lên hóa đơn' },
     { id: 'partners', icon: Users, label: 'Đối tác' },
     { id: 'contract', icon: PlusSquare, label: 'Tạo hợp đồng' },
+    { id: 'contract_upload', icon: UploadCloud, label: 'Tải lên hợp đồng' },
     { id: 'docs', icon: Files, label: 'Tài liệu đã tạo' },
     { id: 'system', icon: Database, label: 'Theo dõi hệ thống' },
   ];
@@ -979,8 +982,55 @@ const InvoiceItem: React.FC<InvoiceItemProps & { ref?: React.Ref<HTMLDivElement>
 );
 
 // --- Standalone Helper Functions ---
+const extractValueFromTable = (markdownStr: string): string => {
+  if (!markdownStr) return '';
+  const lines = markdownStr.split('\n');
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i].trim();
+    if (!line.includes('|')) continue;
+    const upperLine = line.toUpperCase();
+    if (
+      upperLine.includes('TỔNG CỘNG') ||
+      upperLine.includes('TONG CONG') ||
+      upperLine.includes('CỘNG') ||
+      upperLine.includes('CONG') ||
+      upperLine.includes('TOTAL') ||
+      upperLine.includes('THANH TOÁN') ||
+      upperLine.includes('THANH TOAN')
+    ) {
+      const cells = line.split('|').map(c => c.trim());
+      for (let j = cells.length - 1; j >= 0; j--) {
+        const cell = cells[j];
+        if (!cell) continue;
+        const cleaned = cell.replace(/[^0-9]/g, '');
+        if (cleaned.length > 0) {
+          const valNum = parseInt(cleaned, 10);
+          if (valNum > 0) {
+            return cell;
+          }
+        }
+      }
+    }
+  }
+  return '';
+};
+
 const getContractValueStandalone = (data: Record<string, string>) => {
   if (!data) return '';
+  
+  // Kiem tra key camelCase tu OCR Mistral truoc
+  if ((data as any).value !== undefined && (data as any).value !== null) {
+    const v = (data as any).value;
+    if (typeof v === 'number') {
+      if (v > 0) return v.toLocaleString('de-DE');
+    } else {
+      const clean = String(v).replace(/\D/g, '');
+      if (clean && clean !== '0') {
+        return parseInt(clean, 10).toLocaleString('de-DE');
+      }
+    }
+  }
+
   const searchTerms = ['GIATRI', 'GIATRIHOPDONG', 'GIA_TRI', 'SOTIEN', 'SO_TIEN', 'TONG_TIEN', 'THANH_TIEN', 'PHI', 'GIA_TRI_HD', 'PHI_DICH_VU'];
   const cleanData: Record<string, string> = {};
   for (const [key, val] of Object.entries(data)) {
@@ -988,24 +1038,53 @@ const getContractValueStandalone = (data: Record<string, string>) => {
     cleanData[cleanKey] = val;
   }
 
+  // Helper to check if a value looks like a table/markdown/list instead of a numeric/text value
+  const isTableOrList = (val: string) => {
+    if (!val) return true;
+    const trimmed = val.trim();
+    return trimmed.includes('|') || trimmed.includes('\n') || trimmed.includes('<w:tbl');
+  };
+
   for (const term of searchTerms) {
     const cleanTerm = term.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    if (cleanData[cleanTerm] && cleanData[cleanTerm].trim()) {
-      return cleanData[cleanTerm].trim();
+    const val = cleanData[cleanTerm];
+    if (val && val.trim() && !isTableOrList(val)) {
+      return val.trim();
     }
   }
 
   for (const [k, val] of Object.entries(cleanData)) {
-    if ((k.includes('GIATRI') || k.includes('SOTIEN') || k.includes('THANHTIEN')) && val && val.trim()) {
+    if ((k.includes('GIATRI') || k.includes('SOTIEN') || k.includes('THANHTIEN')) && val && val.trim() && !isTableOrList(val)) {
       return val.trim();
+    }
+  }
+
+  // Fallback: search for any fields that might contain a table and extract the total value
+  for (const [k, val] of Object.entries(cleanData)) {
+    if ((k.includes('BANG') || k.includes('GIATRI') || k.includes('SOTIEN') || k.includes('THANHTIEN')) && val && val.trim()) {
+      const extracted = extractValueFromTable(val);
+      if (extracted) {
+        return extracted;
+      }
     }
   }
 
   return '';
 };
 
-const getContractSignDateStandalone = (data: Record<string, string>) => {
+const getContractSignDateStandalone = (data: Record<string, string>, createdAt?: any) => {
   if (!data) return '';
+
+  // Kiểm tra key camelCase từ OCR Mistral trước
+  if ((data as any).contractDate && String((data as any).contractDate).trim()) {
+    const v = String((data as any).contractDate).trim();
+    if (v.match(/^\d{4}-\d{2}-\d{2}/)) {
+      const parts = v.split('-');
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return v;
+  }
+
   const cleanData: Record<string, string> = {};
   for (const [key, val] of Object.entries(data)) {
     const cleanKey = key.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -1059,11 +1138,24 @@ const getContractSignDateStandalone = (data: Record<string, string>) => {
     }
   }
 
-  return '';
+  // Fallback về ngày tạo hợp đồng nếu ngày ký trống
+  if (createdAt) {
+    try {
+      const dateObj = createdAt?.toDate ? createdAt.toDate() : new Date(createdAt);
+      return dateObj.toLocaleDateString('vi-VN');
+    } catch (_) {}
+  }
+
+  // Fallback cuối: ngày hiện tại
+  return new Date().toLocaleDateString('vi-VN');
 };
 
 const getContractNumberStandalone = (data: Record<string, string>) => {
   if (!data) return '';
+  // Kiểm tra trực tiếp key camelCase từ OCR Mistral trước
+  if ((data as any).contractNumber && String((data as any).contractNumber).trim()) {
+    return String((data as any).contractNumber).trim();
+  }
   const searchTerms = [
     'SO_HD', 'SO_HOP_DONG', 'MA_HD', 'SOHD', 'SO_HD_CM', 'SO_HD_TC',
     'SO_HD_VT', 'SO_HDCM', 'SO_HDTC', 'SO_HDVT', 'SO_HOPDONG', 'MA_HOPDONG',
@@ -1093,6 +1185,10 @@ const getContractNumberStandalone = (data: Record<string, string>) => {
 
 const getProjectNameStandalone = (data: Record<string, string>) => {
   if (!data) return '';
+  // Kiem tra truc tiep key projectName truoc (vi du tu hop dong AI)
+  if (data.projectName && data.projectName.trim()) {
+    return data.projectName.trim();
+  }
   const searchTerms = ['TEN_CONG_TRINH', 'CONG_TRINH', 'DU_AN', 'TEN_DU_AN', 'PROJECT', 'TENCONGTRINH'];
   const cleanData: Record<string, string> = {};
   for (const [key, val] of Object.entries(data)) {
@@ -1123,6 +1219,14 @@ const getContractNoteStandalone = (data: Record<string, string>) => {
 
 const parseValueStandalone = (valStr: string): number => {
   if (!valStr) return 0;
+  if (valStr.includes('|') || valStr.includes('\n')) {
+    const extracted = extractValueFromTable(valStr);
+    if (extracted) {
+      const cleaned = extracted.replace(/[^0-9]/g, '');
+      return parseFloat(cleaned) || 0;
+    }
+    return 0;
+  }
   const cleaned = valStr.replace(/[^0-9]/g, '');
   return parseFloat(cleaned) || 0;
 };
@@ -1148,7 +1252,8 @@ const ContractManagementCard = ({
   getProjectName,
   getContractNote,
   parseValue,
-  formatCurrency
+  formatCurrency,
+  onEditOcr
 }: any) => {
   const [localNumber, setLocalNumber] = useState('');
   const [localSignDate, setLocalSignDate] = useState('');
@@ -1178,6 +1283,39 @@ const ContractManagementCard = ({
         }
       } catch (e) {
         console.error("Error parsing _invoicesList:", e);
+      }
+
+      // Neu chua co invoices, tu dong tao tu values (cac loai gia tri hop dong)
+      if (!loadedInvoices || loadedInvoices.length === 0) {
+        const defaultItems = [];
+        if (contract.formData.value) {
+          defaultItems.push({
+            id: `ocr_val_${Math.random().toString(36).slice(2, 7)}`,
+            noidung: 'Giá trị hợp đồng',
+            donvi: 'Gói',
+            soluong: '1',
+            dongia: Number(contract.formData.value),
+            amount: Number(contract.formData.value)
+          });
+        }
+        if (Array.isArray(contract.formData.values)) {
+          contract.formData.values.forEach((v: any, i: number) => {
+            if (v.type && v.value) {
+              if (/tổng giá trị|giá trị hợp đồng/i.test(v.type)) return;
+              defaultItems.push({
+                id: `ocr_sub_${i}_${Math.random().toString(36).slice(2, 7)}`,
+                noidung: v.type,
+                donvi: 'Lần',
+                soluong: '1',
+                dongia: Number(v.value),
+                amount: Number(v.value)
+              });
+            }
+          });
+        }
+        if (defaultItems.length > 0) {
+          loadedInvoices = defaultItems;
+        }
       }
       setInvoices(Array.isArray(loadedInvoices) ? loadedInvoices : []);
 
@@ -1375,12 +1513,20 @@ const ContractManagementCard = ({
   }, [invoices]);
 
   const vatSum = useMemo(() => {
+    if (contract.contractType === 'ocr_pdf') return 0;
     return Math.round(subtotalSum * 0.08);
-  }, [subtotalSum]);
+  }, [contract.contractType, subtotalSum]);
 
   const totalInvoiceSum = useMemo(() => {
+    if (contract.contractType === 'ocr_pdf') {
+      const ocrContractValueRow = invoices.find(inv => /giá trị hợp đồng/i.test(inv.noidung || ''));
+      if (ocrContractValueRow) {
+        return Number(ocrContractValueRow.amount) || Number(ocrContractValueRow.dongia) || 0;
+      }
+      return Number(contract.formData.value) || 0;
+    }
     return subtotalSum + vatSum;
-  }, [subtotalSum, vatSum]);
+  }, [contract.contractType, contract.formData.value, invoices, subtotalSum, vatSum]);
 
   const totalAdvanceSum = useMemo(() => {
     return advanceHistory.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
@@ -1448,6 +1594,80 @@ const ContractManagementCard = ({
     if (onUpdateFormData) {
       await onUpdateFormData(contract.id, nextData);
     }
+
+    // --- Regenerate table markdown string based on current valid invoices list ---
+    const template = contract.templateId;
+    let markdownTable = '';
+    const validInvoices = invoices.filter(inv => {
+      const dongia = inv.dongia !== undefined ? Number(inv.dongia) : (Number(inv.amount) || 0);
+      const amount = inv.amount !== undefined ? Number(inv.amount) : 0;
+      return dongia > 0 || amount > 0;
+    });
+
+    const cleanSubtotalSum = validInvoices.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
+    const cleanVatSum = Math.round(cleanSubtotalSum * 0.08);
+    const cleanTotalInvoiceSum = cleanSubtotalSum + cleanVatSum;
+
+    if (template === 'HDCM') {
+      markdownTable = "| STT | NỘI DUNG | ĐVT | KHỐI LƯỢNG | ĐƠN GIÁ VNĐ | THỜI GIAN THUÊ (tháng) | THÀNH TIỀN | VAT 8% | TỔNG CỘNG |\n";
+      markdownTable += "|:---:|:---|:---:|---:|---:|---:|---:|---:|---:|\n";
+      let count = 1;
+      validInvoices.forEach(inv => {
+        const noidung = inv.noidung !== undefined ? inv.noidung : (inv.number || inv.note || '');
+        const donvi = inv.donvi !== undefined ? inv.donvi : '';
+        const soluong = inv.soluong !== undefined ? inv.soluong : '1';
+        const dongia = inv.dongia !== undefined ? inv.dongia : (inv.amount || 0);
+        const amount = inv.amount !== undefined ? inv.amount : 0;
+        const vat8 = Math.round(amount * 0.08);
+        const tongCong = amount + vat8;
+        markdownTable += `| ${count++} | ${noidung} | ${donvi} | ${soluong} | ${formatThousands(String(dongia))} | 1 | ${formatThousands(String(amount))} | ${formatThousands(String(vat8))} | ${formatThousands(String(tongCong))} |\n`;
+      });
+      markdownTable += `| | Tổng cộng | | | | | ${formatThousands(String(cleanSubtotalSum))} | ${formatThousands(String(cleanVatSum))} | ${formatThousands(String(cleanTotalInvoiceSum))} |`;
+    } else if (template === 'HDNT') {
+      markdownTable = "| STT | Nội dung | ĐVT | Khối lượng | Đơn giá (VNĐ) | Thành tiền | VAT 8% | VAT 10% | Tổng cộng |\n";
+      markdownTable += "|:---:|:---|:---:|---:|---:|---:|---:|---:|---:|\n";
+      let count = 1;
+      validInvoices.forEach(inv => {
+        const noidung = inv.noidung !== undefined ? inv.noidung : (inv.number || inv.note || '');
+        const donvi = inv.donvi !== undefined ? inv.donvi : '';
+        const soluong = inv.soluong !== undefined ? inv.soluong : '1';
+        const dongia = inv.dongia !== undefined ? inv.dongia : (inv.amount || 0);
+        const amount = inv.amount !== undefined ? inv.amount : 0;
+        const vat8 = Math.round(amount * 0.08);
+        const tongCong = amount + vat8;
+        markdownTable += `| ${count++} | ${noidung} | ${donvi} | ${soluong} | ${formatThousands(String(dongia))} | ${formatThousands(String(amount))} | ${formatThousands(String(vat8))} | - | ${formatThousands(String(tongCong))} |\n`;
+      });
+      markdownTable += `| | Tổng cộng | | | | ${formatThousands(String(cleanSubtotalSum))} | ${formatThousands(String(cleanVatSum))} | - | ${formatThousands(String(cleanTotalInvoiceSum))} |`;
+    } else {
+      markdownTable = "| STT | Nội dung hàng hóa, dịch vụ | ĐVT | Số lượng | Đơn giá | Thành tiền |\n";
+      markdownTable += "|:---:|:---|:---:|---:|---:|---:|\n";
+      let count = 1;
+      validInvoices.forEach(inv => {
+        const noidung = inv.noidung !== undefined ? inv.noidung : (inv.number || inv.note || '');
+        const donvi = inv.donvi !== undefined ? inv.donvi : '';
+        const soluong = inv.soluong !== undefined ? inv.soluong : '1';
+        const dongia = inv.dongia !== undefined ? inv.dongia : (inv.amount || 0);
+        const amount = inv.amount !== undefined ? inv.amount : 0;
+        markdownTable += `| ${count++} | ${noidung} | ${donvi} | ${soluong} | ${formatThousands(String(dongia))} | ${formatThousands(String(amount))} |\n`;
+      });
+      markdownTable += `| | TỔNG CỘNG TIỀN HÀNG | | | | ${formatThousands(String(cleanSubtotalSum))} |\n`;
+      markdownTable += `| | THUẾ GIÁ TRỊ GIA TĂNG (8%) | | | | ${formatThousands(String(cleanVatSum))} |\n`;
+      markdownTable += `| | TỔNG CỘNG TIỀN THANH TOÁN | | | | ${formatThousands(String(cleanTotalInvoiceSum))} |`;
+    }
+
+    const tableTag = Object.keys(contract.formData).find(t => {
+      const u = t.toUpperCase();
+      return (u.includes('BANG') || u.includes('TABLE')) && !u.includes('BANG_CHU') && !u.includes('BANGCHU');
+    });
+    if (tableTag) {
+      nextData[tableTag] = markdownTable;
+      // Re-trigger update to include the updated table tag
+      if (onUpdateFormData) {
+        await onUpdateFormData(contract.id, nextData);
+      }
+    }
+    // ----------------------------------------------------------------------
+
     setIsFinancialModalOpen(false);
     toast("Đã cập nhật thông tin tài chính & hóa đơn thành công!", "success");
   };
@@ -1615,12 +1835,23 @@ const ContractManagementCard = ({
     }
   };
 
-  const partnerA = partners.find(p => p.id === contract.partyAId) || { name: 'Chưa cập nhật', address: '---', taxCode: '---', representative: '---' };
-  const partnerB = partners.find(p => p.id === contract.partyBId) || { name: 'Chưa cập nhật', address: '---', taxCode: '---', representative: '---' };
+  // Tìm đối tác từ partyId; nếu chưa liên kết thì lấy từ formData OCR
+  const partnerA = partners.find(p => p.id === contract.partyAId) || {
+    name: contract.formData?.partyA?.name || contract.formData?.BENA || 'Chưa cập nhật',
+    address: contract.formData?.partyA?.address || '---',
+    taxCode: contract.formData?.partyA?.taxCode || '---',
+    representative: contract.formData?.partyA?.representative || '---'
+  };
+  const partnerB = partners.find(p => p.id === contract.partyBId) || {
+    name: contract.formData?.partyB?.name || contract.formData?.BENB || 'Chưa cập nhật',
+    address: contract.formData?.partyB?.address || '---',
+    taxCode: contract.formData?.partyB?.taxCode || '---',
+    representative: contract.formData?.partyB?.representative || '---'
+  };
 
   const contractValue = getContractValue(contract.formData);
   const contractNumber = getContractNumber(contract.formData);
-  const signDate = getContractSignDate(contract.formData);
+  const signDate = getContractSignDate(contract.formData, contract.createdAt);
   const projectName = getProjectName(contract.formData);
   const contractNote = getContractNote(contract.formData);
 
@@ -1675,7 +1906,17 @@ const ContractManagementCard = ({
     return '01/07/2026';
   })();
 
-  const getContractIcon = (templateId: string) => {
+  const getContractIcon = (templateId: string, contractType?: string) => {
+    if (contractType === 'ocr_pdf') {
+      return (
+        <div className="relative size-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 shrink-0 shadow-inner">
+          <FileText className="size-6" />
+          <div className="absolute -bottom-1 -right-1 bg-[#1e1e24] size-5 rounded-full border border-purple-500/30 flex items-center justify-center shadow-md animate-pulse">
+            <Sparkles className="size-3 text-purple-400" />
+          </div>
+        </div>
+      );
+    }
     if (templateId === 'HDCM') {
       return (
         <div className="relative size-12 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-500 shrink-0 shadow-inner">
@@ -1747,7 +1988,13 @@ const ContractManagementCard = ({
 
   return (
     <div
-      onClick={toggleExpand}
+      onClick={(e) => {
+        if (contract.contractType === 'ocr_pdf') {
+          onEditOcr?.(contract);
+        } else {
+          toggleExpand();
+        }
+      }}
       className={cn(
         "w-full bg-[#18181B] border border-border-dark/60 rounded-[24px] p-6 transition-all duration-300 shadow-lg relative overflow-hidden cursor-pointer",
         isSelected ? "ring-2 ring-primary/20 bg-primary/5" : "hover:border-border-dark/80"
@@ -1764,14 +2011,20 @@ const ContractManagementCard = ({
         </div>
 
         <div className="flex-[1.5] min-w-[180px] flex items-center gap-4">
-          {getContractIcon(contract.templateId)}
+          {getContractIcon(contract.templateId, contract.contractType)}
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-black text-white whitespace-normal break-words break-all leading-tight hover:text-primary transition-colors">
+            <div className="text-sm font-black text-white whitespace-normal break-words leading-tight hover:text-primary transition-colors">
               {contract.fileName}
             </div>
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               <span className="text-[10px] text-text-dim font-bold whitespace-nowrap">ID: {contract.id.slice(-6).toUpperCase()}</span>
               {getContractTag(contract.templateId)}
+              {contract.contractType === 'ocr_pdf' && (
+                <span className="text-[9px] font-black bg-purple-500/20 border border-purple-500/30 text-purple-400 px-2 py-0.5 rounded-lg uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
+                  <Sparkles className="size-2.5 text-purple-400 animate-pulse" />
+                  Hồ sơ AI
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -1927,15 +2180,53 @@ const ContractManagementCard = ({
                     </div>
 
                     <div className="space-y-1.5">
-                      <span className="text-text-dim block font-bold">Tài liệu lưu trữ (.docx):</span>
-                      {contract.formData?._driveUrl ? (
+                      <span className="text-text-dim block font-bold">
+                        {contract.contractType === 'ocr_pdf' ? 'Tài liệu lưu trữ (PDF):' : 'Tài liệu lưu trữ (.docx):'}
+                      </span>
+                      {contract.contractType === 'ocr_pdf' ? (
+                        contract.formData?._pdfUrl ? (
+                          <div className="flex items-center justify-between bg-purple-500/5 border border-purple-500/20 hover:border-purple-500/40 rounded-xl p-2.5 transition-all group/drive">
+                            <div
+                              className="flex items-center gap-3 min-w-0 cursor-pointer"
+                              onClick={() => onEditOcr?.(contract)}
+                            >
+                              <div className="size-10 bg-purple-500/10 border border-purple-500/20 rounded-xl flex items-center justify-center text-purple-400 shrink-0 shadow-lg group-hover/drive:bg-purple-500 group-hover/drive:text-white transition-all duration-300">
+                                <FileText className="size-5" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <span className="font-bold text-white whitespace-normal break-words text-xs block leading-tight group-hover/drive:text-purple-400 transition-colors" title={contract.fileName}>
+                                  {contract.fileName}
+                                </span>
+                                <span className="text-[9px] font-black text-purple-400/80 uppercase tracking-widest block mt-1">
+                                  HỒ SƠ AI PDF
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                              <a
+                                href={contract.formData._pdfUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2 text-purple-400 hover:text-white bg-purple-500/10 hover:bg-purple-500 rounded-xl border border-purple-500/20 transition-all duration-300 shrink-0 flex items-center justify-center"
+                                title="Mở bản quét PDF trên Google Drive"
+                              >
+                                <ExternalLink className="size-4" />
+                              </a>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-xs text-text-dim/60 italic p-3 bg-black/20 rounded-xl border border-border-dark/60">
+                            Khong tim thay file PDF
+                          </div>
+                        )
+                      ) : contract.formData?._driveUrl ? (
                         <div className="flex items-center justify-between bg-emerald-500/5 border border-emerald-500/20 hover:border-emerald-500/40 rounded-xl p-2.5 transition-all group/drive">
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="size-10 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center text-emerald-400 shrink-0 shadow-lg group-hover/drive:bg-emerald-500 group-hover/drive:text-white transition-all duration-300">
                               <Globe className="size-5" />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <span className="font-bold text-white whitespace-normal break-all text-xs block leading-tight group-hover/drive:text-emerald-400 transition-colors" title={contract.fileName}>
+                              <span className="font-bold text-white whitespace-normal break-words text-xs block leading-tight group-hover/drive:text-emerald-400 transition-colors" title={contract.fileName}>
                                 {contract.fileName}
                               </span>
                               <span className="text-[9px] font-black text-emerald-400/80 uppercase tracking-widest block mt-1">
@@ -1959,7 +2250,7 @@ const ContractManagementCard = ({
                             <div className="size-8 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center justify-center text-amber-500 font-black shrink-0 shadow-inner">
                               DOCX
                             </div>
-                            <span className="font-bold text-white whitespace-normal break-all text-xs" title={contract.fileName}>
+                            <span className="font-bold text-white whitespace-normal break-words text-xs" title={contract.fileName}>
                               {contract.fileName}
                             </span>
                           </div>
@@ -1978,12 +2269,21 @@ const ContractManagementCard = ({
                       <span className="text-text-dim block font-bold">Bản quét gốc (PDF Scan):</span>
                       {contract.formData?._pdfUrl ? (
                         <div className="flex items-center justify-between bg-red-500/5 border border-red-500/20 hover:border-red-500/40 rounded-xl p-2.5 transition-all group/pdf">
-                          <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className="flex items-center gap-3 min-w-0 cursor-pointer"
+                            onClick={() => {
+                              if (contract.contractType === 'ocr_pdf') {
+                                onEditOcr?.(contract);
+                              } else {
+                                window.open(contract.formData._pdfUrl, '_blank');
+                              }
+                            }}
+                          >
                             <div className="size-10 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-center text-red-400 shrink-0 shadow-lg group-hover/pdf:bg-red-500 group-hover/pdf:text-white transition-all duration-300">
                               <FileText className="size-5" />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <span className="font-bold text-white whitespace-normal break-all text-xs block leading-tight group-hover/pdf:text-red-400 transition-colors">
+                              <span className="font-bold text-white whitespace-normal break-words text-xs block leading-tight group-hover/pdf:text-red-400 transition-colors">
                                 {contract.fileName.replace(/\.docx$/i, '')}_scan.pdf
                               </span>
                               <span className="text-[9px] font-black text-red-400/80 uppercase tracking-widest block mt-1">
@@ -2139,7 +2439,7 @@ const ContractManagementCard = ({
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-card-dark rounded-[32px] shadow-[0_50px_100px_rgba(0,0,0,0.6)] w-full max-w-7xl overflow-hidden border border-white/10 flex flex-col h-[95vh] max-h-[95vh]"
+              className="bg-card-dark rounded-[32px] shadow-[0_50px_100px_rgba(0,0,0,0.6)] w-full max-w-8xl overflow-hidden border border-white/10 flex flex-col h-[95vh] max-h-[95vh]"
             >
               {/* Modern Header */}
               <div className="p-6 md:p-8 border-b border-white/5 bg-white/5 relative overflow-hidden shrink-0">
@@ -2175,14 +2475,14 @@ const ContractManagementCard = ({
                   </div>
                   <div className="space-y-1 col-span-2 md:col-span-1 border-l border-white/5 pl-4 md:pl-6">
                     <span className="text-[9px] font-black uppercase tracking-wider text-text-dim/50 block">Bên A (Khách Hàng)</span>
-                    <span className="text-white font-extrabold whitespace-normal break-words line-clamp-2" title={partners.find(p => p.id === contract.partyAId)?.name}>
-                      {partners.find(p => p.id === contract.partyAId)?.name || '---'}
+                    <span className="text-white font-extrabold whitespace-normal break-words line-clamp-2" title={partnerA.name}>
+                      {partnerA.name || '---'}
                     </span>
                   </div>
                   <div className="space-y-1 col-span-2 md:col-span-1 border-l border-white/5 pl-4 md:pl-6">
                     <span className="text-[9px] font-black uppercase tracking-wider text-text-dim/50 block">Bên B (Đại Diện)</span>
-                    <span className="text-white font-extrabold whitespace-normal break-words line-clamp-2" title={partners.find(p => p.id === contract.partyBId)?.name}>
-                      {partners.find(p => p.id === contract.partyBId)?.name || '---'}
+                    <span className="text-white font-extrabold whitespace-normal break-words line-clamp-2" title={partnerB.name}>
+                      {partnerB.name || '---'}
                     </span>
                   </div>
                 </div>
@@ -2219,14 +2519,14 @@ const ContractManagementCard = ({
                       <div className="overflow-x-auto rounded-2xl border border-border-dark bg-black/20 shadow-xl">
                         <table className="w-full text-left border-collapse min-w-[650px] text-xs">
                           <thead>
-                            <tr className="border-b border-border-dark bg-white/5 font-black text-[10px] uppercase tracking-wider text-text-dim">
+                            <tr className="border-b border-border-dark bg-white/5 font-black text-[10px] uppercase tracking-wider text-text-dim whitespace-nowrap">
                               <th className="p-3 w-12 text-center">STT</th>
-                              <th className="p-3 min-w-[200px]">Nội dung hàng hóa, dịch vụ</th>
-                              <th className="p-3 w-16 text-center">ĐVT</th>
-                              <th className="p-3 w-20 text-center">Số lượng</th>
-                              <th className="p-3 w-28 text-right">Đơn giá (đ)</th>
-                              <th className="p-3 w-28 text-right">Thành tiền (đ)</th>
-                              <th className="p-3 w-12 text-center">Xóa</th>
+                              <th className="p-3 min-w-[250px]">Nội dung hàng hóa, dịch vụ</th>
+                              <th className="p-3 w-20 text-center">ĐVT</th>
+                              <th className="p-3 w-24 text-center">Số lượng</th>
+                              <th className="p-3 w-36 text-right">Đơn giá (đ)</th>
+                              <th className="p-3 w-40 text-right">Thành tiền (đ)</th>
+                              <th className="p-3 w-16 text-center">Xóa</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -2304,24 +2604,28 @@ const ContractManagementCard = ({
                             })}
 
                             {/* Structured Calculations Footer based on image_b92c0c.png */}
-                            <tr className="border-b border-border-dark/60 bg-white/5 font-black text-xs">
-                              <td className="p-3 text-center"></td>
-                              <td className="p-3 uppercase tracking-wider text-text-dim font-bold" colSpan={4}>TỔNG CỘNG TIỀN HÀNG</td>
-                              <td className="p-3 text-right text-white font-black">{formatCurrency(subtotalSum)}</td>
-                              <td className="p-3"></td>
-                            </tr>
-                            <tr className="border-b border-border-dark/60 bg-white/5 font-black text-xs">
-                              <td className="p-3 text-center"></td>
-                              <td className="p-3 uppercase tracking-wider text-text-dim font-bold" colSpan={4}>THUẾ GIÁ TRỊ GIA TĂNG (8%)</td>
-                              <td className="p-3 text-right text-white font-black">{formatCurrency(vatSum)}</td>
-                              <td className="p-3"></td>
-                            </tr>
-                            <tr className="border-b border-border-dark bg-white/10 font-black text-xs text-[#FF7A00]">
-                              <td className="p-3 text-center"></td>
-                              <td className="p-3 uppercase tracking-widest font-black" colSpan={4}>TỔNG CỘNG TIỀN THANH TOÁN</td>
-                              <td className="p-3 text-right font-black text-sm">{formatCurrency(totalInvoiceSum)}</td>
-                              <td className="p-3"></td>
-                            </tr>
+                            {contract.contractType !== 'ocr_pdf' && (
+                              <>
+                                <tr className="border-b border-border-dark/60 bg-white/5 font-black text-xs">
+                                  <td className="p-3 text-center"></td>
+                                  <td className="p-3 uppercase tracking-wider text-text-dim font-bold" colSpan={4}>TỔNG CỘNG TIỀN HÀNG</td>
+                                  <td className="p-3 text-right text-white font-black whitespace-nowrap">{formatCurrency(subtotalSum)}</td>
+                                  <td className="p-3"></td>
+                                </tr>
+                                <tr className="border-b border-border-dark/60 bg-white/5 font-black text-xs">
+                                  <td className="p-3 text-center"></td>
+                                  <td className="p-3 uppercase tracking-wider text-text-dim font-bold" colSpan={4}>THUẾ GIÁ TRỊ GIA TĂNG (8%)</td>
+                                  <td className="p-3 text-right text-white font-black whitespace-nowrap">{formatCurrency(vatSum)}</td>
+                                  <td className="p-3"></td>
+                                </tr>
+                                <tr className="border-b border-border-dark bg-white/10 font-black text-xs text-[#FF7A00]">
+                                  <td className="p-3 text-center"></td>
+                                  <td className="p-3 uppercase tracking-widest font-black" colSpan={4}>TỔNG CỘNG TIỀN THANH TOÁN</td>
+                                  <td className="p-3 text-right font-black text-sm whitespace-nowrap">{formatCurrency(totalInvoiceSum)}</td>
+                                  <td className="p-3"></td>
+                                </tr>
+                              </>
+                            )}
                           </tbody>
                         </table>
                       </div>
@@ -2568,7 +2872,8 @@ const ContractManagementView = ({
   searchTerm,
   onSearchChange,
   onDownload,
-  onUpdateFormData
+  onUpdateFormData,
+  onEditOcr
 }: {
   contracts: SmartContract[],
   partners: Partner[],
@@ -2577,7 +2882,8 @@ const ContractManagementView = ({
   searchTerm: string,
   onSearchChange: (val: string) => void,
   onDownload: (contract: SmartContract) => void,
-  onUpdateFormData?: (id: string, updatedFormData: Record<string, string>) => void
+  onUpdateFormData?: (id: string, updatedFormData: Record<string, string>) => void,
+  onEditOcr?: (contract: SmartContract) => void
 }) => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
@@ -2605,7 +2911,7 @@ const ContractManagementView = ({
 
   // Dynamic state-mapping helpers for contract form data
   const getContractValue = (data: Record<string, string>) => getContractValueStandalone(data);
-  const getContractSignDate = (data: Record<string, string>) => getContractSignDateStandalone(data);
+  const getContractSignDate = (data: Record<string, string>, createdAt?: any) => getContractSignDateStandalone(data, createdAt);
   const getContractNumber = (data: Record<string, string>) => getContractNumberStandalone(data);
   const getProjectName = (data: Record<string, string>) => getProjectNameStandalone(data);
   const getContractNote = (data: Record<string, string>) => getContractNoteStandalone(data);
@@ -2719,6 +3025,7 @@ const ContractManagementView = ({
                 getContractNote={getContractNote}
                 parseValue={parseValue}
                 formatCurrency={formatCurrency}
+                onEditOcr={onEditOcr}
               />
             ))
           )}
@@ -2807,7 +3114,14 @@ const DashboardView = ({
   onExtractDraft,
   normalizeExtractedData,
   fileSearchTerm,
-  setFileSearchTerm
+  setFileSearchTerm,
+  contractUploadMode,
+  setContractUploadMode,
+  showContractUpload,
+  setShowContractUpload,
+  onTabChange,
+  onEditOcr,
+  activeTab
 }: {
   stats: any,
   user: any,
@@ -2837,7 +3151,14 @@ const DashboardView = ({
   onExtractDraft?: (id: string) => Promise<void>,
   normalizeExtractedData: (data: any) => any,
   fileSearchTerm: string,
-  setFileSearchTerm: (term: string) => void
+  setFileSearchTerm: (term: string) => void,
+  contractUploadMode?: 'ocr' | 'editor',
+  setContractUploadMode?: (mode: 'ocr' | 'editor') => void,
+  showContractUpload?: boolean,
+  setShowContractUpload?: (show: boolean) => void,
+  onTabChange?: (tab: any) => void,
+  onEditOcr?: (contract: SmartContract) => void,
+  activeTab: Tab
 }) => {
   const { toast, removeToast } = useToast();
   const [isSyncingDrive, setIsSyncingDrive] = useState(false);
@@ -3760,6 +4081,34 @@ const DashboardView = ({
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto">
+          {subTab === 'contracts' && (
+            <>
+              <button
+                onClick={() => {
+                  if (onTabChange) onTabChange('contract');
+                }}
+                className={cn(
+                  "btn-secondary",
+                  activeTab === 'contract' && "border-primary text-primary"
+                )}
+              >
+                <FileText className="size-4" />
+                Tạo từ mẫu DOCX
+              </button>
+              <button
+                onClick={() => {
+                  if (onTabChange) onTabChange('contract_upload');
+                }}
+                className={cn(
+                  "btn-secondary",
+                  activeTab === 'contract_upload' && "border-primary text-primary"
+                )}
+              >
+                <Upload className="size-4" />
+                Nhập từ PDF/Ảnh
+              </button>
+            </>
+          )}
           {subTab === 'invoices' && (
             <>
               <button
@@ -4190,6 +4539,7 @@ const DashboardView = ({
               onSearchChange={setDocSearchTerm}
               onDownload={onDownloadContract}
               onUpdateFormData={onUpdateContractFormData}
+              onEditOcr={onEditOcr}
             />
           )}
         </motion.div>
@@ -5290,9 +5640,12 @@ const TagRenderItem = ({
 const ContractFormContext = React.createContext<{
   selectedTemplate?: string;
   formData: Record<string, any>;
-  handleFieldChange: (tag: string, val: string) => void;
+  handleFieldChange: (tagOrUpdates: string | Record<string, string>, val?: string) => void;
   setActiveInvoiceTag?: (tag: string | null) => void;
   setIsInvoiceSelectorOpen?: (open: boolean) => void;
+  tags?: string[];
+  vatConfig?: { keyword: string; rate: number }[];
+  openVatConfig?: () => void;
 } | null>(null);
 
 // Inline Editable Content Span to flow seamlessly like normal text
@@ -5586,7 +5939,7 @@ const InlineTextArea = ({
 }) => {
   const context = React.useContext(ContractFormContext);
   if (!context) return null;
-  const { selectedTemplate, formData, handleFieldChange, setActiveInvoiceTag, setIsInvoiceSelectorOpen } = context;
+  const { selectedTemplate, formData, handleFieldChange, setActiveInvoiceTag, setIsInvoiceSelectorOpen, tags = [], vatConfig = [], openVatConfig } = context;
 
   const val = formData[tag] || '';
   const upper = tag.toUpperCase();
@@ -5594,13 +5947,22 @@ const InlineTextArea = ({
     !upper.includes('BANG_CHU') &&
     !upper.includes('BANGCHU');
 
+  const contractType = selectedTemplate;
+  const [localRows, setLocalRows] = React.useState<TableRow[]>(() => parseMarkdownToRows(val, contractType));
+
+  React.useEffect(() => {
+    const parsed = parseMarkdownToRows(val, contractType);
+    const currentSerialized = serializeRowsToMarkdown(localRows, contractType);
+    if (val !== currentSerialized) {
+      setLocalRows(parsed);
+    }
+  }, [val, contractType, localRows]);
+
   // --- Visual Table Mode for table tags ---
   if (isTableTag) {
-    const contractType = selectedTemplate;
-    let tableRows = parseMarkdownToRows(val, contractType);
     // Separate data rows from summary rows
-    const dataRows = tableRows.filter(r => !r.isSummary);
-    const summaryRows = tableRows.filter(r => r.isSummary);
+    const dataRows = localRows.filter(r => !r.isSummary);
+    const summaryRows = localRows.filter(r => r.isSummary);
 
     const updateTable = (newDataRows: TableRow[]) => {
       // Re-calculate grand total from data rows
@@ -5665,7 +6027,12 @@ const InlineTextArea = ({
           
           // Determine row-specific VAT rate
           let rowVatPercent = 8;
-          if (r.vat10 && r.vat10 !== '-' && r.vat10 !== '—' && r.vat10.trim() !== '') {
+          const matchedConfig = vatConfig.find(cfg => 
+            (r.description || '').toLowerCase().includes(cfg.keyword.toLowerCase())
+          );
+          if (matchedConfig) {
+            rowVatPercent = matchedConfig.rate;
+          } else if (r.vat10 && r.vat10 !== '-' && r.vat10 !== '—' && r.vat10.trim() !== '') {
             rowVatPercent = 10;
           } else if (r.vat8 && r.vat8 !== '-' && r.vat8 !== '—' && r.vat8.trim() !== '') {
             rowVatPercent = 8;
@@ -5753,7 +6120,71 @@ const InlineTextArea = ({
       }
 
       const allRows = [...updatedData, ...newSummary];
-      handleFieldChange(tag, serializeRowsToMarkdown(allRows, contractType));
+      setLocalRows(allRows);
+
+      // Construct updates for parent state
+      const updates: Record<string, string> = {
+        [tag]: serializeRowsToMarkdown(allRows, contractType)
+      };
+
+      // Calculate total contract value to auto-update
+      let contractTotal = 0;
+      if (contractType === 'HDCM') {
+        contractTotal = updatedData.reduce((sum, r) => sum + parseFormattedNumber(r.tongCong || '0'), 0);
+      } else if (contractType === 'HDNT') {
+        contractTotal = updatedData.reduce((sum, r) => sum + parseFormattedNumber(r.tongCong || '0'), 0);
+      } else {
+        const hasVAT = summaryRows.some(r => r.description.toUpperCase().includes('THUẾ') || r.description.toUpperCase().includes('VAT') || r.description.toUpperCase().includes('THUÊ'));
+        if (hasVAT) {
+          const vat = Math.round(grandTotal * (vatPercent / 100));
+          contractTotal = grandTotal + vat;
+        } else {
+          contractTotal = grandTotal;
+        }
+      }
+
+      // Try to find the currency/value tag in the contract tags
+      let valueTag = tags.find(t => {
+        const u = t.toUpperCase();
+        const isTable = (u.includes('BANG') || u.includes('TABLE')) && !u.includes('BANG_CHU') && !u.includes('BANGCHU');
+        return !isTable && [
+          'GIATRI', 'GIA_TRI', 'SO_TIEN', 'TONG_TIEN', 'THANH_TIEN', 'PHI', 'PHIDICHVU', 'GIA_TRI_HD', 'GIATRIHOPDONG'
+        ].some(v => u.includes(v));
+      });
+
+      // Fallback: search in keys of formData
+      if (!valueTag) {
+        valueTag = Object.keys(formData).find(t => {
+          const u = t.toUpperCase();
+          const isTable = (u.includes('BANG') || u.includes('TABLE')) && !u.includes('BANG_CHU') && !u.includes('BANGCHU');
+          return !isTable && [
+            'GIATRI', 'GIA_TRI', 'SO_TIEN', 'TONG_TIEN', 'THANH_TIEN', 'PHI', 'PHIDICHVU', 'GIA_TRI_HD', 'GIATRIHOPDONG'
+          ].some(v => u.includes(v));
+        });
+      }
+
+      if (contractTotal > 0) {
+        const totalStr = formatThousands(String(contractTotal));
+        const wordsStr = numberToVietnameseWords(contractTotal);
+
+        let actualValueTag = valueTag || 'GIATRIHOPDONG';
+        let actualVerbalTag = tags.find(t => {
+          const u = t.toUpperCase();
+          return u.includes('BANGCHU') || u.includes('BANG_CHU');
+        }) || 'BANGCHUGIATRI';
+
+        updates[actualValueTag] = totalStr;
+        updates[actualVerbalTag] = wordsStr;
+
+        if (actualValueTag !== 'GIATRIHOPDONG') {
+          updates['GIATRIHOPDONG'] = totalStr;
+        }
+        if (actualVerbalTag !== 'BANGCHUGIATRI') {
+          updates['BANGCHUGIATRI'] = wordsStr;
+        }
+      }
+
+      handleFieldChange(updates);
     };
 
     const handleCellEdit = (index: number, field: keyof TableRow, value: string) => {
@@ -6277,7 +6708,7 @@ const makeCell = (text: string, width: string, align: string, bold = false, span
   const runTag = escaped ? `<w:r><w:rPr>
     <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
     ${bTag}
-    <w:sz w:val="26"/><w:szCs w:val="26"/>
+    <w:sz w:val="24"/><w:szCs w:val="24"/>
   </w:rPr><w:t xml:space="preserve">${escaped}</w:t></w:r>` : '';
   const spanTag = span ? `<w:gridSpan w:val="${span}"/>` : '';
   const vAlignTag = vAlign ? `<w:vAlign w:val="${vAlign}"/>` : '';
@@ -6304,7 +6735,7 @@ const makeSummaryRow = (
       <w:r><w:rPr>
         <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
         <w:b/><w:bCs/>
-        <w:sz w:val="26"/><w:szCs w:val="26"/>
+        <w:sz w:val="24"/><w:szCs w:val="24"/>
       </w:rPr>
       <w:t xml:space="preserve">${escapeXml(label)}</w:t>
     </w:r></w:p>
@@ -6317,15 +6748,15 @@ const generateCaMayTable = (rows: TableRow[]): string => {
   const dataRows = rows.filter(r => !r.isSummary);
 
   const colWidths = {
-    stt: '500',
-    noiDung: '2500',
-    dvt: '600',
-    khoiLuong: '900',
-    donGia: '1300',
-    thoiGian: '1188',
-    thanhTien: '1400',
-    vat8: '1000',
-    tongCong: '1100'
+    stt: '350',
+    noiDung: '1340',
+    dvt: '700',
+    khoiLuong: '1134',
+    donGia: '1800',
+    thoiGian: '964',
+    thanhTien: '1550',
+    vat8: '1100',
+    tongCong: '1550'
   };
 
   const columns = [
@@ -6380,7 +6811,7 @@ const generateCaMayTable = (rows: TableRow[]): string => {
   const totalVat = dataRows.reduce((sum, r) => sum + parseMoney(r.vat8), 0);
   const totalThanhToan = dataRows.reduce((sum, r) => sum + parseMoney(r.tongCong), 0);
 
-  const spanWidth = 500 + 2500 + 600 + 900 + 1300 + 1188; // = 6988
+  const spanWidth = 350 + 1340 + 700 + 1134 + 1800 + 964; // = 6288
 
   const summaryRowXml = `<w:tr><w:trPr><w:trHeight w:val="450"/></w:trPr>` +
     // Label cell spanning 6 columns
@@ -6394,7 +6825,7 @@ const generateCaMayTable = (rows: TableRow[]): string => {
         <w:r><w:rPr>
           <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
           <w:b/><w:bCs/>
-          <w:sz w:val="26"/><w:szCs w:val="26"/>
+          <w:sz w:val="24"/><w:szCs w:val="24"/>
         </w:rPr>
         <w:t xml:space="preserve">Tổng cộng</w:t>
       </w:r></w:p>
@@ -6432,15 +6863,15 @@ const generateNguyenTacTable = (rows: TableRow[]): string => {
   const dataRows = rows.filter(r => !r.isSummary);
 
   const colWidths = {
-    stt: '500',
-    noiDung: '2588',
+    stt: '350',
+    noiDung: '1204',
     dvt: '700',
-    khoiLuong: '900',
-    donGia: '1400',
-    thanhTien: '1500',
-    vat8: '900',
-    vat10: '900',
-    tongCong: '1100'
+    khoiLuong: '1134',
+    donGia: '1800',
+    thanhTien: '1550',
+    vat8: '1100',
+    vat10: '1100',
+    tongCong: '1550'
   };
 
   const columns = [
@@ -6496,7 +6927,7 @@ const generateNguyenTacTable = (rows: TableRow[]): string => {
   const totalVat10 = dataRows.reduce((sum, r) => sum + parseMoney(r.vat10), 0);
   const totalThanhToan = dataRows.reduce((sum, r) => sum + parseMoney(r.tongCong), 0);
 
-  const spanWidth = 500 + 2588 + 700 + 900 + 1400; // = 6088
+  const spanWidth = 350 + 1204 + 700 + 1134 + 1800; // = 5188
 
   const summaryRowXml = `<w:tr><w:trPr><w:trHeight w:val="450"/></w:trPr>` +
     // Label cell spanning 5 columns
@@ -6510,7 +6941,7 @@ const generateNguyenTacTable = (rows: TableRow[]): string => {
         <w:r><w:rPr>
           <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
           <w:b/><w:bCs/>
-          <w:sz w:val="26"/><w:szCs w:val="26"/>
+          <w:sz w:val="24"/><w:szCs w:val="24"/>
         </w:rPr>
         <w:t xml:space="preserve">Tổng cộng</w:t>
       </w:r></w:p>
@@ -6778,7 +7209,9 @@ const ContractView = ({
   onContractSaved,
   setIsInvoiceSelectorOpen,
   setActiveInvoiceTag,
-  handleFieldChange
+  handleFieldChange,
+  vatConfig,
+  openVatConfig
 }: {
   partners: Partner[],
   user: User | null,
@@ -6795,7 +7228,9 @@ const ContractView = ({
   onContractSaved: (contractData: Omit<SmartContract, 'id' | 'ownerId' | 'createdAt'>) => Promise<void>,
   setIsInvoiceSelectorOpen?: (open: boolean) => void,
   setActiveInvoiceTag?: (tag: string | null) => void,
-  handleFieldChange: (tag: string, val: string) => void
+  handleFieldChange: (tagOrUpdates: string | Record<string, string>, val?: string) => void,
+  vatConfig: { keyword: string; rate: number }[],
+  openVatConfig: () => void
 }) => {
   const { toast } = useToast();
   const dayRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -6846,6 +7281,29 @@ const ContractView = ({
       const totalVal = newRows.reduce((acc, r) => acc + (parseInt(r.giatri.replace(/\D/g, ''), 10) || 0), 0);
       const words = totalVal > 0 ? numberToVietnameseWords(totalVal) : '';
       handleFieldChange('SOTIENBANGCHU', words);
+
+      // Also update any numerical value tag if present
+      let valueTag = tags.find(t => {
+        const u = t.toUpperCase();
+        const isTable = (u.includes('BANG') || u.includes('TABLE')) && !u.includes('BANG_CHU') && !u.includes('BANGCHU');
+        return !isTable && [
+          'GIATRI', 'GIA_TRI', 'SO_TIEN', 'TONG_TIEN', 'THANH_TIEN', 'PHI', 'PHIDICHVU', 'GIA_TRI_HD', 'GIATRIHOPDONG'
+        ].some(v => u.includes(v));
+      });
+
+      if (!valueTag) {
+        valueTag = Object.keys(formData).find(t => {
+          const u = t.toUpperCase();
+          const isTable = (u.includes('BANG') || u.includes('TABLE')) && !u.includes('BANG_CHU') && !u.includes('BANGCHU');
+          return !isTable && [
+            'GIATRI', 'GIA_TRI', 'SO_TIEN', 'TONG_TIEN', 'THANH_TIEN', 'PHI', 'PHIDICHVU', 'GIA_TRI_HD', 'GIATRIHOPDONG'
+          ].some(v => u.includes(v));
+        });
+      }
+
+      if (valueTag && totalVal > 0) {
+        handleFieldChange(valueTag, String(totalVal));
+      }
     };
 
     const handleCellChange = (index: number, field: keyof GdnRow, val: string) => {
@@ -8312,7 +8770,7 @@ const ContractView = ({
   };
 
   return (
-    <ContractFormContext.Provider value={{ selectedTemplate, formData, handleFieldChange, setActiveInvoiceTag, setIsInvoiceSelectorOpen }}>
+    <ContractFormContext.Provider value={{ selectedTemplate, formData, handleFieldChange, setActiveInvoiceTag, setIsInvoiceSelectorOpen, tags, vatConfig, openVatConfig }}>
       <div className="flex flex-col h-full gap-1">
         {/* Top Header Section */}
         <div className="flex flex-col md:flex-row gap-2 items-start md:items-center justify-between bg-card-dark p-2 rounded-2xl shadow-sm border border-border-dark">
@@ -8345,14 +8803,24 @@ const ContractView = ({
               Làm mới
             </button>
             {selectedTemplate && (
-              <button
-                onClick={handleGenerate}
-                disabled={isGenerating}
-                className="px-4 py-2 bg-primary/20 text-primary border border-primary/30 rounded-xl text-xs font-bold hover:bg-primary/30 transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50"
-              >
-                {isGenerating ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-                {isGenerating ? 'Đang tạo...' : 'Xuất Hợp Đồng (.docx)'}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={openVatConfig}
+                  className="px-4 py-2 bg-white/5 hover:bg-white/10 text-stone-300 hover:text-white border border-border-dark rounded-xl text-xs font-bold transition-all flex items-center gap-2 active:scale-95 cursor-pointer"
+                >
+                  <Settings2 className="size-4 text-stone-400" />
+                  Cấu hình VAT
+                </button>
+                <button
+                  onClick={handleGenerate}
+                  disabled={isGenerating}
+                  className="px-4 py-2 bg-primary/20 text-primary border border-primary/30 rounded-xl text-xs font-bold hover:bg-primary/30 transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50"
+                >
+                  {isGenerating ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                  {isGenerating ? 'Đang tạo...' : 'Xuất Hợp Đồng (.docx)'}
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -9701,6 +10169,7 @@ const TAB_CONFIG: Record<Tab, { hash: string, label: string }> = {
   partners: { hash: 'doi-tac', label: 'Đối tác & Khách hàng' },
   docs: { hash: 'tai-lieu-da-tao', label: 'Tài liệu đã tạo' },
   contract: { hash: 'tao-hop-dong', label: 'Tạo hợp đồng' },
+  contract_upload: { hash: 'tai-len-hop-dong', label: 'Tải lên hợp đồng' },
   system: { hash: 'theo-doi-he-thong', label: 'Theo dõi hệ thống' }
 };
 
@@ -9967,6 +10436,7 @@ export default function App() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [generatedDocs, setGeneratedDocs] = useState<GeneratedDoc[]>([]);
   const [contracts, setContracts] = useState<SmartContract[]>([]);
+  const [editingContractOcr, setEditingContractOcr] = useState<SmartContract | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
   const [multiPartnerEdit, setMultiPartnerEdit] = useState<{
@@ -9997,7 +10467,8 @@ export default function App() {
         fetchPartners(defaultUser.uid),
         fetchInvoices(defaultUser.uid),
         fetchGeneratedDocs(defaultUser.uid),
-        fetchContracts(defaultUser.uid)
+        fetchContracts(defaultUser.uid),
+        fetchVatConfig(defaultUser.uid)
       ]).then(() => {
         setIsLoadingInvoices(false);
       }).catch(err => {
@@ -10050,6 +10521,95 @@ export default function App() {
   const { toast, clearToasts, removeToast } = useToast();
   const [fileSearchTerm, setFileSearchTerm] = useState('');
 
+  // VAT keyword configuration states
+  const [vatConfig, setVatConfig] = useState<{ keyword: string; rate: number }[]>(() => {
+    const saved = localStorage.getItem('vat_keyword_config');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return [
+      { keyword: 'cát', rate: 10 },
+      { keyword: 'đá', rate: 10 },
+      { keyword: 'bê tông', rate: 8 },
+      { keyword: 'xe', rate: 8 },
+      { keyword: 'máy', rate: 8 }
+    ];
+  });
+  const [isVatConfigOpen, setIsVatConfigOpen] = useState(false);
+  const [localVatConfig, setLocalVatConfig] = useState<{ keyword: string; rate: number }[]>([]);
+
+  useEffect(() => {
+    if (isVatConfigOpen) {
+      setLocalVatConfig([...vatConfig]);
+    }
+  }, [isVatConfigOpen, vatConfig]);
+
+  const handleLocalVatConfigChange = (idx: number, field: 'keyword' | 'rate', value: any) => {
+    const next = [...localVatConfig];
+    next[idx] = { ...next[idx], [field]: value };
+    setLocalVatConfig(next);
+  };
+
+  const handleAddLocalVatConfig = () => {
+    setLocalVatConfig([...localVatConfig, { keyword: '', rate: 8 }]);
+  };
+
+  const handleRemoveLocalVatConfig = (idx: number) => {
+    setLocalVatConfig(localVatConfig.filter((_, i) => i !== idx));
+  };
+
+  const handleSaveVatConfig = async () => {
+    const cleaned = localVatConfig.filter(c => c.keyword.trim() !== '');
+    setVatConfig(cleaned);
+    localStorage.setItem('vat_keyword_config', JSON.stringify(cleaned));
+    setIsVatConfigOpen(false);
+
+    if (user) {
+      try {
+        const { data, error } = await supabase
+          .from('contracts')
+          .select('id')
+          .eq('owner_id', user.uid)
+          .eq('template_id', 'SYSTEM_VAT_CONFIG')
+          .eq('file_name', '__VAT_CONFIG__')
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (data) {
+          const { error: updateError } = await supabase
+            .from('contracts')
+            .update({
+              form_data: { config: cleaned },
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', data.id);
+          if (updateError) throw updateError;
+        } else {
+          const { error: insertError } = await supabase
+            .from('contracts')
+            .insert({
+              template_id: 'SYSTEM_VAT_CONFIG',
+              file_name: '__VAT_CONFIG__',
+              form_data: { config: cleaned },
+              owner_id: user.uid
+            });
+          if (insertError) throw insertError;
+        }
+        toast("Đã lưu cấu hình thuế VAT vào cơ sở dữ liệu!", "success");
+      } catch (dbErr: any) {
+        console.error("Lỗi khi lưu cấu hình VAT vào DB:", dbErr.message);
+        toast(`Đã lưu cục bộ nhưng lỗi lưu vào DB: ${dbErr.message}`, "error");
+      }
+    } else {
+      toast("Đã lưu cấu hình thuế VAT cục bộ!", "success");
+    }
+  };
+
   // Contract Tab States (Lifted for persistence)
   const [contractForm, setContractForm] = useState({
     selectedTemplate: '',
@@ -10064,6 +10624,351 @@ export default function App() {
 
   const updateContractForm = (updates: any) => {
     setContractForm(prev => ({ ...prev, ...(typeof updates === 'function' ? updates(prev) : updates) }));
+  };
+
+  // Contract OCR / Document Upload States
+  const [showContractUpload, setShowContractUpload] = useState(false);
+  const [contractUploadMode, setContractUploadMode] = useState<'ocr' | 'editor'>('editor');
+
+  // ── Phân loại hợp đồng bằng JS fallback ──────────────────────────────────
+  const classifyContractType = (fileName: string, formData: any): string => {
+    // Ưu tiên templateId từ Mistral AI
+    if (formData?.templateId && ['HDCM', 'HDTC', 'HDNT'].includes(formData.templateId)) {
+      return formData.templateId;
+    }
+    const text = [
+      fileName || '',
+      formData?.workDescription || '',
+      formData?.projectName || '',
+      formData?.partyA?.name || '',
+      JSON.stringify(formData?.items || [])
+    ].join(' ').toLowerCase();
+
+    if (/ca máy|xe cuốc|xe lu|xe tải|máy đào|xe đào|máy ủi|thiết bị thi công/.test(text)) return 'HDCM';
+    if (/thi công|xây dựng|xây lắp|sửa chữa công trình|hoàn thiện|lắp đặt/.test(text)) return 'HDTC';
+    return 'HDNT';
+  };
+
+  // Helper dinh dang date sang YYYY-MM-DD hop le cho database DATE column
+  const formatDbDate = (dateStr: any): string => {
+    if (!dateStr) return new Date().toISOString().split('T')[0];
+    let str = String(dateStr).trim();
+    if (str.includes('T')) {
+      str = str.split('T')[0].trim();
+    }
+    if (!str) return new Date().toISOString().split('T')[0];
+    
+    // Neu dung dinh dang YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+    
+    // Neu dung dinh dang DD/MM/YYYY hoac DD-MM-YYYY
+    const match = str.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+    if (match) {
+      const [_, day, month, year] = match;
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+    
+    return new Date().toISOString().split('T')[0];
+  };
+
+  // ── Lưu hợp đồng từ luồng OCR Upload ────────────────────────────────────
+  const handleContractUploadSave = async (uploadData: any) => {
+    if (!user) return;
+    try {
+      const templateId = classifyContractType(uploadData.fileName || '', uploadData.formData);
+
+      // Map items OCR → _invoicesList cho modal Tài chính
+      let invoicesList = '[]';
+      if (Array.isArray(uploadData.formData?.items) && uploadData.formData.items.length > 0) {
+        const mapped = uploadData.formData.items.map((item: any, i: number) => {
+          const getVal = (keywords: string[]) => {
+            for (const kw of keywords) {
+              const k = Object.keys(item).find(x => x.toLowerCase().includes(kw));
+              if (k && item[k] !== undefined && item[k] !== '') return item[k];
+            }
+            return '';
+          };
+          const dongia = parseFloat(String(getVal(['đơn giá', 'don gia', 'gia'])).replace(/[^0-9.]/g, '')) || 0;
+          const soluong = parseFloat(String(getVal(['số lượng', 'so luong', 'khối lượng', 'kl', 'sl'])).replace(/[^0-9.]/g, '')) || 1;
+          const amount = parseFloat(String(getVal(['thành tiền', 'thanh tien', 'tổng', 'tong'])).replace(/[^0-9.]/g, '')) || Math.round(dongia * soluong);
+          return {
+            id: `ocr_${i}_${Math.random().toString(36).slice(2, 7)}`,
+            noidung: getVal(['nội dung', 'noi dung', 'tên thiết bị', 'ten thiet bi', 'mô tả', 'mo ta']) || `Hạng mục ${i + 1}`,
+            donvi: getVal(['đvt', 'đơn vị', 'don vi']),
+            soluong: String(soluong),
+            dongia: String(dongia),
+            amount
+          };
+        });
+        invoicesList = JSON.stringify(mapped);
+      }
+
+      const finalFormData = {
+        ...uploadData.formData,
+        _invoicesList: invoicesList
+      };
+
+      const contractNumber = uploadData.formData.contractNumber || '';
+      const contractDate = formatDbDate(uploadData.formData.contractDate);
+      const partyATaxCode = uploadData.formData.partyA?.taxCode || '';
+      const partyBTaxCode = uploadData.formData.partyB?.taxCode || '';
+      const partyAAddress = uploadData.formData.partyA?.address || '';
+      const partyBAddress = uploadData.formData.partyB?.address || '';
+      const partyARepresentative = uploadData.formData.partyA?.representative || '';
+      const partyBRepresentative = uploadData.formData.partyB?.representative || '';
+      const projectName = uploadData.formData.projectName || '';
+      const contractType = 'ocr_pdf';
+
+      // Yêu cầu 1: Lưu vào bảng chính contracts với các cột đơn lẻ và loại hợp đồng
+      const { data: insertedRows, error } = await supabase.from('contracts').insert({
+        template_id: templateId,
+        form_data: finalFormData,
+        file_name: uploadData.fileName,
+        owner_id: user.uid,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        contract_number: contractNumber,
+        contract_date: contractDate,
+        party_a_tax_code: partyATaxCode,
+        party_b_tax_code: partyBTaxCode,
+        party_a_address: partyAAddress,
+        party_b_address: partyBAddress,
+        party_a_representative: partyARepresentative,
+        party_b_representative: partyBRepresentative,
+        project_name: projectName,
+        contract_type: contractType
+      }).select('id').single();
+      if (error) throw error;
+
+      const contractRowId: string = insertedRows?.id || '';
+
+      // Yêu cầu 1: Lưu vào bảng phụ contract_items (One-to-Many)
+      if (contractRowId && Array.isArray(uploadData.formData.items) && uploadData.formData.items.length > 0) {
+        const itemsToInsert = uploadData.formData.items.map((item: any) => {
+          const getVal = (keywords: string[]) => {
+            for (const kw of keywords) {
+              const k = Object.keys(item).find(x => x.toLowerCase().includes(kw));
+              if (k && item[k] !== undefined && item[k] !== '') return item[k];
+            }
+            return '';
+          };
+          const stt = getVal(['stt', 'số thứ tự']);
+          const itemCode = getVal(['mã', 'mã hiệu', 'ma hieu', 'ma']);
+          const itemName = getVal(['tên', 'tên công việc', 'nội dung', 'thiết bị', 'mặt hàng']);
+          const unit = getVal(['đơn vị', 'đvt', 'đơn vị tính']);
+          
+          const qtyStr = String(getVal(['số lượng', 'so luong', 'khối lượng', 'kl', 'sl'])).replace(/[^0-9.]/g, '');
+          const quantity = parseFloat(qtyStr) || null;
+          
+          const priceStr = String(getVal(['đơn giá', 'don gia', 'giá'])).replace(/[^0-9.]/g, '');
+          const unitPrice = parseFloat(priceStr) || null;
+          
+          const amtStr = String(getVal(['thành tiền', 'thanh tien', 'tổng'])).replace(/[^0-9.]/g, '');
+          const amount = parseFloat(amtStr) || null;
+
+          return {
+            contract_id: contractRowId,
+            stt: stt ? String(stt) : null,
+            item_code: itemCode ? String(itemCode) : null,
+            item_name: itemName ? String(itemName) : null,
+            unit: unit ? String(unit) : null,
+            quantity: quantity,
+            unit_price: unitPrice,
+            amount: amount,
+            raw_data: item,
+            owner_id: user.uid,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+        });
+
+        const { error: itemsErr } = await supabase.from('contract_items').insert(itemsToInsert);
+        if (itemsErr) console.error("Lỗi lưu contract_items:", itemsErr.message);
+      }
+
+      toast('Đã lưu hợp đồng từ OCR thành công!', 'success');
+      setShowContractUpload(false);
+      fetchContracts(user.uid);
+
+      // Upload PDF lên Drive subfolder (không block UI)
+      const pdfFile: File | null = uploadData.file || null;
+      if (pdfFile && contractRowId) {
+        (async () => {
+          try {
+            const gasUrl = (import.meta as any).env.VITE_GAS_WEB_APP_URL;
+            if (!gasUrl) return;
+
+            toast('Đang tải PDF hợp đồng lên Google Drive...', 'success');
+            const base64Data = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve((reader.result as string).split(',')[1]);
+              reader.onerror = reject;
+              reader.readAsDataURL(pdfFile);
+            });
+
+            const gasRes = await fetch(gasUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain' },
+              body: JSON.stringify({
+                action: 'save_contract_pdf',
+                base64Data,
+                fileName: pdfFile.name,
+                contractFolder: 'Hợp đồng trích xuất AI',
+                parentFolderName: 'Hệ Thống Quản Lý Hóa Đơn'
+              })
+            });
+
+            if (gasRes.ok) {
+              const gasJson = await gasRes.json();
+              if (gasJson.success) {
+                const updatedFormData = {
+                  ...finalFormData,
+                  _pdfUrl: gasJson.driveUrl,
+                  _pdfFileId: gasJson.fileId
+                };
+                // Yêu cầu 1: Cập nhật đường dẫn liên kết tệp PDF gốc driveUrl vào cột pdf_url
+                await supabase.from('contracts')
+                  .update({ 
+                    form_data: updatedFormData, 
+                    pdf_url: gasJson.driveUrl,
+                    updated_at: new Date().toISOString() 
+                  })
+                  .eq('id', contractRowId);
+                fetchContracts(user.uid);
+                toast('Tải PDF lên Google Drive thành công!', 'success');
+              } else {
+                toast('Lỗi tải PDF lên Drive: ' + (gasJson.error || 'Không rõ'), 'error');
+              }
+            }
+          } catch (e: any) {
+            console.error('Lỗi upload PDF Drive:', e);
+          }
+        })();
+      }
+    } catch (err: any) {
+      toast('Lỗi khi lưu hợp đồng: ' + err.message, 'error');
+    }
+  };
+
+  const handleUpdateContractOCR = async (id: string, updatedData: any) => {
+    if (!user) return;
+    try {
+      const templateId = classifyContractType(updatedData.fileName || '', updatedData.formData);
+      
+      // Map items OCR → _invoicesList cho modal Tài chính
+      let invoicesList = '[]';
+      if (Array.isArray(updatedData.formData?.items) && updatedData.formData.items.length > 0) {
+        const mapped = updatedData.formData.items.map((item: any, i: number) => {
+          const getVal = (keywords: string[]) => {
+            for (const kw of keywords) {
+              const k = Object.keys(item).find(x => x.toLowerCase().includes(kw));
+              if (k && item[k] !== undefined && item[k] !== '') return item[k];
+            }
+            return '';
+          };
+          const dongia = parseFloat(String(getVal(['đơn giá', 'don gia', 'gia'])).replace(/[^0-9.]/g, '')) || 0;
+          const soluong = parseFloat(String(getVal(['số lượng', 'so luong', 'khối lượng', 'kl', 'sl'])).replace(/[^0-9.]/g, '')) || 1;
+          const amount = parseFloat(String(getVal(['thành tiền', 'thanh tien', 'tổng', 'tong'])).replace(/[^0-9.]/g, '')) || Math.round(dongia * soluong);
+          return {
+            id: `ocr_${i}_${Math.random().toString(36).slice(2, 7)}`,
+            noidung: getVal(['nội dung', 'noi dung', 'tên thiết bị', 'ten thiet bi', 'mô tả', 'mo ta']) || `Hạng mục ${i + 1}`,
+            donvi: getVal(['đvt', 'đơn vị', 'don vi']),
+            soluong: String(soluong),
+            dongia: String(dongia),
+            amount
+          };
+        });
+        invoicesList = JSON.stringify(mapped);
+      }
+
+      const finalFormData = {
+        ...updatedData.formData,
+        _invoicesList: invoicesList
+      };
+
+      const contractNumber = updatedData.formData.contractNumber || '';
+      const contractDate = formatDbDate(updatedData.formData.contractDate);
+      const partyATaxCode = updatedData.formData.partyA?.taxCode || '';
+      const partyBTaxCode = updatedData.formData.partyB?.taxCode || '';
+      const partyAAddress = updatedData.formData.partyA?.address || '';
+      const partyBAddress = updatedData.formData.partyB?.address || '';
+      const partyARepresentative = updatedData.formData.partyA?.representative || '';
+      const partyBRepresentative = updatedData.formData.partyB?.representative || '';
+      const projectName = updatedData.formData.projectName || '';
+      const pdfUrl = updatedData.formData._pdfUrl || '';
+
+      // 1. Cập nhật bảng chính contracts
+      const { error: mainErr } = await supabase.from('contracts').update({
+        template_id: templateId,
+        form_data: finalFormData,
+        updated_at: new Date().toISOString(),
+        contract_number: contractNumber,
+        contract_date: contractDate,
+        party_a_tax_code: partyATaxCode,
+        party_b_tax_code: partyBTaxCode,
+        party_a_address: partyAAddress,
+        party_b_address: partyBAddress,
+        party_a_representative: partyARepresentative,
+        party_b_representative: partyBRepresentative,
+        project_name: projectName,
+        pdf_url: pdfUrl
+      }).eq('id', id);
+      
+      if (mainErr) throw mainErr;
+
+      // 2. Cập nhật bảng phụ contract_items: Xóa cũ và Thêm mới
+      await supabase.from('contract_items').delete().eq('contract_id', id);
+      
+      if (Array.isArray(updatedData.formData.items) && updatedData.formData.items.length > 0) {
+        const itemsToInsert = updatedData.formData.items.map((item: any) => {
+          const getVal = (keywords: string[]) => {
+            for (const kw of keywords) {
+              const k = Object.keys(item).find(x => x.toLowerCase().includes(kw));
+              if (k && item[k] !== undefined && item[k] !== '') return item[k];
+            }
+            return '';
+          };
+          const stt = getVal(['stt', 'số thứ tự']);
+          const itemCode = getVal(['mã', 'mã hiệu', 'ma hieu', 'ma']);
+          const itemName = getVal(['tên', 'tên công việc', 'nội dung', 'thiết bị', 'mặt hàng']);
+          const unit = getVal(['đơn vị', 'đvt', 'đơn vị tính']);
+          
+          const qtyStr = String(getVal(['số lượng', 'so luong', 'khối lượng', 'kl', 'sl'])).replace(/[^0-9.]/g, '');
+          const quantity = parseFloat(qtyStr) || null;
+          
+          const priceStr = String(getVal(['đơn giá', 'don gia', 'giá'])).replace(/[^0-9.]/g, '');
+          const unitPrice = parseFloat(priceStr) || null;
+          
+          const amtStr = String(getVal(['thành tiền', 'thanh tien', 'tổng'])).replace(/[^0-9.]/g, '');
+          const amount = parseFloat(amtStr) || null;
+
+          return {
+            contract_id: id,
+            stt: stt ? String(stt) : null,
+            item_code: itemCode ? String(itemCode) : null,
+            item_name: itemName ? String(itemName) : null,
+            unit: unit ? String(unit) : null,
+            quantity: quantity,
+            unit_price: unitPrice,
+            amount: amount,
+            raw_data: item,
+            owner_id: user.uid,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+        });
+
+        const { error: itemsErr } = await supabase.from('contract_items').insert(itemsToInsert);
+        if (itemsErr) console.error("Lỗi cập nhật contract_items:", itemsErr.message);
+      }
+
+      toast("Đã cập nhật dữ liệu hợp đồng thành công!", "success");
+      fetchContracts(user.uid);
+      setEditingContractOcr(null); // Đóng modal chỉnh sửa
+    } catch (err: any) {
+      console.error("Lỗi cập nhật hợp đồng:", err);
+      toast("Lỗi khi cập nhật hợp đồng: " + err.message, "error");
+    }
   };
 
   const [isInvoiceSelectorOpen, setIsInvoiceSelectorOpen] = useState(false);
@@ -10316,7 +11221,8 @@ export default function App() {
         .eq('owner_id', uid)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      setContracts((data || []).map(c => ({
+      const filtered = (data || []).filter(c => c.template_id !== 'SYSTEM_VAT_CONFIG');
+      setContracts(filtered.map(c => ({
         id: c.id,
         templateId: c.template_id,
         partyAId: c.party_a_id,
@@ -10325,34 +11231,105 @@ export default function App() {
         fileName: c.file_name,
         ownerId: c.owner_id,
         createdAt: c.created_at,
-        updatedAt: c.updated_at
+        updatedAt: c.updated_at,
+        contractType: c.contract_type || (c.form_data?._pdfUrl ? 'ocr_pdf' : 'word_docx')
       } as SmartContract)));
     } catch (err: any) {
       console.error("Lỗi khi tải danh sách hợp đồng:", err.message);
     }
   };
 
-  const handleContractFieldChange = (tag: string, val: string) => {
+  const fetchVatConfig = async (uid: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('contracts')
+        .select('*')
+        .eq('owner_id', uid)
+        .eq('template_id', 'SYSTEM_VAT_CONFIG')
+        .eq('file_name', '__VAT_CONFIG__')
+        .maybeSingle();
+      if (error) throw error;
+      if (data && data.form_data && (data.form_data as any).config) {
+        const config = (data.form_data as any).config;
+        setVatConfig(config);
+        localStorage.setItem('vat_keyword_config', JSON.stringify(config));
+      }
+    } catch (err: any) {
+      console.error("Lỗi khi tải cấu hình VAT:", err.message);
+    }
+  };
+
+  const handleContractFieldChange = (tagOrUpdates: string | Record<string, string>, val?: string) => {
+    if (typeof tagOrUpdates === 'object') {
+      setContractFormData((prev: Record<string, string>) => {
+        let next = { ...prev };
+        Object.entries(tagOrUpdates).forEach(([tag, value]) => {
+          const upperTag = tag.toUpperCase();
+          const tags = contractForm.tags || [];
+
+          const isTableTag = (upperTag.includes('BANG') || upperTag.includes('TABLE')) &&
+            !upperTag.includes('BANG_CHU') && !upperTag.includes('BANGCHU');
+
+          const isCurrencyField = !isTableTag && [
+            'GIATRI', 'GIA_TRI', 'SO_TIEN', 'TONG_TIEN', 'THANH_TIEN', 'PHI', 'PHIDICHVU', 'GIA_TRI_HD', 'GIATRIHOPDONG'
+          ].some(v => upperTag.includes(v));
+
+          let finalVal = value;
+          let autoWords = '';
+
+          if (isCurrencyField) {
+            finalVal = formatThousands(value);
+            const numericString = value.replace(/\D/g, '');
+            if (numericString) {
+              const num = parseInt(numericString, 10);
+              if (!isNaN(num)) {
+                autoWords = numberToVietnameseWords(num);
+              }
+            }
+          }
+
+          next[tag] = finalVal;
+
+          if (autoWords) {
+            const wordTag = tags.find(t => {
+              const u = t.toUpperCase();
+              return (u.includes('BANG_CHU') || u.includes('BANGCHU')) && !u.includes('LICH');
+            });
+            if (wordTag) {
+              next[wordTag] = autoWords;
+            }
+          }
+          
+          if (contractForm.vtLinks[tag]) {
+            setContractForm(prevForm => ({
+              ...prevForm,
+              vtLinks: { ...prevForm.vtLinks, [tag]: null }
+            }));
+          }
+        });
+        return next;
+      });
+      return;
+    }
+
+    const tag = tagOrUpdates;
     const upperTag = tag.toUpperCase();
     const tags = contractForm.tags || [];
 
     const isTableTag = (upperTag.includes('BANG') || upperTag.includes('TABLE')) &&
       !upperTag.includes('BANG_CHU') && !upperTag.includes('BANGCHU');
 
-    // Check if this is a currency/number field
     const isCurrencyField = !isTableTag && [
       'GIATRI', 'GIA_TRI', 'SO_TIEN', 'TONG_TIEN', 'THANH_TIEN', 'PHI', 'PHIDICHVU', 'GIA_TRI_HD', 'GIATRIHOPDONG'
     ].some(v => upperTag.includes(v));
 
-    let finalVal = val;
+    let finalVal = val || '';
     let autoWords = '';
 
     if (isCurrencyField) {
-      // Format with thousands separator
-      finalVal = formatThousands(val);
+      finalVal = formatThousands(val || '');
 
-      // Calculate words if possible
-      const numericString = val.replace(/\D/g, '');
+      const numericString = (val || '').replace(/\D/g, '');
       if (numericString) {
         const num = parseInt(numericString, 10);
         if (!isNaN(num)) {
@@ -10364,7 +11341,6 @@ export default function App() {
     setContractFormData((prev: Record<string, string>) => {
       const next = { ...prev, [tag]: finalVal };
 
-      // If we generated words, try to find a word field to populate
       if (autoWords) {
         const wordTag = tags.find(t => {
           const u = t.toUpperCase();
@@ -10392,20 +11368,56 @@ export default function App() {
     const selectedDatas = invoices.filter(inv => invoiceIds.includes(inv.id));
     if (selectedDatas.length === 0) return;
 
-    // Map selected invoices to structured JSON array and save under _invoicesList
-    const mappedInvoices = selectedDatas.map(inv => {
+    // Map selected invoices to structured JSON array of items and save under _invoicesList
+    const mappedInvoices: any[] = [];
+    const safeParse = (v: any) => {
+      if (typeof v === 'number') return v;
+      const s = String(v || '0').replace(/[^0-9]/g, '');
+      return parseInt(s, 10) || 0;
+    };
+
+    selectedDatas.forEach(inv => {
       const data = (inv as any).extractedData || {};
       const number = data.invoice?.number || (inv as any).invoiceNo || (inv as any).invoice_number || '';
       const date = data.invoice?.date || (inv as any).invoiceDate || (inv as any).invoice_date || '';
       const amount = data.totals?.grandTotal || data.totals?.totalAmount || (inv as any).totalAmount || (inv as any).total_amount || 0;
       const note = data.seller?.name || (inv as any).sellerName || (inv as any).seller_name || '';
-      return {
-        id: inv.id || Math.random().toString(36).substring(2, 9),
-        number,
-        date,
-        amount,
-        note
-      };
+
+      const items = data.items || data.lineItems || (inv as any).lineItems || [];
+      if (items.length > 0) {
+        items.forEach((item: any) => {
+          const qty = safeParse(item.quantity || item.SL || 1);
+          const price = safeParse(item.unitPrice || item.Don_Gia || 0);
+          const totalLine = safeParse(item.total || item.Thanh_Tien || item.amount || (qty * price));
+          
+          // Exclude if both price and amount are 0/empty
+          if (price === 0 && totalLine === 0) {
+            return;
+          }
+
+          mappedInvoices.push({
+            id: Math.random().toString(36).substring(2, 9),
+            noidung: item.description || item.name || `Hạng mục từ HĐ số ${number}`,
+            donvi: item.unit || item.DVT || '',
+            soluong: String(qty),
+            dongia: price,
+            amount: totalLine
+          });
+        });
+      } else {
+        const parsedAmount = safeParse(amount);
+        if (parsedAmount > 0) {
+          const invoiceTitle = note ? `${note} (HĐ số ${number})` : `Hóa đơn số ${number}`;
+          mappedInvoices.push({
+            id: inv.id || Math.random().toString(36).substring(2, 9),
+            noidung: invoiceTitle,
+            donvi: 'Lần',
+            soluong: '1',
+            dongia: parsedAmount,
+            amount: parsedAmount
+          });
+        }
+      }
     });
     setContractFormData((prev: any) => ({
       ...prev,
@@ -10989,7 +12001,8 @@ export default function App() {
   }, [multiPartnerEdit?.currentIndex, multiPartnerEdit?.isOpen, partners]);
 
   // Update Hash when Tab changes manually
-  const handleTabChange = (tab: Tab) => {
+  function handleTabChange(tab: Tab) {
+    console.log("DEBUG: handleTabChange click tab =", tab);
     if (tab === 'dashboard') {
       const sub = dashboardSubTab === 'invoices' ? 'Quan-ly-hoa-don' : 'Quan-ly-hop-dong';
       window.location.hash = `#/${TAB_CONFIG[tab].hash}/${sub}/`;
@@ -11000,7 +12013,7 @@ export default function App() {
     if (tab === 'dashboard') {
       setSelectedInvoice(null);
     }
-  };
+  }
 
   const handleDashboardSubTabChange = (subTab: 'invoices' | 'contracts') => {
     const sub = subTab === 'invoices' ? 'Quan-ly-hoa-don' : 'Quan-ly-hop-dong';
@@ -11190,7 +12203,9 @@ export default function App() {
         file_name: data.fileName,
         owner_id: user.uid,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        contract_number: data.formData.contractNumber || '',
+        contract_date: formatDbDate(data.formData.contractDate)
       });
       if (error) throw error;
       fetchContracts(user.uid);
@@ -11202,25 +12217,43 @@ export default function App() {
 
   const handleDeleteContract = async (id: string) => {
     if (!user) return;
-    if (!confirm("Bạn có chắc chắn muốn xóa hợp đồng này?")) return;
+    if (!confirm("Bạn có chắc chắn muốn xóa hợp đồng này? Tất cả dữ liệu liên quan và tệp tin trên Google Drive sẽ bị xóa sạch.")) return;
 
-    const contract = contracts.find(c => c.id === id);
+    const hopDong = contracts.find(c => c.id === id);
+    const toastId = toast("Đang thực hiện xóa hợp đồng và dữ liệu liên quan...", "loading");
 
     try {
+      // 1. Chu dong xoa cac hang muc chi tiet cua hop dong trong bang contract_items
+      const { error: itemsError } = await supabase
+        .from('contract_items')
+        .delete()
+        .eq('contract_id', id);
+      if (itemsError) {
+        console.warn("Lỗi khi xóa contract_items (có thể đã tự động cascade):", itemsError.message);
+      }
+
+      // 2. Xoa ban ghi hop dong chinh trong bang contracts
       const { error } = await supabase.from('contracts').delete().eq('id', id);
       if (error) throw error;
-      toast("Đã xóa hợp đồng", "success");
+
+      removeToast(toastId);
+      toast("Đã xóa dữ liệu hợp đồng thành công!", "success");
       fetchContracts(user.uid);
 
-      if (contract) {
+      // 3. Dong bo xoa sach cac file va thu muc tren Google Drive (khong block UI)
+      if (hopDong) {
         const gasUrl = (import.meta as any).env.VITE_GAS_WEB_APP_URL;
-        const fileId = contract.formData?._driveFileId || '';
-        const pdfFileId = contract.formData?._pdfFileId || '';
-        const folderName = contract.formData?._contractFolder || contract.fileName?.replace(/\.docx$/i, '') || '';
+        const fileId = hopDong.formData?._driveFileId || '';
+        const pdfFileId = hopDong.formData?._pdfFileId || '';
+        
+        // Ho tro replace ca .pdf va .docx de lay ten folder chinh xac
+        const folderName = hopDong.formData?._contractFolder || 
+          hopDong.fileName?.replace(/\.(docx|pdf)$/i, '') || '';
 
         if (gasUrl && (folderName || fileId || pdfFileId)) {
           (async () => {
             try {
+              console.log(`[DRIVE-DELETE] Dang gui yeu cau xoa file tren Drive. Folder: ${folderName}, WordId: ${fileId}, PdfId: ${pdfFileId}`);
               const gasRes = await fetch(gasUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain' },
@@ -11234,18 +12267,19 @@ export default function App() {
               if (gasRes.ok) {
                 const gasJson = await gasRes.json();
                 if (gasJson.success) {
-                  console.log("Đã đồng bộ xóa thành công thư mục/tệp hợp đồng trên Google Drive.");
+                  console.log("Đã đồng bộ xóa sạch thư mục và các tệp hợp đồng liên quan trên Google Drive thành công.");
                 } else {
                   console.warn("GAS Delete Contract Warn:", gasJson.error);
                 }
               }
             } catch (driveErr) {
-              console.error("Lỗi xóa tệp hợp đồng trên Drive:", driveErr);
+              console.error("Lỗi đồng bộ xóa tệp hợp đồng trên Google Drive:", driveErr);
             }
           })();
         }
       }
     } catch (err: any) {
+      removeToast(toastId);
       toast("Lỗi khi xóa hợp đồng: " + err.message, "error");
     }
   };
@@ -11682,7 +12716,8 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
           fetchPartners(u.uid),
           fetchInvoices(u.uid),
           fetchGeneratedDocs(u.uid),
-          fetchContracts(u.uid)
+          fetchContracts(u.uid),
+          fetchVatConfig(u.uid)
         ]);
         setIsLoadingInvoices(false);
 
@@ -11696,6 +12731,13 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
         setInvoices([]);
         setGeneratedDocs([]);
         setContracts([]);
+        setVatConfig([
+          { keyword: 'cát', rate: 10 },
+          { keyword: 'đá', rate: 10 },
+          { keyword: 'bê tông', rate: 8 },
+          { keyword: 'xe', rate: 8 },
+          { keyword: 'máy', rate: 8 }
+        ]);
         try {
           setCustomUserId(null);
         } catch (e) {
@@ -12528,6 +13570,13 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                 normalizeExtractedData={normalizeExtractedData}
                 fileSearchTerm={fileSearchTerm}
                 setFileSearchTerm={setFileSearchTerm}
+                contractUploadMode={contractUploadMode}
+                setContractUploadMode={setContractUploadMode}
+                showContractUpload={showContractUpload}
+                setShowContractUpload={setShowContractUpload}
+                onTabChange={handleTabChange}
+                onEditOcr={setEditingContractOcr}
+                activeTab={activeTab}
               />
             )}
             {activeTab === 'dashboard' && selectedInvoice && (
@@ -12825,7 +13874,19 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                 setIsInvoiceSelectorOpen={setIsInvoiceSelectorOpen}
                 setActiveInvoiceTag={setActiveInvoiceTag}
                 handleFieldChange={handleContractFieldChange}
+                vatConfig={vatConfig}
+                openVatConfig={() => setIsVatConfigOpen(true)}
               />
+            )}
+            {activeTab === 'contract_upload' && (
+              <div className="mt-6">
+                <ContractUploadView
+                  onSave={handleContractUploadSave}
+                  onBack={() => {
+                    handleTabChange('dashboard');
+                  }}
+                />
+              </div>
             )}
             {activeTab === 'system' && (
               <SystemMonitorView />
@@ -12972,6 +14033,21 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
               {/* Secondary Navigation */}
               <div className="flex flex-col gap-2">
                 <div className="text-[10px] text-text-dim uppercase font-bold tracking-widest px-2 mb-1">Mở rộng</div>
+                <button
+                  onClick={() => {
+                    handleTabChange('contract_upload');
+                    setShowMoreSheet(false);
+                  }}
+                  className={cn(
+                    "flex items-center gap-3.5 p-4 rounded-2xl text-xs font-black uppercase tracking-wider border transition-all",
+                    activeTab === 'contract_upload'
+                      ? "bg-primary/20 text-primary border-primary/30"
+                      : "bg-white/5 text-white border-border-dark hover:bg-white/10"
+                  )}
+                >
+                  <Upload className="size-5 shrink-0" />
+                  <span>Tải lên hợp đồng</span>
+                </button>
                 <button
                   onClick={() => {
                     handleTabChange('docs');
@@ -14013,6 +15089,131 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                     <ArrowRight className="size-5 relative" />
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {editingContractOcr && (
+        <ContractUploadView
+          editMode={true}
+          initialData={editingContractOcr.formData}
+          initialFileUrl={editingContractOcr.formData?._pdfUrl}
+          initialFileName={editingContractOcr.fileName}
+          contractId={editingContractOcr.id}
+          onBack={() => setEditingContractOcr(null)}
+          onSave={async (updatedData) => {
+            await handleUpdateContractOCR(editingContractOcr.id, updatedData);
+          }}
+        />
+      )}
+
+      <AnimatePresence>
+        {isVatConfigOpen && (
+          <div
+            className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-4 md:p-8 bg-black/60 backdrop-blur-sm"
+            onClick={(e) => e.target === e.currentTarget && setIsVatConfigOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-card-dark w-full max-w-[600px] rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-border-dark p-6"
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-border-dark">
+                <div className="flex items-center gap-3">
+                  <div className="size-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary border border-primary/30 shadow-md">
+                    <Settings2 className="size-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-black text-white uppercase tracking-wider">Cấu hình VAT theo Từ khóa</h2>
+                    <p className="text-[10px] text-text-dim mt-0.5 font-bold uppercase tracking-wider">Tự động hóa mức thuế suất theo nội dung</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsVatConfigOpen(false)}
+                  className="p-1 rounded-lg hover:bg-white/5 text-text-dim hover:text-white transition-colors"
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="py-4 space-y-4 max-h-[50vh] overflow-y-auto custom-scrollbar select-text">
+                <p className="text-xs text-text-dim leading-relaxed">
+                  Thiết lập các từ khóa nhận diện. Khi bạn nhập Nội dung có chứa từ khóa này, hệ thống sẽ tự động tính VAT tương ứng.
+                </p>
+
+                <div className="space-y-2">
+                  <div className="grid grid-cols-12 gap-2 text-[10px] font-black text-text-dim uppercase tracking-wider px-2">
+                    <div className="col-span-7">Từ khóa</div>
+                    <div className="col-span-3 text-right">Thuế suất (%)</div>
+                    <div className="col-span-2"></div>
+                  </div>
+
+                  <div className="space-y-2">
+                    {localVatConfig.map((item, idx) => (
+                      <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-white/5 p-2 rounded-xl border border-white/5">
+                        <div className="col-span-7">
+                          <input
+                            type="text"
+                            value={item.keyword}
+                            placeholder="Ví dụ: cát, đá, bê tông..."
+                            onChange={(e) => handleLocalVatConfigChange(idx, 'keyword', e.target.value)}
+                            className="w-full bg-black/20 border border-border-dark/60 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-primary/50 transition-colors font-bold"
+                          />
+                        </div>
+                        <div className="col-span-3">
+                          <select
+                            value={item.rate}
+                            onChange={(e) => handleLocalVatConfigChange(idx, 'rate', parseInt(e.target.value) || 0)}
+                            className="w-full bg-black/20 border border-border-dark/60 rounded-lg px-2 py-1.5 text-xs text-white outline-none focus:border-primary/50 transition-colors font-bold text-right cursor-pointer"
+                          >
+                            <option value={8}>8%</option>
+                            <option value={10}>10%</option>
+                            <option value={0}>0%</option>
+                          </select>
+                        </div>
+                        <div className="col-span-2 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveLocalVatConfig(idx)}
+                            className="p-1.5 text-text-dim hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all active:scale-90"
+                            title="Xóa cấu hình"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAddLocalVatConfig}
+                    className="w-full py-2 bg-white/5 hover:bg-white/10 border border-dashed border-border-dark hover:border-primary/50 text-text-dim hover:text-primary rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <Plus className="size-3.5" /> Thêm từ khóa mới
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="pt-4 border-t border-border-dark flex items-center justify-end gap-2">
+                <button
+                  onClick={() => setIsVatConfigOpen(false)}
+                  className="px-4 py-2 bg-transparent hover:bg-white/5 border border-border-dark text-text-dim hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  onClick={handleSaveVatConfig}
+                  className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all active:scale-95 flex items-center gap-1.5"
+                >
+                  <Check className="size-3.5" /> Lưu cấu hình
+                </button>
               </div>
             </motion.div>
           </div>

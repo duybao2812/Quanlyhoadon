@@ -9,3 +9,6 @@ coverage/
 firebase-service-account.json
 **/firebase-service-account.json
 scratch/
+uploads/
+*.pdf
+*.docx
