@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+﻿import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
 import {
@@ -18,6 +18,24 @@ interface ContractUploadViewProps {
   initialFileUrl?: string;
   contractId?: string;
   initialFileName?: string;
+  
+  // Cac prop chay hang loat moi
+  ocrQueue?: {
+    id: string;
+    file: File;
+    status: 'pending' | 'processing' | 'completed' | 'error';
+    error?: string;
+    result?: any;
+  }[];
+  currentOcrIndex?: number;
+  ocrProgress?: {
+    message: string;
+    percent: number;
+    stage: number;
+    totalStages: number;
+    status: 'running' | 'error' | 'done';
+  } | null;
+  onStartBatchOcr?: (files: File[]) => void;
 }
 
 // ─── Markdown Block Types ─────────────────────────────────────────────────────
@@ -249,7 +267,8 @@ const AutoHeightTextarea: React.FC<AutoHeightTextareaProps> = ({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export const ContractUploadView: React.FC<ContractUploadViewProps> = ({ 
-  onSave, onBack, editMode = false, initialData, initialFileUrl, contractId, initialFileName 
+  onSave, onBack, editMode = false, initialData, initialFileUrl, contractId, initialFileName,
+  ocrQueue, currentOcrIndex, ocrProgress, onStartBatchOcr
 }) => {
   const { toast } = useToast();
   const [files, setFiles] = useState<File[]>([]);
@@ -262,6 +281,39 @@ export const ContractUploadView: React.FC<ContractUploadViewProps> = ({
   const [showEmptyFields, setShowEmptyFields] = useState(false);
   const [activeTab, setActiveTab] = useState<'standard' | 'structure'>('standard');
   const [progressMessage, setProgressMessage] = useState<string>('');
+
+  // Luu ngu ref de tu dong luu ngam khi roi tab doi voi file don
+  const hasSavedRef = React.useRef(false);
+  const formDataRef = React.useRef(formData);
+  const filesRef = React.useRef(files);
+  const extractedDataRef = React.useRef(extractedData);
+  const previewUrlRef = React.useRef(previewUrl);
+
+  React.useEffect(() => {
+    formDataRef.current = formData;
+    filesRef.current = files;
+    extractedDataRef.current = extractedData;
+    previewUrlRef.current = previewUrl;
+  }, [formData, files, extractedData, previewUrl]);
+
+  React.useEffect(() => {
+    return () => {
+      // Khi unmount (nguoi dung roi tab hoac dong modal) va chua duoc luu thu cong
+      if (extractedDataRef.current && formDataRef.current && !hasSavedRef.current && !editMode) {
+        console.log("[OCR-AUTOSAVE] Tu dong luu khi roi tab doi voi file don");
+        // Tu dong goi onSave ngam neu duoc truyen tu App cha
+        const contractData = {
+          formData: formDataRef.current,
+          fileName: filesRef.current[0]?.name || 'hop-dong-tu-dong.pdf',
+          extractedData: extractedDataRef.current,
+          previewUrl: previewUrlRef.current,
+          file: filesRef.current[0] || null,
+          isSilent: true // flag de App cha biet can luu ngam khong can thong bao trung lap
+        };
+        onSave?.(contractData);
+      }
+    };
+  }, [onSave, editMode]);
 
   // Nap du lieu ban dau khi o che do Edit Mode
   React.useEffect(() => {
@@ -487,6 +539,7 @@ export const ContractUploadView: React.FC<ContractUploadViewProps> = ({
   // ── Save ──
   const handleSave = () => {
     if (!formData) return;
+    hasSavedRef.current = true;
     // Reconstruct markdownContent from edited blocks
     const updatedMarkdown = contractBlocks.map(b => {
       if (b.type === 'heading1') return `# ${b.content}`;
@@ -994,32 +1047,52 @@ export const ContractUploadView: React.FC<ContractUploadViewProps> = ({
               )}
             </div>
           ))}
-          <button
-            onClick={handleProcess} disabled={isProcessing}
-            className={cn(
-              "w-full py-4 rounded-2xl font-black text-sm uppercase tracking-wider transition-all duration-300",
-              isProcessing ? "bg-sidebar-dark text-text-dim cursor-not-allowed" : "bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 active:scale-[0.98]"
-            )}
-          >
-            {isProcessing ? (
-              <span className="flex flex-col items-center justify-center gap-1.5 py-1">
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="size-4 animate-spin" />
-                  Đang xử lý tệp hợp đồng...
-                </span>
-                {progressMessage && (
-                  <span className="text-[10px] text-text-dim/80 lowercase font-medium italic">
-                    ({progressMessage})
-                  </span>
-                )}
-              </span>
-            ) : (
+          {files.length > 1 ? (
+            <button
+              onClick={() => {
+                if (onStartBatchOcr) {
+                  onStartBatchOcr(files);
+                  toast(`Đã thêm ${files.length} tệp hợp đồng vào hàng đợi bóc tách hàng loạt. Hệ thống sẽ tự động xử lý và lưu ngầm.`, 'success');
+                  handleReset();
+                } else {
+                  toast('Tính năng bóc tách hàng loạt chưa được hỗ trợ!', 'error');
+                }
+              }}
+              className="w-full py-4 bg-primary hover:bg-primary/90 text-white rounded-2xl font-black text-sm uppercase tracking-wider transition-all duration-300 shadow-lg shadow-primary/20 active:scale-[0.98]"
+            >
               <span className="flex items-center justify-center gap-2">
                 <Eye className="size-4" />
-                Đọc và trích xuất dữ liệu
+                Bắt đầu bóc tách hàng loạt ({files.length} tệp)
               </span>
-            )}
-          </button>
+            </button>
+          ) : (
+            <button
+              onClick={handleProcess} disabled={isProcessing}
+              className={cn(
+                "w-full py-4 rounded-2xl font-black text-sm uppercase tracking-wider transition-all duration-300",
+                isProcessing ? "bg-sidebar-dark text-text-dim cursor-not-allowed" : "bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 active:scale-[0.98]"
+              )}
+            >
+              {isProcessing ? (
+                <span className="flex flex-col items-center justify-center gap-1.5 py-1">
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="size-4 animate-spin" />
+                    Đang xử lý tệp hợp đồng...
+                  </span>
+                  {progressMessage && (
+                    <span className="text-[10px] text-text-dim/80 lowercase font-medium italic">
+                      ({progressMessage})
+                    </span>
+                  )}
+                </span>
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  <Eye className="size-4" />
+                  Đọc và trích xuất dữ liệu
+                </span>
+              )}
+            </button>
+          )}
         </motion.div>
       )}
 

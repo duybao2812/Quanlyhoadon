@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   LayoutDashboard,
   UploadCloud,
@@ -101,6 +101,7 @@ import { DashboardInvoiceList } from './components/Dashboard/DashboardInvoiceLis
 import { ExtendedInvoiceItem } from './components/Dashboard/demoData';
 import { SystemMonitorView } from './components/SystemMonitorView';
 import { ContractUploadView } from './components/Contract/ContractUploadView';
+import { extractFromContract, convertContractDataToFormData } from './services/contractMistral';
 
 // Safe check for iframe/wallpaper environment that won't throw cross-origin errors
 const isIframeMode = () => {
@@ -1907,22 +1908,16 @@ const ContractManagementCard = ({
   })();
 
   const getContractIcon = (templateId: string, contractType?: string) => {
-    if (contractType === 'ocr_pdf') {
-      return (
-        <div className="relative size-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 shrink-0 shadow-inner">
-          <FileText className="size-6" />
-          <div className="absolute -bottom-1 -right-1 bg-[#1e1e24] size-5 rounded-full border border-purple-500/30 flex items-center justify-center shadow-md animate-pulse">
-            <Sparkles className="size-3 text-purple-400" />
-          </div>
-        </div>
-      );
-    }
+    const isAi = contractType === 'ocr_pdf';
     if (templateId === 'HDCM') {
       return (
         <div className="relative size-12 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-500 shrink-0 shadow-inner">
           <FileText className="size-6" />
-          <div className="absolute -bottom-1 -right-1 bg-[#1e1e24] size-5 rounded-full border border-orange-500/30 flex items-center justify-center shadow-md">
-            <Cog className="size-3 text-orange-400" />
+          <div className={cn(
+            "absolute -bottom-1 -right-1 bg-[#1e1e24] size-5 rounded-full border border-orange-500/30 flex items-center justify-center shadow-md",
+            isAi && "animate-pulse"
+          )}>
+            {isAi ? <Sparkles className="size-3 text-orange-400" /> : <Cog className="size-3 text-orange-400" />}
           </div>
         </div>
       );
@@ -1930,8 +1925,11 @@ const ContractManagementCard = ({
       return (
         <div className="relative size-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0 shadow-inner">
           <FileText className="size-6" />
-          <div className="absolute -bottom-1 -right-1 bg-[#1e1e24] size-5 rounded-full border border-blue-500/30 flex items-center justify-center shadow-md">
-            <Construction className="size-3 text-blue-400" />
+          <div className={cn(
+            "absolute -bottom-1 -right-1 bg-[#1e1e24] size-5 rounded-full border border-blue-500/30 flex items-center justify-center shadow-md",
+            isAi && "animate-pulse"
+          )}>
+            {isAi ? <Sparkles className="size-3 text-blue-400" /> : <Construction className="size-3 text-blue-400" />}
           </div>
         </div>
       );
@@ -1939,8 +1937,11 @@ const ContractManagementCard = ({
       return (
         <div className="relative size-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0 shadow-inner">
           <FileText className="size-6" />
-          <div className="absolute -bottom-1 -right-1 bg-[#1e1e24] size-5 rounded-full border border-emerald-500/30 flex items-center justify-center shadow-md">
-            <Box className="size-3 text-emerald-400" />
+          <div className={cn(
+            "absolute -bottom-1 -right-1 bg-[#1e1e24] size-5 rounded-full border border-emerald-500/30 flex items-center justify-center shadow-md",
+            isAi && "animate-pulse"
+          )}>
+            {isAi ? <Sparkles className="size-3 text-emerald-400" /> : <Box className="size-3 text-emerald-400" />}
           </div>
         </div>
       );
@@ -10244,6 +10245,146 @@ async function executeSecureExport(suggestedFileName: string, blobData: Blob, mi
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
 
+  // Trang thai tien trinh OCR hop dong - dung de hien thi o footer
+  const [ocrProgress, setOcrProgress] = useState<{
+    message: string; percent: number; stage: number; totalStages: number;
+    status: 'running' | 'error' | 'done'; fileSizeMb?: number;
+  } | null>(null);
+
+  // Cac state moi de quan ly hang doi va tu dong luu OCR hop dong
+  const [ocrQueue, setOcrQueue] = useState<{
+    id: string;
+    file: File;
+    status: 'pending' | 'processing' | 'completed' | 'error';
+    error?: string;
+    result?: any;
+  }[]>([]);
+  const [currentOcrIndex, setCurrentOcrIndex] = useState<number>(-1);
+  const [isCooldown, setIsCooldown] = useState<boolean>(false);
+  const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
+  const [showOcrBatchCompleteModal, setShowOcrBatchCompleteModal] = useState<boolean>(false);
+  const [batchOcrCount, setBatchOcrCount] = useState<number>(0);
+  const [newlyOcrContractIds, setNewlyOcrContractIds] = useState<string[]>([]);
+
+  // Logic theo doi OCR hop dong tu dong
+  useEffect(() => {
+    if (currentOcrIndex !== -1 && currentOcrIndex < ocrQueue.length) {
+      const item = ocrQueue[currentOcrIndex];
+      
+      // Neu dang cooldown thi khong chay file tiep theo
+      if (isCooldown) return;
+ 
+      if (item.status === 'pending') {
+        setOcrQueue(prev => prev.map((q, i) => i === currentOcrIndex ? { ...q, status: 'processing' } : q));
+        
+        (async () => {
+          try {
+            setOcrProgress({ 
+              message: `Đang tải tệp: ${item.file.name}`, 
+              percent: 10, 
+              stage: currentOcrIndex + 1, 
+              totalStages: ocrQueue.length, 
+              status: 'running' 
+            });
+            
+            // Su dung extractFromContract thuc te de lay du lieu tu contractMistral
+            const result = await extractFromContract(item.file, (progress) => {
+              setOcrProgress(prev => prev ? { 
+                ...prev, 
+                message: `${progress}: ${item.file.name}`, 
+                percent: Math.min(80, prev.percent + 5) 
+              } : null);
+            });
+
+            // Giai doan: Tu dong luu ket qua OCR
+            setOcrProgress({ 
+              message: `Đang tự động lưu hợp đồng: ${item.file.name}`, 
+              percent: 90, 
+              stage: currentOcrIndex + 1, 
+              totalStages: ocrQueue.length, 
+              status: 'running' 
+            });
+
+            const converted = convertContractDataToFormData(result);
+            await autoSaveContractOCR({
+              fileName: item.file.name,
+              formData: converted,
+              extractedData: result,
+              file: item.file
+            });
+            
+            setOcrProgress({ 
+              message: `Hoàn tất: ${item.file.name}`, 
+              percent: 100, 
+              stage: currentOcrIndex + 1, 
+              totalStages: ocrQueue.length, 
+              status: 'done' 
+            });
+
+            setOcrQueue(prev => prev.map((q, i) => i === currentOcrIndex ? { ...q, status: 'completed', result } : q));
+            
+            if (currentOcrIndex === ocrQueue.length - 1) {
+              // Hoan thanh tat ca
+              setCurrentOcrIndex(-1);
+              setShowOcrBatchCompleteModal(true);
+            } else {
+              // Con file tiep theo, kich hoat cooldown 60 giay
+              setIsCooldown(true);
+              setCooldownRemaining(60);
+            }
+          } catch (err: any) {
+            console.error(`Lỗi OCR file ${item.file.name}:`, err);
+            setOcrProgress({ 
+              message: `Lỗi file ${item.file.name}: ${err.message}`, 
+              percent: 100, 
+              stage: currentOcrIndex + 1, 
+              totalStages: ocrQueue.length, 
+              status: 'error' 
+            });
+            setOcrQueue(prev => prev.map((q, i) => i === currentOcrIndex ? { ...q, status: 'error', error: err.message } : q));
+
+            if (currentOcrIndex === ocrQueue.length - 1) {
+              setCurrentOcrIndex(-1);
+              setShowOcrBatchCompleteModal(true);
+            } else {
+              setIsCooldown(true);
+              setCooldownRemaining(60);
+            }
+          }
+        })();
+      }
+    }
+  }, [currentOcrIndex, ocrQueue, isCooldown]);
+
+  // Logic dem nguoc cooldown 60 giay giua cac file
+  useEffect(() => {
+    let timer: any = null;
+    if (isCooldown && cooldownRemaining > 0) {
+      setOcrProgress({
+        message: `Chờ 60s giãn cách API để bảo vệ tài nguyên (còn ${cooldownRemaining}s)...`,
+        percent: Math.round(((60 - cooldownRemaining) / 60) * 100),
+        stage: currentOcrIndex + 1,
+        totalStages: ocrQueue.length,
+        status: 'running'
+      });
+
+      timer = setInterval(() => {
+        setCooldownRemaining(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            setIsCooldown(false);
+            setCurrentOcrIndex(curr => curr + 1);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [isCooldown, cooldownRemaining]);
+
   // Synchronize mouse wheel scrolling in iframe mode OR standalone Wallpaper Engine mode
   useEffect(() => {
     if (!isIframeMode()) return;
@@ -10671,6 +10812,181 @@ export default function App() {
     return new Date().toISOString().split('T')[0];
   };
 
+  // ── Tự động lưu hợp đồng chạy ngầm vào Supabase ─────────────────────────
+  const autoSaveContractOCR = async (uploadData: { fileName: string; formData: any; extractedData: any; file: File }) => {
+    if (!user) return null;
+    try {
+      const templateId = classifyContractType(uploadData.fileName || '', uploadData.formData);
+
+      let invoicesList = '[]';
+      if (Array.isArray(uploadData.formData?.items) && uploadData.formData.items.length > 0) {
+        const mapped = uploadData.formData.items.map((item: any, i: number) => {
+          const getVal = (keywords: string[]) => {
+            for (const kw of keywords) {
+              const k = Object.keys(item).find(x => x.toLowerCase().includes(kw));
+              if (k && item[k] !== undefined && item[k] !== '') return item[k];
+            }
+            return '';
+          };
+          const dongia = parseFloat(String(getVal(['đơn giá', 'don gia', 'gia'])).replace(/[^0-9.]/g, '')) || 0;
+          const soluong = parseFloat(String(getVal(['số lượng', 'so luong', 'khối lượng', 'kl', 'sl'])).replace(/[^0-9.]/g, '')) || 1;
+          const amount = parseFloat(String(getVal(['thành tiền', 'thanh tien', 'tổng', 'tong'])).replace(/[^0-9.]/g, '')) || Math.round(dongia * soluong);
+          return {
+            id: `ocr_${i}_${Math.random().toString(36).slice(2, 7)}`,
+            noidung: getVal(['nội dung', 'noi dung', 'tên thiết bị', 'ten thiet bi', 'mô tả', 'mo ta']) || `Hạng mục ${i + 1}`,
+            donvi: getVal(['đvt', 'đơn vị', 'don vi']),
+            soluong: String(soluong),
+            dongia: String(dongia),
+            amount
+          };
+        });
+        invoicesList = JSON.stringify(mapped);
+      }
+
+      const finalFormData = {
+        ...uploadData.formData,
+        _invoicesList: invoicesList
+      };
+
+      const contractNumber = uploadData.formData.contractNumber || '';
+      const contractDate = formatDbDate(uploadData.formData.contractDate);
+      const partyATaxCode = uploadData.formData.partyA?.taxCode || '';
+      const partyBTaxCode = uploadData.formData.partyB?.taxCode || '';
+      const partyAAddress = uploadData.formData.partyA?.address || '';
+      const partyBAddress = uploadData.formData.partyB?.address || '';
+      const partyARepresentative = uploadData.formData.partyA?.representative || '';
+      const partyBRepresentative = uploadData.formData.partyB?.representative || '';
+      const projectName = uploadData.formData.projectName || '';
+      const contractType = 'ocr_pdf';
+
+      const { data: insertedRows, error } = await supabase.from('contracts').insert({
+        template_id: templateId,
+        form_data: finalFormData,
+        file_name: uploadData.fileName,
+        owner_id: user.uid,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        contract_number: contractNumber,
+        contract_date: contractDate,
+        party_a_tax_code: partyATaxCode,
+        party_b_tax_code: partyBTaxCode,
+        party_a_address: partyAAddress,
+        party_b_address: partyBAddress,
+        party_a_representative: partyARepresentative,
+        party_b_representative: partyBRepresentative,
+        project_name: projectName,
+        contract_type: contractType
+      }).select('id').single();
+
+      if (error) throw error;
+
+      const contractRowId: string = insertedRows?.id || '';
+      if (contractRowId) {
+        setNewlyOcrContractIds(prev => [...prev, contractRowId]);
+      }
+
+      if (contractRowId && Array.isArray(uploadData.formData.items) && uploadData.formData.items.length > 0) {
+        const itemsToInsert = uploadData.formData.items.map((item: any) => {
+          const getVal = (keywords: string[]) => {
+            for (const kw of keywords) {
+              const k = Object.keys(item).find(x => x.toLowerCase().includes(kw));
+              if (k && item[k] !== undefined && item[k] !== '') return item[k];
+            }
+            return '';
+          };
+          const stt = getVal(['stt', 'số thứ tự']);
+          const itemCode = getVal(['mã', 'mã hiệu', 'ma hieu', 'ma']);
+          const itemName = getVal(['tên', 'tên công việc', 'nội dung', 'thiết bị', 'mặt hàng']);
+          const unit = getVal(['đơn vị', 'đvt', 'đơn vị tính']);
+          
+          const qtyStr = String(getVal(['số lượng', 'so luong', 'khối lượng', 'kl', 'sl'])).replace(/[^0-9.]/g, '');
+          const quantity = parseFloat(qtyStr) || null;
+          
+          const priceStr = String(getVal(['đơn giá', 'don gia', 'giá'])).replace(/[^0-9.]/g, '');
+          const unitPrice = parseFloat(priceStr) || null;
+          
+          const amtStr = String(getVal(['thành tiền', 'thanh tien', 'tổng'])).replace(/[^0-9.]/g, '');
+          const amount = parseFloat(amtStr) || null;
+
+          return {
+            contract_id: contractRowId,
+            stt: stt ? String(stt) : null,
+            item_code: itemCode ? String(itemCode) : null,
+            item_name: itemName ? String(itemName) : null,
+            unit: unit ? String(unit) : null,
+            quantity: quantity,
+            unit_price: unitPrice,
+            amount: amount,
+            raw_data: item,
+            owner_id: user.uid,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+        });
+
+        const { error: itemsErr } = await supabase.from('contract_items').insert(itemsToInsert);
+        if (itemsErr) console.error("Lỗi lưu contract_items ngầm:", itemsErr.message);
+      }
+
+      toast(`Lưu ngầm thành công hợp đồng: ${uploadData.fileName}`, 'success');
+      await fetchContracts(user.uid);
+
+      const pdfFile: File | null = uploadData.file || null;
+      if (pdfFile && contractRowId) {
+        (async () => {
+          try {
+            const gasUrl = (import.meta as any).env.VITE_GAS_WEB_APP_URL;
+            if (!gasUrl) return;
+
+            const base64Data = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve((reader.result as string).split(',')[1]);
+              reader.onerror = reject;
+              reader.readAsDataURL(pdfFile);
+            });
+
+            const gasRes = await fetch(gasUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain' },
+              body: JSON.stringify({
+                action: 'save_contract_pdf',
+                base64Data,
+                fileName: pdfFile.name,
+                contractFolder: 'Hợp đồng trích xuất AI',
+                parentFolderName: 'Hệ Thống Quản Lý Hóa Đơn'
+              })
+            });
+
+            if (gasRes.ok) {
+              const gasJson = await gasRes.json();
+              if (gasJson.success) {
+                const updatedFormData = {
+                  ...finalFormData,
+                  _pdfUrl: gasJson.driveUrl,
+                  _pdfFileId: gasJson.fileId
+                };
+                await supabase.from('contracts')
+                  .update({ 
+                    form_data: updatedFormData, 
+                    pdf_url: gasJson.driveUrl,
+                    updated_at: new Date().toISOString() 
+                  })
+                  .eq('id', contractRowId);
+                await fetchContracts(user.uid);
+              }
+            }
+          } catch (e: any) {
+            console.error('Lỗi upload PDF Drive ngầm:', e);
+          }
+        })();
+      }
+      return contractRowId;
+    } catch (err: any) {
+      console.error('Lỗi khi tự động lưu hợp đồng:', err.message);
+      return null;
+    }
+  };
+
   // ── Lưu hợp đồng từ luồng OCR Upload ────────────────────────────────────
   const handleContractUploadSave = async (uploadData: any) => {
     if (!user) return;
@@ -10741,6 +11057,9 @@ export default function App() {
       if (error) throw error;
 
       const contractRowId: string = insertedRows?.id || '';
+      if (contractRowId) {
+        setNewlyOcrContractIds(prev => [...prev, contractRowId]);
+      }
 
       // Yêu cầu 1: Lưu vào bảng phụ contract_items (One-to-Many)
       if (contractRowId && Array.isArray(uploadData.formData.items) && uploadData.formData.items.length > 0) {
@@ -10786,8 +11105,12 @@ export default function App() {
         if (itemsErr) console.error("Lỗi lưu contract_items:", itemsErr.message);
       }
 
-      toast('Đã lưu hợp đồng từ OCR thành công!', 'success');
-      setShowContractUpload(false);
+      if (uploadData.isSilent) {
+        toast(`Lưu ngầm thành công hợp đồng: ${uploadData.fileName}`, 'success');
+      } else {
+        toast('Đã lưu hợp đồng từ OCR thành công!', 'success');
+        setShowContractUpload(false);
+      }
       fetchContracts(user.uid);
 
       // Upload PDF lên Drive subfolder (không block UI)
@@ -13885,6 +14208,20 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                   onBack={() => {
                     handleTabChange('dashboard');
                   }}
+                  ocrQueue={ocrQueue}
+                  currentOcrIndex={currentOcrIndex}
+                  ocrProgress={ocrProgress}
+                  onStartBatchOcr={(batchFiles) => {
+                    const queueItems = batchFiles.map(f => ({
+                      id: `batch_${Math.random().toString(36).slice(2, 7)}_${Date.now()}`,
+                      file: f,
+                      status: 'pending' as const
+                    }));
+                    setOcrQueue(queueItems);
+                    setBatchOcrCount(batchFiles.length);
+                    setCurrentOcrIndex(0);
+                    setIsCooldown(false);
+                  }}
                 />
               </div>
             )}
@@ -13895,25 +14232,63 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
         </div>
 
         <footer className="hidden md:flex h-10 bg-sidebar-dark border-t border-border-dark px-6 items-center justify-between text-[10px] uppercase font-bold tracking-widest text-text-dim">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <div className={`size-2 rounded-full ${isLoadingInvoices || isProcessing ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500'}`}></div>
-              <span>AI MODEL: MISTRAL-LARGE-LATEST (PREMIUM)</span>
+          {ocrProgress ? (
+            <div className="flex items-center justify-between w-full h-full">
+              <div className="flex items-center gap-4 flex-1">
+                <span className="flex items-center gap-2 text-primary animate-pulse whitespace-nowrap">
+                  <Sparkles className="size-3.5" />
+                  <span>OCR: {ocrProgress.message}</span>
+                </span>
+                <div className="w-48 bg-stone-850 h-2 rounded-full overflow-hidden border border-border-dark shrink-0">
+                  <div 
+                    className="bg-primary h-full transition-all duration-300" 
+                    style={{ width: `${ocrProgress.percent}%` }}
+                  />
+                </div>
+                <span className="whitespace-nowrap">Tập tin {ocrProgress.stage}/{ocrProgress.totalStages} ({ocrProgress.percent}%)</span>
+              </div>
+              <div className="flex items-center gap-4">
+                {ocrProgress.status === 'error' && (
+                  <button 
+                    onClick={() => setOcrProgress(null)}
+                    className="px-2.5 py-1 bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 rounded-lg transition-all text-[9px] uppercase font-bold"
+                  >
+                    Đóng lỗi
+                  </button>
+                )}
+                {ocrProgress.status === 'done' && (
+                  <button 
+                    onClick={() => setOcrProgress(null)}
+                    className="px-2.5 py-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/30 rounded-lg transition-all text-[9px] uppercase font-bold"
+                  >
+                    Đóng
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Globe className="size-3" />
-              <span>AI REGION: ASIA-SOUTHEAST1 (SINGAPORE)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Zap className="size-3" />
-              <span>API STATUS: HEALTHY | REQUESTS: {requestCount}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1"><Cpu className="size-3" /> GAS SERVICE: CONNECTED</span>
-            <span className="text-border-dark">|</span>
-            <span>© 2026 SMARTINVOICE PRO</span>
-          </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <div className={`size-2 rounded-full ${isLoadingInvoices || isProcessing ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500'}`}></div>
+                  <span>AI MODEL: MISTRAL-LARGE-LATEST (PREMIUM)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Globe className="size-3" />
+                  <span>AI REGION: ASIA-SOUTHEAST1 (SINGAPORE)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Zap className="size-3" />
+                  <span>API STATUS: HEALTHY | REQUESTS: {requestCount}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="flex items-center gap-1"><Cpu className="size-3" /> GAS SERVICE: CONNECTED</span>
+                <span className="text-border-dark">|</span>
+                <span>© 2026 SMARTINVOICE PRO</span>
+              </div>
+            </>
+          )}
         </footer>
       </main>
 
@@ -15213,6 +15588,57 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                   className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all active:scale-95 flex items-center gap-1.5"
                 >
                   <Check className="size-3.5" /> Lưu cấu hình
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Popup hoàn thành OCR hàng loạt */}
+      <AnimatePresence>
+        {showOcrBatchCompleteModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-card-dark w-full max-w-[480px] rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-border-dark p-6 text-center select-none"
+            >
+              <div className="size-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/5">
+                <CheckCircle2 className="size-8 text-emerald-400" />
+              </div>
+              
+              <h3 className="text-lg font-black text-white uppercase tracking-wider mb-2">
+                Hoàn thành trích xuất hàng loạt
+              </h3>
+              
+              <p className="text-xs text-text-dim leading-relaxed mb-6 font-medium">
+                Đã tự động bóc tách và lưu thành công {batchOcrCount} hợp đồng vào hệ thống CSDL. Bạn có thể kiểm tra lại danh sách hồ sơ AI.
+              </p>
+
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => {
+                    setShowOcrBatchCompleteModal(false);
+                    handleDashboardSubTabChange('contracts');
+                    handleTabChange('dashboard');
+                  }}
+                  className="w-full py-3.5 bg-primary hover:bg-primary/90 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-primary/20 active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <Briefcase className="size-4" />
+                  Đi tới Quản lý hợp đồng
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setShowOcrBatchCompleteModal(false);
+                    setOcrQueue([]);
+                    setBatchOcrCount(0);
+                  }}
+                  className="w-full py-3.5 bg-white/5 hover:bg-white/10 text-text-dim hover:text-white border border-border-dark rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95"
+                >
+                  Đóng thông báo
                 </button>
               </div>
             </motion.div>

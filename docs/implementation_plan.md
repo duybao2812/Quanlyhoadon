@@ -1,85 +1,90 @@
-# Kế hoạch thực hiện: Sửa lỗi Tệp Word, Nâng cấp Quản lý Tài chính & Đồng bộ Cloud Google Drive
+# Kế Hoạch - OCR Hợp Đồng Chạy Ngầm & Xử Lý Nhiều File
 
-Kế hoạch này phác thảo các sửa đổi kỹ thuật nhằm giải quyết lỗi hỏng tệp Word tải xuống, nâng cấp modal tài chính với lịch sử đợt tạm ứng, đồng bộ tệp hóa đơn từ tab Tạo hợp đồng, cơ cấu lại thư mục Apps Script và đồng bộ hóa thao tác xóa tệp trực tiếp trên Google Drive.
-
-## Nội dung cần người dùng duyệt
-
-> [!IMPORTANT]
-> - ** apps script update**: Khi thay đổi cấu trúc thư mục GAS sang `"Lưu Trữ Hợp Đồng"` và tích hợp chức năng xóa đồng thời, bạn cần cập nhật mã nguồn GAS trong Google Drive Script Editor của mình bằng nội dung file `GOOGLE_APPS_SCRIPT_REFERENCE.gs` cập nhật sau khi hoàn thành.
-> - **Bản sao lưu**: Toàn bộ thay đổi sẽ được thực hiện trực tiếp trên `src/App.tsx` và `GOOGLE_APPS_SCRIPT_REFERENCE.gs` trong workspace của bạn một cách an toàn nhất.
-
-## Đề xuất Thay đổi
+Kế hoạch nâng cấp tính năng OCR hợp đồng PDF nhằm hỗ trợ chạy ngầm hoàn toàn khi người dùng chuyển tab, hỗ trợ tải lên và xử lý hàng loạt nhiều tệp tin (chờ 60s giữa các tệp), hiển thị nhãn "Mới" cho các tệp vừa hoàn tất, loại bỏ các đồng hồ hiển thị thời gian ở footer, và đồng bộ màu sắc biểu tượng (icon) hợp đồng theo loại mẫu.
 
 ---
 
-### 1. Sửa lỗi tệp Word hỏng (.docx) khi tải về
+## Các Thay Đổi Được Đề Xuất
 
-#### [MODIFY] [App.tsx](file:///d:/GitHub/Quanlyhoadon/src/App.tsx)
-- Thay đổi tùy chọn sinh tệp zip trong `generateDocxBlobForContract` và `downloadContract` từ `type: 'blob'` sang `type: 'uint8array'` để tạo cấu trúc binary thô nguyên bản chuẩn xác.
-- Tự đóng gói mảng Uint8Array bằng `new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })` trước khi thực hiện tải xuống qua `saveAs`. Điều này giúp khắc phục hoàn toàn hiện tượng Microsoft Word báo lỗi "Word encountered an error" do định dạng file không tương thích.
-- Cải tiến `downloadContract` sử dụng chung nhân sinh tệp `generateDocxBlobForContract` đã được chuẩn hóa để loại bỏ code dư thừa và các lỗi phát sinh.
-
----
-
-### 2. Vá lỗi hiển thị dữ liệu Hợp đồng từ tab Tạo hợp đồng (Metadata Binding)
-
-#### [MODIFY] [App.tsx](file:///d:/GitHub/Quanlyhoadon/src/App.tsx)
-- Cải tiến 3 hàm bóc tách dữ liệu (`getContractValue`, `getContractNumber`, `getContractSignDate`) ở file scope:
-  - Chuẩn hóa toàn bộ khóa (keys) của dữ liệu `formData` thành chữ hoa và loại bỏ tất cả các ký tự đặc biệt như dấu gạch dưới (`_`), khoảng trắng.
-  - Áp dụng cơ chế tìm kiếm mờ (fuzzy search) thông minh để khớp nối chính xác các biến thể của các tag như `GIATRI`, `GIATRIHOPDONG`, `GIATRI_HD`, `SO_HD`, `SO_HD_CM`, `NGAY_KY`, `NGAYKY`, v.v.
-  - Bảo đảm dữ liệu từ tab Tạo hợp đồng luôn liên kết hoàn hảo sang sub-tab Quản lý hợp đồng mà không sợ lệch khóa tag.
+### 1. Loại Bỏ Thời Gian Đếm Ở Footer
+- **Tệp tin**: [App.tsx](file:///d:/GitHub/Quanlyhoadon/src/App.tsx)
+- **Hành động**: Loại bỏ việc hiển thị "thời gian đã qua" và "thời gian dự kiến còn lại" ở footer. Footer chỉ giữ lại:
+  - Đèn trạng thái & Nhãn OCR
+  - Thanh tiến độ (đổi màu theo status: cam/đỏ/xanh)
+  - Phần trăm hoàn thành (`%`)
+  - Số giai đoạn (`STG X/Y` hoặc thông tin tiến độ file như `Hoàn thành 1/3 file`)
+  - Nút đóng `✕` khi có lỗi.
 
 ---
 
-### 3. Nâng cấp Modal Quản lý Tài chính & Lịch sử Đợt tạm ứng
-
-#### [MODIFY] [App.tsx](file:///d:/GitHub/Quanlyhoadon/src/App.tsx)
-- **Đồng bộ hóa hóa đơn tự động**:
-  - Cập nhật `handleContractInvoiceIntegration` trong tab Tạo hợp đồng: Khi tích hợp hóa đơn, danh sách hóa đơn đã chọn sẽ được chuyển đổi tự động thành mảng các hàng hóa đơn và lưu trữ dưới dạng chuỗi JSON trong `formData._invoicesList`.
-  - Khi người dùng mở Modal tài chính, bảng `"DANH SÁCH HÓA ĐƠN"` sẽ tự động tải các hóa đơn được chọn này từ `_invoicesList` và tự động tính toán lại Tổng giá trị hợp đồng dựa trên dữ liệu thực tế này.
-- **Bảng Lịch sử Đợt tạm ứng (Tính năng mới)**:
-  - Thêm cột lịch sử tạm ứng nằm ngay dưới phần nhập thông tin tạm ứng.
-  - Người dùng điền số tiền tạm ứng, ngày, chứng từ và nội dung rồi bấm nút `"Thêm đợt tạm ứng"` (hoặc nhấn phím **Enter**), thông tin này sẽ được lưu thành một đối tượng trong mảng trạng thái `advanceHistory`.
-  - Bảng lịch sử đợt tạm ứng hỗ trợ xem danh sách đợt tạm ứng đã lưu và hỗ trợ nút xóa đợt tạm ứng nhanh.
-  - Tổng số tiền tạm ứng trong ô `"TỔNG SỐ TIỀN ĐÃ TẠM ỨNG"` sẽ được tính tự động từ tổng của tất cả các đợt tạm ứng trong lịch sử này.
-  - Lưu trữ mảng lịch sử dưới dạng chuỗi JSON trong `formData._advanceHistoryList` và cập nhật tổng tạm ứng vào `formData._advanceAmount` để đồng bộ hoàn toàn với dashboard chính.
-
----
-
-### 4. Tái cấu trúc thư mục GAS & Xóa tệp đồng thời trên Drive
-
-#### [MODIFY] [GOOGLE_APPS_SCRIPT_REFERENCE.gs](file:///d:/GitHub/Quanlyhoadon/GOOGLE_APPS_SCRIPT_REFERENCE.gs)
-- Đổi tên thư mục con mặc định dành cho hợp đồng trong hàm `getOrCreateFolderStructure` từ `"Hợp Đồng Đã Tạo"` thành `"Lưu Trữ Hợp Đồng"`.
-- Bổ sung hành động `"delete_contract_folder"` trong Apps Script:
-  - Tiếp nhận `folderName`, `fileId`, và `pdfFileId` từ yêu cầu.
-  - Xóa vĩnh viễn tệp Word (`fileId`), tệp PDF quét (`pdfFileId`) và thư mục hợp đồng chuyên dụng (`folderName`) khỏi Google Drive của người dùng (`setTrashed(true)`).
-
-#### [MODIFY] [App.tsx](file:///d:/GitHub/Quanlyhoadon/src/App.tsx)
-- Nâng cấp hàm `handleDeleteContract`: Khi xóa hợp đồng locally khỏi Supabase, hệ thống sẽ đồng thời gửi một yêu cầu bất đồng bộ sang GAS endpoint kích hoạt xóa tương ứng tệp và thư mục trên Google Drive, giữ bộ nhớ lưu trữ Cloud hoàn toàn đồng bộ và tối ưu.
-
----
-
-### 5. Sửa lỗi hiển thị tên file dài trong giao diện expanded card
-
-#### [MODIFY] [App.tsx](file:///d:/GitHub/Quanlyhoadon/src/App.tsx)
-- Loại bỏ thuộc tính `truncate` và `overflow-hidden` khỏi thẻ span hiển thị tên file `.docx` và file bản quét PDF trong Box 1.
-- Áp dụng các thuộc tính CSS `whitespace-normal break-all` để tên file dài có thể tự động xuống dòng và hiển thị đầy đủ, không bị che khuất tên của các đối tác quan trọng.
-
----
-
-## Kế hoạch Kiểm tra
-
-### Kiểm tra tự động
-- Chạy lệnh biên dịch và kiểm tra kiểu tĩnh của TypeScript:
-  ```bash
-  npx tsc --noEmit
+### 2. Quản Lý Hàng Đợi OCR Ngầm Trên Parent Component (App)
+- **Tệp tin**: [App.tsx](file:///d:/GitHub/Quanlyhoadon/src/App.tsx)
+- **Mô tả**: Di chuyển logic chạy `extractFromContract` từ `ContractUploadView.tsx` lên cấp cha `App.tsx` để tiến trình không bị hủy khi đổi tab (unmount).
+- **Trạng thái lưu trữ**:
+  ```typescript
+  const [ocrQueue, setOcrQueue] = useState<{
+    id: string;
+    file: File;
+    status: 'pending' | 'processing' | 'completed' | 'error';
+    error?: string;
+    result?: any;
+  }[]>([]);
+  const [currentOcrIndex, setCurrentOcrIndex] = useState<number>(-1);
+  const [isCooldown, setIsCooldown] = useState<boolean>(false);
+  const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
+  const [showOcrBatchCompleteModal, setShowOcrBatchCompleteModal] = useState<boolean>(false);
+  const [batchOcrCount, setBatchOcrCount] = useState<number>(0);
+  const [newlyOcrContractIds, setNewlyOcrContractIds] = useState<string[]>([]);
   ```
-- Đảm bảo biên dịch thành công 100% không có bất kỳ lỗi cú pháp hoặc kiểu dữ liệu nào.
 
-### Kiểm tra thủ công
-1. Thử tải tệp Word `.docx` của hợp đồng bằng nút in (Printer) trong danh sách và mở trực tiếp bằng Microsoft Word xem có hết lỗi hỏng tệp hay không.
-2. Tạo hợp đồng mới trong tab Tạo hợp đồng và kiểm tra xem Mã HĐ, Giá trị HĐ, Ngày ký có được ánh xạ hiển thị tự động trên dòng quản lý hợp đồng hay không.
-3. Mở Modal tài chính của hợp đồng mới, xem danh sách hóa đơn đã tích hợp có tự hiển thị hay không.
-4. Thử thêm nhiều đợt tạm ứng, kiểm tra tính toán tổng tiền tạm ứng và đợt tạm ứng hiển thị trong danh sách lịch sử.
-5. Thử xóa hợp đồng và kiểm tra trên Google Drive xem thư mục con của hợp đồng đó đã được xóa đồng thời hay chưa.
-6. Xem giao diện tên file dài của hợp đồng xem đã tự xuống dòng đẹp mắt chưa.
+- **Logic xử lý**:
+  - Khi người dùng bấm "Trích xuất" từ `ContractUploadView`, callback `onStartOcr(files)` được kích hoạt.
+  - Hàng đợi `ocrQueue` được nạp danh sách tệp. Thiết lập chạy tuần tự bắt đầu từ file đầu tiên.
+  - Khi hoàn thành 1 file:
+    - Nếu có **nhiều hơn 1 file** trong hàng đợi, hoặc **người dùng đã chuyển tab khác** (không còn ở `'contract_upload'`): Hệ thống tự động lưu hợp đồng vào database thông qua API Supabase và cập nhật danh sách (`fetchContracts`), sau đó thêm ID vào danh sách `newlyOcrContractIds`.
+    - Nếu chỉ có **1 file** và người dùng **vẫn ở trên tab** `'contract_upload'`: Giữ nguyên hành vi hiện tại (hiển thị form kết quả bóc tách để người dùng kiểm tra và bấm "Lưu" thủ công).
+  - Khoảng nghỉ giữa các file (nếu có file tiếp theo): Chờ **60 giây** trước khi chạy tệp tiếp theo để tránh quá tải giới hạn API. Đồng hồ đếm ngược chờ 60s sẽ hiển thị ở footer.
+  - Khi hoàn thành toàn bộ hàng đợi: Hiển thị popup modal thông báo chốt hoàn tất hàng loạt với nút bấm "Đi tới Quản lý hợp đồng" (cập nhật hash URL sang `#/dashboard/Quan-ly-hop-dong/`).
+  - Hỗ trợ tự động lưu hợp đồng chưa lưu nếu người dùng chuyển tab khi file đơn lẻ đã hoàn thành bóc tách.
+
+---
+
+### 3. Đồng Bộ Hóa Trạng Thái Trong `ContractUploadView`
+- **Tệp tin**: [ContractUploadView.tsx](file:///d:/GitHub/Quanlyhoadon/src/components/Contract/ContractUploadView.tsx)
+- **Hành động**:
+  - Cho phép chọn nhiều file PDF cùng lúc ở dropzone.
+  - Thêm các prop nhận trạng thái từ `App`: `onStartOcr`, `isProcessing`, `ocrProgress`, `ocrResult`, `ocrError`, `onClearOcr`.
+  - Đồng bộ `ocrResult` và `ocrError` vào state nội bộ để render form hiển thị kết quả chỉnh sửa như cũ.
+  - Tích hợp gọi `onStartOcr` khi nhấn nút "Đọc và trích xuất dữ liệu".
+
+---
+
+### 4. Thiết Kế Nhãn "Mới" Cho Hợp Đồng Vừa OCR
+- **Tệp tin**: [App.tsx](file:///d:/GitHub/Quanlyhoadon/src/App.tsx)
+- **Mô tả**:
+  - Đối với các hợp đồng vừa bóc tách hoàn thành trong phiên làm việc, lưu trữ ID trong `newlyOcrContractIds` state.
+  - Ở `ContractManagementCard`, hiển thị thêm nhãn nhấp nháy `"Mới"` màu đỏ hồng (`bg-rose-500/20 border-rose-500/30 text-rose-400`) bên cạnh nhãn "Hồ sơ AI".
+  - Nhãn này **chỉ hiển thị 1 lần**: Khi người dùng rời khỏi tab `"contract"` (Quản lý hợp đồng) sang tab khác, hệ thống sẽ tự động dọn dẹp danh sách `newlyOcrContractIds = []`. Do đó khi quay lại hoặc F5 sẽ mất nhãn này.
+
+---
+
+### 5. Điều Chỉnh Màu Sắc Biểu Tượng (Icon) Hợp Đồng
+- **Tệp tin**: [App.tsx](file:///d:/GitHub/Quanlyhoadon/src/App.tsx) - hàm `getContractIcon`
+- **Hành động**: Thay đổi ưu tiên hiển thị màu sắc biểu tượng theo loại mẫu hợp đồng thay vì ép buộc màu tím cho toàn bộ file quét AI.
+  - **HĐ Ca Máy (`HDCM`)**: Icon màu Cam (kèm biểu tượng Cog), nếu quét bởi AI thì biểu tượng góc dưới bên phải đổi thành Sparkles (màu Cam).
+  - **HĐ Thi Công (`HDTC`)**: Icon màu Xanh Dương (kèm biểu tượng Construction), nếu quét bởi AI thì biểu tượng góc đổi thành Sparkles (màu Xanh Dương).
+  - **HĐ Vật Tư / Loại khác**: Icon màu Xanh Lá (kèm biểu tượng Box), nếu quét bởi AI thì biểu tượng góc đổi thành Sparkles (màu Xanh Lá).
+
+---
+
+## Quy Trình Xác Minh & Kiểm Thử
+
+### Kiểm Thử Tự Động
+- Chạy lệnh `npm run build` để kiểm tra toàn bộ lỗi kiểu dữ liệu TypeScript và biên dịch bundle.
+
+### Kiểm Thử Thủ Công
+1. **Kiểm tra tắt đồng hồ**: Xác nhận footer không còn hiển thị thời gian chạy hoặc ước tính, chỉ có tiến trình phần trăm và message.
+2. **Kiểm tra chạy ngầm đơn lẻ**: Tải lên 1 file, click trích xuất, chuyển ngay sang tab đối tác/dashboard. Chờ footer chuyển sang màu xanh thông báo hoàn thành, sau đó chuyển sang "Quản lý hợp đồng" kiểm tra xem hợp đồng đã tự động lưu chưa và có nhãn "Mới" không.
+3. **Kiểm tra chạy ngầm hàng loạt (nhiều file)**: Tải lên 3 file PDF cùng lúc, bắt đầu trích xuất. Xác nhận tiến trình chạy tuần tự, có hiển thị thời gian chờ 60s giữa các tệp. Đợi hoàn thành tất cả, xác nhận hiển thị popup hoàn thành và nút bấm chuyển hướng hoạt động tốt.
+4. **Kiểm tra biến mất nhãn Mới**: Xem nhãn "Mới", sau đó click sang tab Dashboard rồi quay lại, xác nhận nhãn biến mất.
+5. **Kiểm tra màu sắc Icon**: Xác nhận hợp đồng thi công quét bởi AI hiển thị màu xanh dương chủ đạo với Sparkles xanh dương ở góc, không còn màu tím.

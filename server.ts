@@ -1,4 +1,4 @@
-import express from 'express';
+﻿import express from 'express';
 import { createServer as createViteServer, type ViteDevServer } from 'vite';
 import path from 'path';
 import fs from 'fs';
@@ -20,9 +20,9 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
-// Increase limit for base64 payloads to handle large PDFs
-app.use(express.json({ limit: '150mb' }));
-app.use(express.urlencoded({ limit: '150mb', extended: true }));
+// Tang gioi han body parser len 500MB de xu ly PDF lon (base64 tang ~33% kich thuoc)
+app.use(express.json({ limit: '500mb' }));
+app.use(express.urlencoded({ limit: '500mb', extended: true }));
 app.use('/templates', express.static(path.join(process.cwd(), 'templates')));
 app.use('/templatesHopDong', express.static(path.join(process.cwd(), 'templatesHopDong')));
 app.use('/templates_muc_phu', express.static(path.join(process.cwd(), 'templates_muc_phu')));
