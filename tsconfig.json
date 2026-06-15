@@ -30,6 +30,7 @@
     "node_modules",
     "Backup_Code_Firebase",
     "supabase",
-    "scratch"
+    "scratch",
+    "docs"
   ]
 }

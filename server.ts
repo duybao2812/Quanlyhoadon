@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import { createServer as createViteServer, type ViteDevServer } from 'vite';
 import path from 'path';
 import fs from 'fs';
@@ -24,8 +24,6 @@ const PORT = 3000;
 app.use(express.json({ limit: '500mb' }));
 app.use(express.urlencoded({ limit: '500mb', extended: true }));
 app.use('/templates', express.static(path.join(process.cwd(), 'templates')));
-app.use('/templatesHopDong', express.static(path.join(process.cwd(), 'templatesHopDong')));
-app.use('/templates_muc_phu', express.static(path.join(process.cwd(), 'templates_muc_phu')));
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 const upload = multer({ dest: 'uploads/temp' });
@@ -1119,12 +1117,8 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
 
     try {
       if (!fs.existsSync(templatePath)) {
-        // Fallback for default templates
-        if (templateType.startsWith('Template_HD')) {
-          templatePath = path.join(process.cwd(), 'templatesHopDong', `${templateType}.docx`);
-        } else {
-          templatePath = path.join(process.cwd(), 'templates', `${templateType}.docx`);
-        }
+        // Fallback cho cac template mac dinh
+        templatePath = path.join(process.cwd(), 'templates', `${templateType}.docx`);
       }
 
       if (!fs.existsSync(templatePath)) {

@@ -117,7 +117,12 @@ export async function generateDocxBlob({
       const amount = Number(item.amount || item.total || item.totalAmount || item.lineTotal) || (!isNaN(qty) && !isNaN(price) ? qty * price : 0);
 
       const displayUnit = (item.unit && !item.unit.toString().match(/^[. -]+$/)) ? item.unit.toString() : "";
-      const displayQty = (item.quantity !== undefined && item.quantity !== null && item.quantity !== "" && !isNaN(qty) && qty !== 0) ? formatVNNumber(qty) : "";
+      let displayQty = (item.quantity !== undefined && item.quantity !== null && item.quantity !== "" && !isNaN(qty) && qty !== 0) ? formatVNNumber(qty) : "";
+
+      // An so luong "1" cho thi cong (TC)
+      if (templateType.includes('TC') && qty === 1) {
+        displayQty = "";
+      }
 
       return {
         STT: (index + 1).toString(),

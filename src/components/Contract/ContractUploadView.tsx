@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
 import {
@@ -18,6 +18,8 @@ interface ContractUploadViewProps {
   initialFileUrl?: string;
   contractId?: string;
   initialFileName?: string;
+  desktopFile?: File;
+  onResetDesktopFile?: () => void;
   
   // Cac prop chay hang loat moi
   ocrQueue?: {
@@ -268,6 +270,7 @@ const AutoHeightTextarea: React.FC<AutoHeightTextareaProps> = ({
 // ─── Main Component ───────────────────────────────────────────────────────────
 export const ContractUploadView: React.FC<ContractUploadViewProps> = ({ 
   onSave, onBack, editMode = false, initialData, initialFileUrl, contractId, initialFileName,
+  desktopFile, onResetDesktopFile,
   ocrQueue, currentOcrIndex, ocrProgress, onStartBatchOcr
 }) => {
   const { toast } = useToast();
@@ -281,6 +284,47 @@ export const ContractUploadView: React.FC<ContractUploadViewProps> = ({
   const [showEmptyFields, setShowEmptyFields] = useState(false);
   const [activeTab, setActiveTab] = useState<'standard' | 'structure'>('standard');
   const [progressMessage, setProgressMessage] = useState<string>('');
+
+  // Tu dong nap va chay file tu desktop gui sang
+  React.useEffect(() => {
+    if (desktopFile) {
+      const fileToProcess = desktopFile;
+      setFiles([fileToProcess]);
+      setError(null);
+      setExtractedData(null);
+      setFormData(null);
+      setContractBlocks([]);
+      setPreviewUrl(fileToProcess.type.startsWith('image/') || fileToProcess.type === 'application/pdf' ? URL.createObjectURL(fileToProcess) : null);
+      
+      // Xoa file o App.tsx de tranh re-trigger khi render
+      onResetDesktopFile?.();
+
+      // Kich hoat quy trinh OCR tu dong ngay lap tuc
+      (async () => {
+        setIsProcessing(true);
+        setProgressMessage('Đang chuẩn bị tệp tin...');
+        try {
+          console.log(`[CONTRACT-DESKTOP] Tu dong xu ly tep hop dong tu Desktop: ${fileToProcess.name}`);
+          const result = await extractFromContract(fileToProcess, (progress) => {
+            setProgressMessage(progress);
+          });
+          setExtractedData(result);
+          const converted = convertContractDataToFormData(result);
+          setFormData(converted);
+          if (converted.markdownContent) {
+            setContractBlocks(parseMarkdownToBlocks(converted.markdownContent));
+          }
+          toast(`Trích xuất hợp đồng thành công: ${fileToProcess.name}`, 'success');
+        } catch (err: any) {
+          const msg = err.message || 'Không thể xử lý tệp hợp đồng';
+          setError(msg);
+          toast(`Lỗi xử lý: ${msg}`, 'error');
+        } finally {
+          setIsProcessing(false);
+        }
+      })();
+    }
+  }, [desktopFile, onResetDesktopFile, toast]);
 
   // Luu ngu ref de tu dong luu ngam khi roi tab doi voi file don
   const hasSavedRef = React.useRef(false);
@@ -296,6 +340,11 @@ export const ContractUploadView: React.FC<ContractUploadViewProps> = ({
     previewUrlRef.current = previewUrl;
   }, [formData, files, extractedData, previewUrl]);
 
+  const onSaveRef = React.useRef(onSave);
+  React.useEffect(() => {
+    onSaveRef.current = onSave;
+  });
+
   React.useEffect(() => {
     return () => {
       // Khi unmount (nguoi dung roi tab hoac dong modal) va chua duoc luu thu cong
@@ -310,10 +359,10 @@ export const ContractUploadView: React.FC<ContractUploadViewProps> = ({
           file: filesRef.current[0] || null,
           isSilent: true // flag de App cha biet can luu ngam khong can thong bao trung lap
         };
-        onSave?.(contractData);
+        onSaveRef.current?.(contractData);
       }
     };
-  }, [onSave, editMode]);
+  }, [editMode]);
 
   // Nap du lieu ban dau khi o che do Edit Mode
   React.useEffect(() => {

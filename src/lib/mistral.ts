@@ -6,17 +6,10 @@ export async function extractFromInvoice(file: File): Promise<any> {
       reader.readAsDataURL(file);
     });
 
-    const gasUrl = (import.meta as any).env.VITE_GAS_WEB_APP_URL;
-    
-    if (!gasUrl) {
-      throw new Error("Vui lòng cấu hình VITE_GAS_WEB_APP_URL trong biến môi trường.");
-    }
-
-    console.log("Starting GAS call to:", gasUrl);
     const startTime = Date.now();
-
-    const res = await fetch(gasUrl, {
+    const res = await fetch('/api/proxy-gas', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         base64Data,
         fileType: file.type,
