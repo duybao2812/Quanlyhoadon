@@ -3,12 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
 import {
   UploadCloud, FileText, X, Loader2, CheckCircle2, AlertCircle,
-  Eye, Save, RefreshCw, List, LayoutGrid, Plus, Trash2
+  Eye, Save, RefreshCw, List, LayoutGrid, Plus, Trash2, Download, Upload
 } from 'lucide-react';
 import { extractFromContract, convertContractDataToFormData } from '../../services/contractMistral';
 import { ExtractedContractData } from '../../types/contractData';
 import { useToast } from '../Notifications';
 import { cn } from '../../lib/utils';
+import { extractIncomingNumberFromDocNumber, extractIssueDate } from '../../lib/contractHelpers';
 
 interface ContractUploadViewProps {
   onSave?: (data: any) => void;
@@ -285,6 +286,32 @@ export const ContractUploadView: React.FC<ContractUploadViewProps> = ({
   const [activeTab, setActiveTab] = useState<'standard' | 'structure'>('standard');
   const [progressMessage, setProgressMessage] = useState<string>('');
 
+  // ─── Document Classification State ───────────────────────────────────────────
+  const [documentType, setDocumentType] = useState<'incoming' | 'outgoing' | null>(null);
+  const [incomingDocFields, setIncomingDocFields] = useState({
+    incomingNumber: '',
+    receivedDate: new Date().toISOString().split('T')[0],
+    issueDate: '',
+    sender: '',
+    signer: '',
+    summary: '',
+    field: '',
+    securityLevel: 'normal',
+    urgencyLevel: 'normal',
+    note: ''
+  });
+  const [outgoingDocFields, setOutgoingDocFields] = useState({
+    outgoingNumber: '',
+    issueDate: new Date().toISOString().split('T')[0],
+    receiver: '',
+    signer: '',
+    summary: '',
+    field: '',
+    securityLevel: 'normal',
+    urgencyLevel: 'normal',
+    note: ''
+  });
+
   // Tu dong nap va chay file tu desktop gui sang
   React.useEffect(() => {
     if (desktopFile) {
@@ -325,6 +352,64 @@ export const ContractUploadView: React.FC<ContractUploadViewProps> = ({
       })();
     }
   }, [desktopFile, onResetDesktopFile, toast]);
+
+  // ─── Auto-fill document fields from OCR data ─────────────────────────────────
+  React.useEffect(() => {
+    if (!formData) return;
+    
+    // Auto-suggest document type based on AI extraction
+    let suggestedType: 'incoming' | 'outgoing' | null = null;
+    
+    // Check extracted data for clues
+    if (extractedData) {
+      const markdownLower = (extractedData.markdownContent || '').toLowerCase();
+      const partyAName = extractedData.parties?.partyA?.name || '';
+      const partyBName = extractedData.parties?.partyB?.name || '';
+      
+      // If document mentions "kính gửi", "công văn đến", it's likely incoming
+      if (markdownLower.includes('kính gửi') || 
+          markdownLower.includes('công văn đến') ||
+          markdownLower.includes('văn bản gửi từ')) {
+        suggestedType = 'incoming';
+      }
+      // If document mentions company names and looks like internal/outgoing
+      else if (markdownLower.includes('công ty') && 
+               (markdownLower.includes('ban hành') || 
+                markdownLower.includes('thông báo') ||
+                markdownLower.includes('quyết định'))) {
+        suggestedType = 'outgoing';
+      }
+    }
+    
+    // Set incoming fields from OCR
+    const contractNum = formData.contractNumber || '';
+    const issueDate = extractIssueDate(formData);
+    
+    setIncomingDocFields(prev => ({
+      ...prev,
+      incomingNumber: extractIncomingNumberFromDocNumber(contractNum) || contractNum,
+      issueDate: issueDate || prev.issueDate,
+      receivedDate: issueDate || prev.receivedDate,
+      sender: formData.partyA?.name || prev.sender,
+      signer: formData.partyA?.representative || prev.signer,
+      summary: formData.projectName || formData.work?.description || prev.summary,
+    }));
+    
+    // Set outgoing fields from OCR
+    setOutgoingDocFields(prev => ({
+      ...prev,
+      outgoingNumber: contractNum,
+      issueDate: issueDate || prev.issueDate,
+      receiver: formData.partyB?.name || prev.receiver,
+      signer: formData.partyA?.representative || prev.signer,
+      summary: formData.projectName || formData.work?.description || prev.summary,
+    }));
+    
+    // Auto-select suggested type if not already selected
+    if (suggestedType && !documentType) {
+      setDocumentType(suggestedType);
+    }
+  }, [formData, extractedData]);
 
   // Luu ngu ref de tu dong luu ngam khi roi tab doi voi file don
   const hasSavedRef = React.useRef(false);
@@ -588,6 +673,13 @@ export const ContractUploadView: React.FC<ContractUploadViewProps> = ({
   // ── Save ──
   const handleSave = () => {
     if (!formData) return;
+    
+    // Validate document type selection
+    if (!documentType) {
+      toast('Vui lòng chọn loại tài liệu: Văn bản đến hoặc Văn bản đi', 'error');
+      return;
+    }
+    
     hasSavedRef.current = true;
     // Reconstruct markdownContent from edited blocks
     const updatedMarkdown = contractBlocks.map(b => {
@@ -611,7 +703,11 @@ export const ContractUploadView: React.FC<ContractUploadViewProps> = ({
       fileName: files[0]?.name || initialFileName || 'hop-dong.pdf',
       extractedData,
       previewUrl,
-      file: files[0] || null   // Truyen File goc de upload Drive
+      file: files[0] || null,
+      // Document classification
+      documentType,
+      incomingDocFields: documentType === 'incoming' ? incomingDocFields : null,
+      outgoingDocFields: documentType === 'outgoing' ? outgoingDocFields : null
     };
     onSave?.(contractData);
     toast('Thông tin hợp đồng đã được lưu thành công!', 'success');
@@ -1425,6 +1521,276 @@ export const ContractUploadView: React.FC<ContractUploadViewProps> = ({
                           {renderDocumentBlocks()}
                         </div>
                       )}
+
+                      {/* ── PHÂN LOẠI TÀI LIỆU ── */}
+                      <div className="space-y-4 p-4 bg-gradient-to-br from-blue-500/5 to-blue-600/5 border border-blue-500/20 rounded-2xl">
+                        <div className="flex items-center justify-between gap-3">
+                          <h5 className="text-xs font-black text-blue-400 uppercase tracking-wider flex items-center gap-2">
+                            <FileText className="size-4" />
+                            Phân loại tài liệu
+                          </h5>
+                          <span className="text-[10px] text-blue-400/60 font-medium">Bắt buộc chọn</span>
+                        </div>
+                        
+                        {/* Radio buttons */}
+                        <div className="flex gap-4">
+                          <label className={cn(
+                            "flex-1 flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all border",
+                            documentType === 'incoming' 
+                              ? "bg-blue-500/10 border-blue-500/50 text-blue-400" 
+                              : "bg-white/5 border-border-dark hover:border-blue-500/30 text-text-dim hover:text-white"
+                          )}>
+                            <input
+                              type="radio"
+                              name="documentType"
+                              value="incoming"
+                              checked={documentType === 'incoming'}
+                              onChange={() => setDocumentType('incoming')}
+                              className="sr-only"
+                            />
+                            <div className={cn(
+                              "size-5 rounded-full border-2 flex items-center justify-center transition-all",
+                              documentType === 'incoming' ? "border-blue-400 bg-blue-400" : "border-border-dark"
+                            )}>
+                              {documentType === 'incoming' && (
+                                <div className="size-2 rounded-full bg-white" />
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <div className="font-bold text-sm">Văn bản đến</div>
+                              <div className="text-[10px] opacity-60">Tài liệu nhận từ bên ngoài</div>
+                            </div>
+                            <Download className="size-5" />
+                          </label>
+                          
+                          <label className={cn(
+                            "flex-1 flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all border",
+                            documentType === 'outgoing' 
+                              ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-400" 
+                              : "bg-white/5 border-border-dark hover:border-emerald-500/30 text-text-dim hover:text-white"
+                          )}>
+                            <input
+                              type="radio"
+                              name="documentType"
+                              value="outgoing"
+                              checked={documentType === 'outgoing'}
+                              onChange={() => setDocumentType('outgoing')}
+                              className="sr-only"
+                            />
+                            <div className={cn(
+                              "size-5 rounded-full border-2 flex items-center justify-center transition-all",
+                              documentType === 'outgoing' ? "border-emerald-400 bg-emerald-400" : "border-border-dark"
+                            )}>
+                              {documentType === 'outgoing' && (
+                                <div className="size-2 rounded-full bg-white" />
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <div className="font-bold text-sm">Văn bản đi</div>
+                              <div className="text-[10px] opacity-60">Tài liệu gửi ra bên ngoài</div>
+                            </div>
+                            <Upload className="size-5" />
+                          </label>
+                        </div>
+
+                        {/* ── Chi tiết Văn bản đến ── */}
+                        {documentType === 'incoming' && (
+                          <div className="space-y-3 pt-2 border-t border-blue-500/20">
+                            <h6 className="text-[10px] font-black text-blue-400/80 uppercase tracking-wider">Thông tin bổ sung</h6>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-[10px] font-bold text-text-dim mb-1">Số đến</label>
+                                <input
+                                  type="text"
+                                  value={incomingDocFields.incomingNumber}
+                                  onChange={(e) => setIncomingDocFields(p => ({ ...p, incomingNumber: e.target.value }))}
+                                  className="w-full px-3 py-2 bg-sidebar-dark border border-border-dark rounded-lg text-xs text-white focus:border-blue-500 focus:outline-none transition-colors"
+                                  placeholder="Số đến tự động"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-text-dim mb-1">Ngày đến</label>
+                                <input
+                                  type="date"
+                                  value={incomingDocFields.receivedDate}
+                                  onChange={(e) => setIncomingDocFields(p => ({ ...p, receivedDate: e.target.value }))}
+                                  className="w-full px-3 py-2 bg-sidebar-dark border border-border-dark rounded-lg text-xs text-white focus:border-blue-500 focus:outline-none transition-colors"
+                                />
+                              </div>
+                              <div className="col-span-2">
+                                <label className="block text-[10px] font-bold text-text-dim mb-1">Cơ quan gửi</label>
+                                <input
+                                  type="text"
+                                  value={incomingDocFields.sender}
+                                  onChange={(e) => setIncomingDocFields(p => ({ ...p, sender: e.target.value }))}
+                                  className="w-full px-3 py-2 bg-sidebar-dark border border-border-dark rounded-lg text-xs text-white focus:border-blue-500 focus:outline-none transition-colors"
+                                  placeholder="Tên cơ quan/đơn vị gửi"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-text-dim mb-1">Người ký</label>
+                                <input
+                                  type="text"
+                                  value={incomingDocFields.signer}
+                                  onChange={(e) => setIncomingDocFields(p => ({ ...p, signer: e.target.value }))}
+                                  className="w-full px-3 py-2 bg-sidebar-dark border border-border-dark rounded-lg text-xs text-white focus:border-blue-500 focus:outline-none transition-colors"
+                                  placeholder="Người ký văn bản"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-text-dim mb-1">Lĩnh vực</label>
+                                <select
+                                  value={incomingDocFields.field}
+                                  onChange={(e) => setIncomingDocFields(p => ({ ...p, field: e.target.value }))}
+                                  className="w-full px-3 py-2 bg-sidebar-dark border border-border-dark rounded-lg text-xs text-white focus:border-blue-500 focus:outline-none transition-colors"
+                                >
+                                  <option value="">-- Chọn lĩnh vực --</option>
+                                  <option value="Hành chính">Hành chính</option>
+                                  <option value="Tài chính">Tài chính</option>
+                                  <option value="Kỹ thuật">Kỹ thuật</option>
+                                  <option value="Nhân sự">Nhân sự</option>
+                                  <option value="Pháp lý">Pháp lý</option>
+                                  <option value="Kinh doanh">Kinh doanh</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-text-dim mb-1">Độ mật</label>
+                                <select
+                                  value={incomingDocFields.securityLevel}
+                                  onChange={(e) => setIncomingDocFields(p => ({ ...p, securityLevel: e.target.value as any }))}
+                                  className="w-full px-3 py-2 bg-sidebar-dark border border-border-dark rounded-lg text-xs text-white focus:border-blue-500 focus:outline-none transition-colors"
+                                >
+                                  <option value="normal">Bình thường</option>
+                                  <option value="internal">Nội bộ</option>
+                                  <option value="confidential">Mật</option>
+                                  <option value="secret">Tuyệt mật</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-text-dim mb-1">Độ khẩn</label>
+                                <select
+                                  value={incomingDocFields.urgencyLevel}
+                                  onChange={(e) => setIncomingDocFields(p => ({ ...p, urgencyLevel: e.target.value as any }))}
+                                  className="w-full px-3 py-2 bg-sidebar-dark border border-border-dark rounded-lg text-xs text-white focus:border-blue-500 focus:outline-none transition-colors"
+                                >
+                                  <option value="normal">Bình thường</option>
+                                  <option value="urgent">Khẩn</option>
+                                  <option value="very_urgent">Rất khẩn</option>
+                                </select>
+                              </div>
+                              <div className="col-span-2">
+                                <label className="block text-[10px] font-bold text-text-dim mb-1">Trích yếu</label>
+                                <textarea
+                                  value={incomingDocFields.summary}
+                                  onChange={(e) => setIncomingDocFields(p => ({ ...p, summary: e.target.value }))}
+                                  rows={2}
+                                  className="w-full px-3 py-2 bg-sidebar-dark border border-border-dark rounded-lg text-xs text-white focus:border-blue-500 focus:outline-none transition-colors resize-none"
+                                  placeholder="Tóm tắt nội dung văn bản"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ── Chi tiết Văn bản đi ── */}
+                        {documentType === 'outgoing' && (
+                          <div className="space-y-3 pt-2 border-t border-emerald-500/20">
+                            <h6 className="text-[10px] font-black text-emerald-400/80 uppercase tracking-wider">Thông tin bổ sung</h6>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-[10px] font-bold text-text-dim mb-1">Số đi</label>
+                                <input
+                                  type="text"
+                                  value={outgoingDocFields.outgoingNumber}
+                                  onChange={(e) => setOutgoingDocFields(p => ({ ...p, outgoingNumber: e.target.value }))}
+                                  className="w-full px-3 py-2 bg-sidebar-dark border border-border-dark rounded-lg text-xs text-white focus:border-emerald-500 focus:outline-none transition-colors"
+                                  placeholder="Số đi tự động"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-text-dim mb-1">Ngày ban hành</label>
+                                <input
+                                  type="date"
+                                  value={outgoingDocFields.issueDate}
+                                  onChange={(e) => setOutgoingDocFields(p => ({ ...p, issueDate: e.target.value }))}
+                                  className="w-full px-3 py-2 bg-sidebar-dark border border-border-dark rounded-lg text-xs text-white focus:border-emerald-500 focus:outline-none transition-colors"
+                                />
+                              </div>
+                              <div className="col-span-2">
+                                <label className="block text-[10px] font-bold text-text-dim mb-1">Nơi nhận</label>
+                                <input
+                                  type="text"
+                                  value={outgoingDocFields.receiver}
+                                  onChange={(e) => setOutgoingDocFields(p => ({ ...p, receiver: e.target.value }))}
+                                  className="w-full px-3 py-2 bg-sidebar-dark border border-border-dark rounded-lg text-xs text-white focus:border-emerald-500 focus:outline-none transition-colors"
+                                  placeholder="Tên cơ quan/đơn vị nhận"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-text-dim mb-1">Người ký</label>
+                                <input
+                                  type="text"
+                                  value={outgoingDocFields.signer}
+                                  onChange={(e) => setOutgoingDocFields(p => ({ ...p, signer: e.target.value }))}
+                                  className="w-full px-3 py-2 bg-sidebar-dark border border-border-dark rounded-lg text-xs text-white focus:border-emerald-500 focus:outline-none transition-colors"
+                                  placeholder="Người ký văn bản"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-text-dim mb-1">Lĩnh vực</label>
+                                <select
+                                  value={outgoingDocFields.field}
+                                  onChange={(e) => setOutgoingDocFields(p => ({ ...p, field: e.target.value }))}
+                                  className="w-full px-3 py-2 bg-sidebar-dark border border-border-dark rounded-lg text-xs text-white focus:border-emerald-500 focus:outline-none transition-colors"
+                                >
+                                  <option value="">-- Chọn lĩnh vực --</option>
+                                  <option value="Hành chính">Hành chính</option>
+                                  <option value="Tài chính">Tài chính</option>
+                                  <option value="Kỹ thuật">Kỹ thuật</option>
+                                  <option value="Nhân sự">Nhân sự</option>
+                                  <option value="Pháp lý">Pháp lý</option>
+                                  <option value="Kinh doanh">Kinh doanh</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-text-dim mb-1">Độ mật</label>
+                                <select
+                                  value={outgoingDocFields.securityLevel}
+                                  onChange={(e) => setOutgoingDocFields(p => ({ ...p, securityLevel: e.target.value as any }))}
+                                  className="w-full px-3 py-2 bg-sidebar-dark border border-border-dark rounded-lg text-xs text-white focus:border-emerald-500 focus:outline-none transition-colors"
+                                >
+                                  <option value="normal">Bình thường</option>
+                                  <option value="internal">Nội bộ</option>
+                                  <option value="confidential">Mật</option>
+                                  <option value="secret">Tuyệt mật</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-text-dim mb-1">Độ khẩn</label>
+                                <select
+                                  value={outgoingDocFields.urgencyLevel}
+                                  onChange={(e) => setOutgoingDocFields(p => ({ ...p, urgencyLevel: e.target.value as any }))}
+                                  className="w-full px-3 py-2 bg-sidebar-dark border border-border-dark rounded-lg text-xs text-white focus:border-emerald-500 focus:outline-none transition-colors"
+                                >
+                                  <option value="normal">Bình thường</option>
+                                  <option value="urgent">Khẩn</option>
+                                  <option value="very_urgent">Rất khẩn</option>
+                                </select>
+                              </div>
+                              <div className="col-span-2">
+                                <label className="block text-[10px] font-bold text-text-dim mb-1">Trích yếu</label>
+                                <textarea
+                                  value={outgoingDocFields.summary}
+                                  onChange={(e) => setOutgoingDocFields(p => ({ ...p, summary: e.target.value }))}
+                                  rows={2}
+                                  className="w-full px-3 py-2 bg-sidebar-dark border border-border-dark rounded-lg text-xs text-white focus:border-emerald-500 focus:outline-none transition-colors resize-none"
+                                  placeholder="Tóm tắt nội dung văn bản"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Action Buttons */}

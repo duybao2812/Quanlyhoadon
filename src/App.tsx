@@ -64,7 +64,9 @@ import {
   Edit3,
   Fingerprint,
   Building,
-  Save
+  Save,
+  BarChart3,
+  FolderArchive
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
@@ -103,6 +105,7 @@ import { SystemMonitorView } from './components/SystemMonitorView';
 import { ContractUploadView } from './components/Contract/ContractUploadView';
 import { extractFromContract, convertContractDataToFormData } from './services/contractMistral';
 import { AgentHubView } from './components/AgentHub/AgentHubView';
+import { DossierView } from './components/DocumentManagement';
 
 
 // Safe check for iframe/wallpaper environment that won't throw cross-origin errors
@@ -121,7 +124,7 @@ const isIframeMode = () => {
 };
 
 // --- Types ---
-type Tab = 'dashboard' | 'upload' | 'partners' | 'docs' | 'contract' | 'contract_upload' | 'system' | 'agent-hub';
+type Tab = 'dashboard' | 'upload' | 'partners' | 'docs' | 'contract' | 'contract_upload' | 'system' | 'agent-hub' | 'dossier';
 
 interface Partner {
   id: string;
@@ -176,7 +179,9 @@ interface SmartContract {
   fileName: string;
   ownerId: string;
   createdAt: any;
+  updatedAt?: any;
   contractType?: 'ocr_pdf' | 'word_docx';
+  documentType?: 'incoming' | 'outgoing' | 'contract'; // Phân loại văn bản đến/đi/hợp đồng
 }
 
 // --- Components ---
@@ -225,6 +230,7 @@ const Sidebar = ({
     { id: 'docs', icon: Files, label: 'Tài liệu đã tạo' },
     { id: 'system', icon: Database, label: 'Theo dõi hệ thống' },
     { id: 'agent-hub', icon: Cpu, label: 'Cấu hình Agent Hub' },
+    { id: 'dossier', icon: FolderArchive, label: 'Hồ sơ' },
   ];
 
   const { toast } = useToast();
@@ -3135,8 +3141,8 @@ const DashboardView = ({
   onBulkExport: () => void,
   isExportingExcel: boolean,
   isLoadingData: boolean,
-  subTab: 'invoices' | 'contracts',
-  onSubTabChange: (tab: 'invoices' | 'contracts') => void,
+  subTab: 'invoices',
+  onSubTabChange: (tab: 'invoices') => void,
   generatedDocs: GeneratedDoc[],
   contracts: SmartContract[],
   invoices: Invoice[],
@@ -4072,47 +4078,9 @@ const DashboardView = ({
             <Library className="size-4" />
             Quản lý hóa đơn
           </button>
-          <button
-            onClick={() => onSubTabChange('contracts')}
-            className={cn(
-              "flex-1 md:flex-none flex items-center justify-center gap-3 px-8 py-3.5 rounded-[16px] font-bold text-xs uppercase tracking-widest transition-all duration-300",
-              subTab === 'contracts' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-text-dim hover:text-white"
-            )}
-          >
-            <Briefcase className="size-4" />
-            Quản lý hợp đồng
-          </button>
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto">
-          {subTab === 'contracts' && (
-            <>
-              <button
-                onClick={() => {
-                  if (onTabChange) onTabChange('contract');
-                }}
-                className={cn(
-                  "btn-secondary",
-                  activeTab === 'contract' && "border-primary text-primary"
-                )}
-              >
-                <FileText className="size-4" />
-                Tạo từ mẫu DOCX
-              </button>
-              <button
-                onClick={() => {
-                  if (onTabChange) onTabChange('contract_upload');
-                }}
-                className={cn(
-                  "btn-secondary",
-                  activeTab === 'contract_upload' && "border-primary text-primary"
-                )}
-              >
-                <Upload className="size-4" />
-                Nhập từ PDF/Ảnh
-              </button>
-            </>
-          )}
           {subTab === 'invoices' && (
             <>
               <button
@@ -4158,8 +4126,7 @@ const DashboardView = ({
           transition={{ duration: 0.3 }}
           className="min-h-[400px]"
         >
-          {subTab === 'invoices' ? (
-            <div className="space-y-6 pb-20">
+          <div className="space-y-6 pb-20">
               {/* Header & Smart Filter Button Slot */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-sidebar-dark/40 p-6 rounded-3xl border border-border-dark shadow-2xl relative">
                 <div className="space-y-1">
@@ -4533,19 +4500,6 @@ const DashboardView = ({
                 renderInvoiceList(filteredInvoices)
               )}
             </div>
-          ) : (
-            <ContractManagementView
-              contracts={contracts}
-              partners={partners}
-              onDelete={onDeleteContract}
-              onBulkDelete={onBulkDeleteContracts}
-              searchTerm={docSearchTerm}
-              onSearchChange={setDocSearchTerm}
-              onDownload={onDownloadContract}
-              onUpdateFormData={onUpdateContractFormData}
-              onEditOcr={onEditOcr}
-            />
-          )}
         </motion.div>
       </AnimatePresence>
 
@@ -10443,7 +10397,8 @@ const TAB_CONFIG: Record<Tab, { hash: string, label: string }> = {
   contract: { hash: 'tao-hop-dong', label: 'Tạo hợp đồng' },
   contract_upload: { hash: 'tai-len-hop-dong', label: 'Tải lên hợp đồng' },
   system: { hash: 'theo-doi-he-thong', label: 'Theo dõi hệ thống' },
-  'agent-hub': { hash: 'agent-hub', label: 'Cấu hình Agent Hub' }
+  'agent-hub': { hash: 'agent-hub', label: 'Cấu hình Agent Hub' },
+  dossier: { hash: 'ho-so', label: 'Hồ sơ' }
 };
 
 // Helper to remove Vietnamese diacritics while preserving case
@@ -10904,7 +10859,7 @@ export default function App() {
       document.removeEventListener('focusin', handleFocusIn);
     };
   }, []);
-  const [dashboardSubTab, setDashboardSubTab] = useState<'invoices' | 'contracts'>('invoices');
+  const [dashboardSubTab, setDashboardSubTab] = useState<'invoices'>('invoices');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -11367,6 +11322,7 @@ export default function App() {
       const partyBRepresentative = uploadData.formData.partyB?.representative || '';
       const projectName = uploadData.formData.projectName || '';
       const contractType = 'ocr_pdf';
+      const documentType = uploadData.documentType || null;
 
       // Yêu cầu 1: Lưu vào bảng chính contracts với các cột đơn lẻ và loại hợp đồng
       const { data: insertedRows, error } = await supabase.from('contracts').insert({
@@ -11385,13 +11341,58 @@ export default function App() {
         party_a_representative: partyARepresentative,
         party_b_representative: partyBRepresentative,
         project_name: projectName,
-        contract_type: contractType
+        contract_type: contractType,
+        document_type: documentType
       }).select('id').single();
       if (error) throw error;
 
       const contractRowId: string = insertedRows?.id || '';
       if (contractRowId) {
         setNewlyOcrContractIds(prev => [...prev, contractRowId]);
+      }
+
+      // ── Tạo bản ghi Văn bản nếu có phân loại ───────────────────────────────
+      if (contractRowId && documentType) {
+        try {
+          if (documentType === 'incoming' && uploadData.incomingDocFields) {
+            const docFields = uploadData.incomingDocFields;
+            await supabase.from('incoming_documents').insert({
+              incoming_number: docFields.incomingNumber || contractNumber || uploadData.fileName,
+              document_number: contractNumber,
+              received_date: docFields.receivedDate || new Date().toISOString().split('T')[0],
+              issue_date: docFields.issueDate || null,
+              sender: docFields.sender || uploadData.formData.partyA?.name || '',
+              signer: docFields.signer || partyARepresentative || null,
+              summary: docFields.summary || projectName || null,
+              field: docFields.field || null,
+              security_level: docFields.securityLevel || 'normal',
+              urgency_level: docFields.urgencyLevel || 'normal',
+              note: docFields.note || null,
+              owner_id: user.uid,
+              contract_id: contractRowId
+            });
+            console.log('[CONTRACT→INCOMING] Đã tạo văn bản đến từ hợp đồng');
+          } else if (documentType === 'outgoing' && uploadData.outgoingDocFields) {
+            const docFields = uploadData.outgoingDocFields;
+            await supabase.from('outgoing_documents').insert({
+              outgoing_number: docFields.outgoingNumber || contractNumber || uploadData.fileName,
+              document_number: contractNumber,
+              issue_date: docFields.issueDate || new Date().toISOString().split('T')[0],
+              receiver: docFields.receiver || uploadData.formData.partyB?.name || '',
+              signer: docFields.signer || partyARepresentative || null,
+              summary: docFields.summary || projectName || null,
+              field: docFields.field || null,
+              security_level: docFields.securityLevel || 'normal',
+              urgency_level: docFields.urgencyLevel || 'normal',
+              note: docFields.note || null,
+              owner_id: user.uid,
+              contract_id: contractRowId
+            });
+            console.log('[CONTRACT→OUTGOING] Đã tạo văn bản đi từ hợp đồng');
+          }
+        } catch (docErr: any) {
+          console.error('[CONTRACT→DOC] Lỗi tạo document:', docErr.message);
+        }
       }
 
       // Yêu cầu 1: Lưu vào bảng phụ contract_items (One-to-Many)
@@ -12587,8 +12588,7 @@ export default function App() {
 
         // Handle dashboard sub-tabs
         if (foundTab === 'dashboard') {
-          if (sub === 'Quan-ly-hop-dong') setDashboardSubTab('contracts');
-          else if (sub === 'Quan-ly-hoa-don') setDashboardSubTab('invoices');
+          setDashboardSubTab('invoices');
         }
 
         const actualSlug = foundTab === 'dashboard' ? (parts.length > 2 ? parts[parts.length - 1] : slug) : slug;
@@ -12660,8 +12660,7 @@ export default function App() {
   function handleTabChange(tab: Tab) {
     console.log("DEBUG: handleTabChange click tab =", tab);
     if (tab === 'dashboard') {
-      const sub = dashboardSubTab === 'invoices' ? 'Quan-ly-hoa-don' : 'Quan-ly-hop-dong';
-      window.location.hash = `#/${TAB_CONFIG[tab].hash}/${sub}/`;
+      window.location.hash = `#/${TAB_CONFIG[tab].hash}/Quan-ly-hoa-don/`;
     } else {
       window.location.hash = `#/${TAB_CONFIG[tab].hash}/`;
     }
@@ -12671,23 +12670,19 @@ export default function App() {
     }
   }
 
-  const handleDashboardSubTabChange = (subTab: 'invoices' | 'contracts') => {
-    const sub = subTab === 'invoices' ? 'Quan-ly-hoa-don' : 'Quan-ly-hop-dong';
-    window.location.hash = `#/${TAB_CONFIG.dashboard.hash}/${sub}/`;
+  const handleDashboardSubTabChange = (subTab: 'invoices') => {
+    window.location.hash = `#/${TAB_CONFIG.dashboard.hash}/Quan-ly-hoa-don/`;
   };
 
   const handleInvoiceSelect = (inv: Invoice | null) => {
-    const sub = dashboardSubTab === 'invoices' ? 'Quan-ly-hoa-don' : 'Quan-ly-hop-dong';
     if (inv) {
-      // Get filename without extension
       const baseName = inv.fileName.replace(/\.[^/.]+$/, "");
-      // Remove tones but preserve case
       const cleanFileName = removeTones(baseName);
 
-      window.location.hash = `#/${TAB_CONFIG.dashboard.hash}/${sub}/${cleanFileName}-${inv.id}/`;
+      window.location.hash = `#/${TAB_CONFIG.dashboard.hash}/Quan-ly-hoa-don/${cleanFileName}-${inv.id}/`;
       setSelectedInvoice(inv);
     } else {
-      window.location.hash = `#/${TAB_CONFIG.dashboard.hash}/${sub}/`;
+      window.location.hash = `#/${TAB_CONFIG.dashboard.hash}/Quan-ly-hoa-don/`;
       setSelectedInvoice(null);
     }
   };
@@ -14564,6 +14559,15 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
             {activeTab === 'agent-hub' && (
               <AgentHubView />
             )}
+            {activeTab === 'dossier' && user && (
+              <DossierView
+                ownerId={user.uid}
+                partners={partners}
+                onTabChange={(tab) => setActiveTab(tab as Tab)}
+                onDownload={downloadContract}
+                onEditOcr={(contract) => setEditingContractOcr(contract)}
+              />
+            )}
           </div>
         </div>
 
@@ -14803,6 +14807,26 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                 >
                   <Cpu className="size-5 shrink-0" />
                   <span>Cấu hình Agent Hub</span>
+                </button>
+
+                {/* Quản lý văn bản */}
+                <div className="pt-4 pb-2">
+                  <span className="text-[10px] text-text-dim uppercase font-bold tracking-widest px-2">Quản lý văn bản</span>
+                </div>
+                <button
+                  onClick={() => {
+                    handleTabChange('dossier');
+                    setShowMoreSheet(false);
+                  }}
+                  className={cn(
+                    "flex items-center gap-3.5 p-4 rounded-2xl text-xs font-black uppercase tracking-wider border transition-all",
+                    activeTab === 'dossier'
+                      ? "bg-primary/20 text-primary border-primary/30"
+                      : "bg-white/5 text-white border-border-dark hover:bg-white/10"
+                  )}
+                >
+                  <FolderArchive className="size-5 shrink-0" />
+                  <span>Hồ sơ</span>
                 </button>
               </div>
 
@@ -15972,8 +15996,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                 <button
                   onClick={() => {
                     setShowOcrBatchCompleteModal(false);
-                    handleDashboardSubTabChange('contracts');
-                    handleTabChange('dashboard');
+                    handleTabChange('dossier');
                   }}
                   className="w-full py-3.5 bg-primary hover:bg-primary/90 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-primary/20 active:scale-95 flex items-center justify-center gap-2"
                 >

@@ -929,16 +929,29 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
       const { createClient } = await import('@supabase/supabase-js');
       const supabase = createClient(
         process.env.SUPABASE_URL || '',
-        process.env.SUPABASE_ANON_KEY || ''
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || ''
       );
 
       const ownerId = req.headers['x-custom-user-id'] as string || req.query.ownerId as string;
+      const documentType = req.query.documentType as string;
       
-      const { data, error } = await supabase
+      console.log('[API] /api/contracts - ownerId:', ownerId, 'documentType:', documentType);
+      
+      let query = supabase
         .from('contracts')
         .select('*')
-        .eq('owner_id', ownerId)
-        .order('created_at', { ascending: false });
+        .eq('owner_id', ownerId);
+      
+      // Filter by document type if provided
+      if (documentType) {
+        query = query.eq('document_type', documentType);
+      }
+      
+      query = query.order('created_at', { ascending: false });
+
+      const { data, error } = await query;
+      
+      console.log('[API] Found contracts:', data?.length || 0);
 
       if (error) throw error;
       res.json(data || []);
@@ -946,6 +959,127 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
       console.error("[CONTRACT] Loi lay danh sach:", error);
       res.status(500).json({ 
         error: "Khong the lay danh sach hop dong.",
+        details: error.message 
+      });
+    }
+  });
+
+  // API cap nhat document_type cua hop dong
+  app.patch('/api/contracts/:id/document-type', async (req, res) => {
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || ''
+      );
+
+      const ownerId = req.headers['x-custom-user-id'] as string;
+      const { documentType } = req.body;
+      const contractId = req.params.id;
+      
+      console.log('[API] PATCH /api/contracts/:id/document-type - contractId:', contractId, 'documentType:', documentType, 'ownerId:', ownerId);
+      
+      // Read first to verify column exists
+      const { data: before, error: readError } = await supabase
+        .from('contracts')
+        .select('id, document_type')
+        .eq('id', contractId)
+        .single();
+      
+      console.log('[API] Before update, current document_type:', before?.document_type, 'error:', readError?.message);
+      
+      const { data, error } = await supabase
+        .from('contracts')
+        .update({ document_type: documentType })
+        .eq('id', contractId)
+        .eq('owner_id', ownerId)
+        .select('id, document_type');
+      
+      if (error) {
+        console.error('[API] Update error:', error);
+        throw error;
+      }
+      
+      console.log('[API] Update success, rows:', data?.length, 'data:', data);
+      
+      // Read after to verify
+      const { data: after } = await supabase
+        .from('contracts')
+        .select('id, document_type')
+        .eq('id', contractId)
+        .single();
+      
+      console.log('[API] After update, current document_type:', after?.document_type);
+      
+      res.json({ success: true, before, after, updated: data });
+    } catch (error: any) {
+      console.error("[CONTRACT] Loi cap nhat document_type:", error);
+      res.status(500).json({ 
+        error: "Khong the cap nhat document_type.",
+        details: error.message 
+      });
+    }
+  });
+
+  // API cap nhat hop dong (general update)
+  app.patch('/api/contracts/:id', async (req, res) => {
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || ''
+      );
+
+      const ownerId = req.headers['x-custom-user-id'] as string;
+      const contractId = req.params.id;
+      const updateData = req.body;
+      
+      console.log('[API] PATCH /api/contracts/:id - contractId:', contractId, 'ownerId:', ownerId, 'updateData keys:', Object.keys(updateData));
+      
+      // Remove documentType from updateData if present (it's for routing logic, not DB)
+      const { documentType, ...dbUpdateData } = updateData;
+      
+      // Build update object - map form fields to contract fields
+      const contractUpdate: Record<string, any> = {};
+      
+      if (dbUpdateData.incomingNumber || dbUpdateData.outgoingNumber) {
+        contractUpdate.file_name = dbUpdateData.incomingNumber || dbUpdateData.outgoingNumber;
+      }
+      if (dbUpdateData.documentNumber) {
+        // Update form_data.contractNumber
+        contractUpdate.form_data = { contractNumber: dbUpdateData.documentNumber };
+      }
+      if (dbUpdateData.summary) {
+        // Merge with existing form_data
+        const { data: existing } = await supabase
+          .from('contracts')
+          .select('form_data')
+          .eq('id', contractId)
+          .single();
+        
+        const existingFormData = existing?.form_data ? (typeof existing.form_data === 'string' ? JSON.parse(existing.form_data) : existing.form_data) : {};
+        contractUpdate.form_data = { ...existingFormData, description: dbUpdateData.summary };
+      }
+      
+      const { data, error } = await supabase
+        .from('contracts')
+        .update(contractUpdate)
+        .eq('id', contractId)
+        .eq('owner_id', ownerId)
+        .select();
+      
+      if (error) {
+        console.error('[API] Contract update error:', error);
+        throw error;
+      }
+      
+      console.log('[API] Contract update success:', data);
+      
+      res.json({ success: true, data });
+    } catch (error: any) {
+      console.error("[CONTRACT] Loi cap nhat hop dong:", error);
+      res.status(500).json({ 
+        error: "Khong the cap nhat hop dong.",
         details: error.message 
       });
     }
@@ -1361,6 +1495,1126 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
       res.status(500).json({ error: 'Failed to generate document' });
     }
   });
+
+  // ==========================================
+  // DOCUMENT MANAGEMENT API
+  // ==========================================
+
+  // Helper function to get Supabase client with service role (bypass RLS for server operations)
+  async function getSupabaseClient() {
+    const { createClient } = await import('@supabase/supabase-js');
+    return createClient(
+      process.env.SUPABASE_URL || '',
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || ''
+    );
+  }
+
+  // Get owner ID from request headers
+  function getOwnerId(req: express.Request): string {
+    return (req.headers['x-custom-user-id'] as string) || (req.query.ownerId as string) || '';
+  }
+
+  // ---- INCOMING DOCUMENTS ----
+
+  // List incoming documents
+  app.get('/api/documents/incoming', async (req, res) => {
+    try {
+      const supabase = await getSupabaseClient();
+      const ownerId = getOwnerId(req);
+      const { page = 1, limit = 20, sortBy = 'received_date', sortOrder = 'desc', search, field, securityLevel, urgencyLevel, dateFrom, dateTo } = req.query;
+
+      let query = supabase
+        .from('incoming_documents')
+        .select('*', { count: 'exact' })
+        .eq('owner_id', ownerId);
+
+      if (search) {
+        query = query.or(`incoming_number.ilike.%${search}%,document_number.ilike.%${search}%,sender.ilike.%${search}%,signer.ilike.%${search}%,summary.ilike.%${search}%`);
+      }
+      if (field) query = query.eq('field', field);
+      if (securityLevel) query = query.eq('security_level', securityLevel);
+      if (urgencyLevel) query = query.eq('urgency_level', urgencyLevel);
+      if (dateFrom) query = query.gte('received_date', dateFrom);
+      if (dateTo) query = query.lte('received_date', dateTo);
+
+      query = query
+        .order(sortBy as string, { ascending: sortOrder === 'asc' })
+        .range((Number(page) - 1) * Number(limit), Number(page) * Number(limit) - 1);
+
+      const { data, error, count } = await query;
+
+      if (error) throw error;
+      res.json({
+        data: data || [],
+        total: count || 0,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil((count || 0) / Number(limit))
+      });
+    } catch (error: any) {
+      console.error("[INCOMING] Loi lay danh sach:", error);
+      res.status(500).json({ error: "Khong the lay danh sach van ban den.", details: error.message });
+    }
+  });
+
+  // Get single incoming document
+  app.get('/api/documents/incoming/:id', async (req, res) => {
+    try {
+      const supabase = await getSupabaseClient();
+      const ownerId = getOwnerId(req);
+
+      const { data, error } = await supabase
+        .from('incoming_documents')
+        .select('*')
+        .eq('id', req.params.id)
+        .eq('owner_id', ownerId)
+        .single();
+
+      if (error) throw error;
+      if (!data) return res.status(404).json({ error: "Khong tim thay van ban." });
+      res.json(data);
+    } catch (error: any) {
+      console.error("[INCOMING] Loi lay chi tiet:", error);
+      res.status(500).json({ error: "Khong the lay chi tiet van ban.", details: error.message });
+    }
+  });
+
+  // Create incoming document
+  app.post('/api/documents/incoming', async (req, res) => {
+    try {
+      const supabase = await getSupabaseClient();
+      const ownerId = getOwnerId(req);
+      const doc = req.body;
+
+      const { data, error } = await supabase
+        .from('incoming_documents')
+        .insert({
+          incoming_number: doc.incomingNumber,
+          document_number: doc.documentNumber || null,
+          received_date: doc.receivedDate,
+          issue_date: doc.issueDate || null,
+          sender: doc.sender,
+          signer: doc.signer || null,
+          summary: doc.summary || null,
+          field: doc.field || null,
+          security_level: doc.securityLevel || 'normal',
+          urgency_level: doc.urgencyLevel || 'normal',
+          note: doc.note || null,
+          file_id: doc.fileId || null,
+          storage_path: doc.storagePath || null,
+          storage_provider: doc.storageProvider || null,
+          owner_id: ownerId,
+          contract_id: doc.contractId || null
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      res.json(data);
+    } catch (error: any) {
+      console.error("[INCOMING] Loi tao moi:", error);
+      res.status(500).json({ error: "Khong the tao van ban den.", details: error.message });
+    }
+  });
+
+  // Update incoming document
+  app.put('/api/documents/incoming/:id', async (req, res) => {
+    try {
+      const supabase = await getSupabaseClient();
+      const ownerId = getOwnerId(req);
+      const doc = req.body;
+
+      const { data, error } = await supabase
+        .from('incoming_documents')
+        .update({
+          incoming_number: doc.incomingNumber,
+          document_number: doc.documentNumber || null,
+          received_date: doc.receivedDate,
+          issue_date: doc.issueDate || null,
+          sender: doc.sender,
+          signer: doc.signer || null,
+          summary: doc.summary || null,
+          field: doc.field || null,
+          security_level: doc.securityLevel || 'normal',
+          urgency_level: doc.urgencyLevel || 'normal',
+          note: doc.note || null,
+          file_id: doc.fileId || null,
+          storage_path: doc.storagePath || null,
+          storage_provider: doc.storageProvider || null,
+          contract_id: doc.contractId || null
+        })
+        .eq('id', req.params.id)
+        .eq('owner_id', ownerId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      if (!data) return res.status(404).json({ error: "Khong tim thay van ban." });
+      res.json(data);
+    } catch (error: any) {
+      console.error("[INCOMING] Loi cap nhat:", error);
+      res.status(500).json({ error: "Khong the cap nhat van ban den.", details: error.message });
+    }
+  });
+
+  // Delete incoming document
+  app.delete('/api/documents/incoming/:id', async (req, res) => {
+    try {
+      const supabase = await getSupabaseClient();
+      const ownerId = getOwnerId(req);
+
+      const { error } = await supabase
+        .from('incoming_documents')
+        .delete()
+        .eq('id', req.params.id)
+        .eq('owner_id', ownerId);
+
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[INCOMING] Loi xoa:", error);
+      res.status(500).json({ error: "Khong the xoa van ban den.", details: error.message });
+    }
+  });
+
+  // ---- OUTGOING DOCUMENTS ----
+
+  // List outgoing documents
+  app.get('/api/documents/outgoing', async (req, res) => {
+    try {
+      const supabase = await getSupabaseClient();
+      const ownerId = getOwnerId(req);
+      const { page = 1, limit = 20, sortBy = 'issue_date', sortOrder = 'desc', search, field, securityLevel, urgencyLevel, dateFrom, dateTo } = req.query;
+
+      let query = supabase
+        .from('outgoing_documents')
+        .select('*', { count: 'exact' })
+        .eq('owner_id', ownerId);
+
+      if (search) {
+        query = query.or(`outgoing_number.ilike.%${search}%,document_number.ilike.%${search}%,receiver.ilike.%${search}%,signer.ilike.%${search}%,summary.ilike.%${search}%`);
+      }
+      if (field) query = query.eq('field', field);
+      if (securityLevel) query = query.eq('security_level', securityLevel);
+      if (urgencyLevel) query = query.eq('urgency_level', urgencyLevel);
+      if (dateFrom) query = query.gte('issue_date', dateFrom);
+      if (dateTo) query = query.lte('issue_date', dateTo);
+
+      query = query
+        .order(sortBy as string, { ascending: sortOrder === 'asc' })
+        .range((Number(page) - 1) * Number(limit), Number(page) * Number(limit) - 1);
+
+      const { data, error, count } = await query;
+
+      if (error) throw error;
+      res.json({
+        data: data || [],
+        total: count || 0,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil((count || 0) / Number(limit))
+      });
+    } catch (error: any) {
+      console.error("[OUTGOING] Loi lay danh sach:", error);
+      res.status(500).json({ error: "Khong the lay danh sach van ban di.", details: error.message });
+    }
+  });
+
+  // Get single outgoing document
+  app.get('/api/documents/outgoing/:id', async (req, res) => {
+    try {
+      const supabase = await getSupabaseClient();
+      const ownerId = getOwnerId(req);
+
+      const { data, error } = await supabase
+        .from('outgoing_documents')
+        .select('*')
+        .eq('id', req.params.id)
+        .eq('owner_id', ownerId)
+        .single();
+
+      if (error) throw error;
+      if (!data) return res.status(404).json({ error: "Khong tim thay van ban." });
+      res.json(data);
+    } catch (error: any) {
+      console.error("[OUTGOING] Loi lay chi tiet:", error);
+      res.status(500).json({ error: "Khong the lay chi tiet van ban.", details: error.message });
+    }
+  });
+
+  // Create outgoing document
+  app.post('/api/documents/outgoing', async (req, res) => {
+    try {
+      const supabase = await getSupabaseClient();
+      const ownerId = getOwnerId(req);
+      const doc = req.body;
+
+      const { data, error } = await supabase
+        .from('outgoing_documents')
+        .insert({
+          outgoing_number: doc.outgoingNumber,
+          document_number: doc.documentNumber || null,
+          issue_date: doc.issueDate,
+          receiver: doc.receiver,
+          signer: doc.signer || null,
+          summary: doc.summary || null,
+          field: doc.field || null,
+          security_level: doc.securityLevel || 'normal',
+          urgency_level: doc.urgencyLevel || 'normal',
+          note: doc.note || null,
+          file_id: doc.fileId || null,
+          storage_path: doc.storagePath || null,
+          storage_provider: doc.storageProvider || null,
+          owner_id: ownerId,
+          contract_id: doc.contractId || null
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      res.json(data);
+    } catch (error: any) {
+      console.error("[OUTGOING] Loi tao moi:", error);
+      res.status(500).json({ error: "Khong the tao van ban di.", details: error.message });
+    }
+  });
+
+  // Update outgoing document
+  app.put('/api/documents/outgoing/:id', async (req, res) => {
+    try {
+      const supabase = await getSupabaseClient();
+      const ownerId = getOwnerId(req);
+      const doc = req.body;
+
+      const { data, error } = await supabase
+        .from('outgoing_documents')
+        .update({
+          outgoing_number: doc.outgoingNumber,
+          document_number: doc.documentNumber || null,
+          issue_date: doc.issueDate,
+          receiver: doc.receiver,
+          signer: doc.signer || null,
+          summary: doc.summary || null,
+          field: doc.field || null,
+          security_level: doc.securityLevel || 'normal',
+          urgency_level: doc.urgencyLevel || 'normal',
+          note: doc.note || null,
+          file_id: doc.fileId || null,
+          storage_path: doc.storagePath || null,
+          storage_provider: doc.storageProvider || null,
+          contract_id: doc.contractId || null
+        })
+        .eq('id', req.params.id)
+        .eq('owner_id', ownerId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      if (!data) return res.status(404).json({ error: "Khong tim thay van ban." });
+      res.json(data);
+    } catch (error: any) {
+      console.error("[OUTGOING] Loi cap nhat:", error);
+      res.status(500).json({ error: "Khong the cap nhat van ban di.", details: error.message });
+    }
+  });
+
+  // Delete outgoing document
+  app.delete('/api/documents/outgoing/:id', async (req, res) => {
+    try {
+      const supabase = await getSupabaseClient();
+      const ownerId = getOwnerId(req);
+
+      const { error } = await supabase
+        .from('outgoing_documents')
+        .delete()
+        .eq('id', req.params.id)
+        .eq('owner_id', ownerId);
+
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[OUTGOING] Loi xoa:", error);
+      res.status(500).json({ error: "Khong the xoa van ban di.", details: error.message });
+    }
+  });
+
+  // ---- ARCHIVES ----
+
+  // List archives
+  app.get('/api/archives', async (req, res) => {
+    try {
+      const supabase = await getSupabaseClient();
+      const ownerId = getOwnerId(req);
+      const { page = 1, limit = 20, sortBy = 'created_at', sortOrder = 'desc', search, field, year } = req.query;
+
+      let query = supabase
+        .from('archives')
+        .select('*', { count: 'exact' })
+        .eq('owner_id', ownerId);
+
+      if (search) {
+        query = query.or(`archive_code.ilike.%${search}%,archive_name.ilike.%${search}%,description.ilike.%${search}%`);
+      }
+      if (field) query = query.eq('field', field);
+      if (year) query = query.eq('year', Number(year));
+
+      query = query
+        .order(sortBy as string, { ascending: sortOrder === 'asc' })
+        .range((Number(page) - 1) * Number(limit), Number(page) * Number(limit) - 1);
+
+      const { data, error, count } = await query;
+
+      if (error) throw error;
+      res.json({
+        data: data || [],
+        total: count || 0,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil((count || 0) / Number(limit))
+      });
+    } catch (error: any) {
+      console.error("[ARCHIVES] Loi lay danh sach:", error);
+      res.status(500).json({ error: "Khong the lay danh sach ho so.", details: error.message });
+    }
+  });
+
+  // Get single archive with documents
+  app.get('/api/archives/:id', async (req, res) => {
+    try {
+      const supabase = await getSupabaseClient();
+      const ownerId = getOwnerId(req);
+
+      // Get archive
+      const { data: archive, error: archiveError } = await supabase
+        .from('archives')
+        .select('*')
+        .eq('id', req.params.id)
+        .eq('owner_id', ownerId)
+        .single();
+
+      if (archiveError) throw archiveError;
+      if (!archive) return res.status(404).json({ error: "Khong tim thay ho so." });
+
+      // Get linked incoming documents
+      const { data: incomingLinks } = await supabase
+        .from('archive_documents')
+        .select('document_id')
+        .eq('archive_id', req.params.id)
+        .eq('document_type', 'incoming')
+        .eq('owner_id', ownerId);
+
+      const incomingIds = (incomingLinks || []).map((l: any) => l.document_id);
+      let incomingDocs: any[] = [];
+      if (incomingIds.length > 0) {
+        const { data } = await supabase
+          .from('incoming_documents')
+          .select('*')
+          .in('id', incomingIds);
+        incomingDocs = data || [];
+      }
+
+      // Get linked outgoing documents
+      const { data: outgoingLinks } = await supabase
+        .from('archive_documents')
+        .select('document_id')
+        .eq('archive_id', req.params.id)
+        .eq('document_type', 'outgoing')
+        .eq('owner_id', ownerId);
+
+      const outgoingIds = (outgoingLinks || []).map((l: any) => l.document_id);
+      let outgoingDocs: any[] = [];
+      if (outgoingIds.length > 0) {
+        const { data } = await supabase
+          .from('outgoing_documents')
+          .select('*')
+          .in('id', outgoingIds);
+        outgoingDocs = data || [];
+      }
+
+      res.json({
+        ...archive,
+        incomingDocuments: incomingDocs,
+        outgoingDocuments: outgoingDocs
+      });
+    } catch (error: any) {
+      console.error("[ARCHIVES] Loi lay chi tiet:", error);
+      res.status(500).json({ error: "Khong the lay chi tiet ho so.", details: error.message });
+    }
+  });
+
+  // Create archive
+  app.post('/api/archives', async (req, res) => {
+    try {
+      const supabase = await getSupabaseClient();
+      const ownerId = getOwnerId(req);
+      const archive = req.body;
+
+      const { data, error } = await supabase
+        .from('archives')
+        .insert({
+          archive_code: archive.archiveCode,
+          archive_name: archive.archiveName,
+          field: archive.field || null,
+          year: archive.year || null,
+          description: archive.description || null,
+          owner_id: ownerId
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      res.json(data);
+    } catch (error: any) {
+      console.error("[ARCHIVES] Loi tao moi:", error);
+      res.status(500).json({ error: "Khong the tao ho so.", details: error.message });
+    }
+  });
+
+  // Update archive
+  app.put('/api/archives/:id', async (req, res) => {
+    try {
+      const supabase = await getSupabaseClient();
+      const ownerId = getOwnerId(req);
+      const archive = req.body;
+
+      const { data, error } = await supabase
+        .from('archives')
+        .update({
+          archive_code: archive.archiveCode,
+          archive_name: archive.archiveName,
+          field: archive.field || null,
+          year: archive.year || null,
+          description: archive.description || null
+        })
+        .eq('id', req.params.id)
+        .eq('owner_id', ownerId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      if (!data) return res.status(404).json({ error: "Khong tim thay ho so." });
+      res.json(data);
+    } catch (error: any) {
+      console.error("[ARCHIVES] Loi cap nhat:", error);
+      res.status(500).json({ error: "Khong the cap nhat ho so.", details: error.message });
+    }
+  });
+
+  // Delete archive
+  app.delete('/api/archives/:id', async (req, res) => {
+    try {
+      const supabase = await getSupabaseClient();
+      const ownerId = getOwnerId(req);
+
+      // Also delete all archive_document links
+      await supabase
+        .from('archive_documents')
+        .delete()
+        .eq('archive_id', req.params.id)
+        .eq('owner_id', ownerId);
+
+      const { error } = await supabase
+        .from('archives')
+        .delete()
+        .eq('id', req.params.id)
+        .eq('owner_id', ownerId);
+
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[ARCHIVES] Loi xoa:", error);
+      res.status(500).json({ error: "Khong the xoa ho so.", details: error.message });
+    }
+  });
+
+  // Add document to archive
+  app.post('/api/archives/:id/documents', async (req, res) => {
+    try {
+      const supabase = await getSupabaseClient();
+      const ownerId = getOwnerId(req);
+      const { documentType, documentId } = req.body;
+
+      // Verify archive exists and belongs to user
+      const { data: archive } = await supabase
+        .from('archives')
+        .select('id')
+        .eq('id', req.params.id)
+        .eq('owner_id', ownerId)
+        .single();
+
+      if (!archive) return res.status(404).json({ error: "Khong tim thay ho so." });
+
+      // Check if document exists
+      const table = documentType === 'incoming' ? 'incoming_documents' : 'outgoing_documents';
+      const { data: doc } = await supabase
+        .from(table)
+        .select('id')
+        .eq('id', documentId)
+        .eq('owner_id', ownerId)
+        .single();
+
+      if (!doc) return res.status(404).json({ error: "Khong tim thay van ban." });
+
+      const { data, error } = await supabase
+        .from('archive_documents')
+        .insert({
+          archive_id: req.params.id,
+          document_type: documentType,
+          document_id: documentId,
+          owner_id: ownerId
+        })
+        .select()
+        .single();
+
+      if (error) {
+        if (error.code === '23505') {
+          return res.status(400).json({ error: "Van ban da ton tai trong ho so nay." });
+        }
+        throw error;
+      }
+      res.json(data);
+    } catch (error: any) {
+      console.error("[ARCHIVES] Loi them van ban:", error);
+      res.status(500).json({ error: "Khong the them van ban vao ho so.", details: error.message });
+    }
+  });
+
+  // Remove document from archive
+  app.delete('/api/archives/:id/documents/:docId', async (req, res) => {
+    try {
+      const supabase = await getSupabaseClient();
+      const ownerId = getOwnerId(req);
+
+      const { error } = await supabase
+        .from('archive_documents')
+        .delete()
+        .eq('archive_id', req.params.id)
+        .eq('document_id', req.params.docId)
+        .eq('owner_id', ownerId);
+
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[ARCHIVES] Loi xoa van ban:", error);
+      res.status(500).json({ error: "Khong the xoa van ban khoi ho so.", details: error.message });
+    }
+  });
+
+  // ---- STATISTICS ----
+
+  app.get('/api/statistics/documents', async (req, res) => {
+    try {
+      const supabase = await getSupabaseClient();
+      const ownerId = getOwnerId(req);
+
+      const now = new Date();
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+
+      // Get totals
+      const [incomingTotalRaw, outgoingTotalRaw, archiveTotal, incomingThisMonthRaw, outgoingThisMonthRaw] = await Promise.all([
+        supabase.from('incoming_documents').select('id', { count: 'exact', head: true }).eq('owner_id', ownerId),
+        supabase.from('outgoing_documents').select('id', { count: 'exact', head: true }).eq('owner_id', ownerId),
+        supabase.from('archives').select('id', { count: 'exact', head: true }).eq('owner_id', ownerId),
+        supabase.from('incoming_documents').select('id', { count: 'exact', head: true }).eq('owner_id', ownerId).gte('received_date', firstDayOfMonth),
+        supabase.from('outgoing_documents').select('id', { count: 'exact', head: true }).eq('owner_id', ownerId).gte('issue_date', firstDayOfMonth)
+      ]);
+
+      const incomingContractTotal = await supabase
+        .from('contracts')
+        .select('id', { count: 'exact', head: true })
+        .eq('owner_id', ownerId)
+        .eq('document_type', 'incoming');
+
+      const outgoingContractTotal = await supabase
+        .from('contracts')
+        .select('id', { count: 'exact', head: true })
+        .eq('owner_id', ownerId)
+        .eq('document_type', 'outgoing');
+
+      const incomingContractThisMonth = await supabase
+        .from('contracts')
+        .select('id', { count: 'exact', head: true })
+        .eq('owner_id', ownerId)
+        .eq('document_type', 'incoming')
+        .gte('created_at', firstDayOfMonth);
+
+      const outgoingContractThisMonth = await supabase
+        .from('contracts')
+        .select('id', { count: 'exact', head: true })
+        .eq('owner_id', ownerId)
+        .eq('document_type', 'outgoing')
+        .gte('created_at', firstDayOfMonth);
+
+      // Get monthly counts (last 12 months)
+      const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+      const [incomingMonthly, outgoingMonthly, incomingContractMonthly, outgoingContractMonthly] = await Promise.all([
+        supabase
+          .from('incoming_documents')
+          .select('received_date')
+          .eq('owner_id', ownerId)
+          .gte('received_date', twelveMonthsAgo.toISOString().split('T')[0]),
+        supabase
+          .from('outgoing_documents')
+          .select('issue_date')
+          .eq('owner_id', ownerId)
+          .gte('issue_date', twelveMonthsAgo.toISOString().split('T')[0]),
+        supabase
+          .from('contracts')
+          .select('created_at')
+          .eq('owner_id', ownerId)
+          .eq('document_type', 'incoming')
+          .gte('created_at', twelveMonthsAgo.toISOString().split('T')[0]),
+        supabase
+          .from('contracts')
+          .select('created_at')
+          .eq('owner_id', ownerId)
+          .eq('document_type', 'outgoing')
+          .gte('created_at', twelveMonthsAgo.toISOString().split('T')[0])
+      ]);
+
+      // Get field counts
+      const [incomingByField, outgoingByField, incomingContractByField, outgoingContractByField] = await Promise.all([
+        supabase
+          .from('incoming_documents')
+          .select('field')
+          .eq('owner_id', ownerId)
+          .not('field', 'is', null),
+        supabase
+          .from('outgoing_documents')
+          .select('field')
+          .eq('owner_id', ownerId)
+          .not('field', 'is', null),
+        supabase
+          .from('contracts')
+          .select('form_data')
+          .eq('owner_id', ownerId)
+          .eq('document_type', 'incoming'),
+        supabase
+          .from('contracts')
+          .select('form_data')
+          .eq('owner_id', ownerId)
+          .eq('document_type', 'outgoing')
+      ]);
+
+      // Process monthly data
+      const monthlyIncoming: Record<string, number> = {};
+      const monthlyOutgoing: Record<string, number> = {};
+      for (let i = 0; i < 12; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        monthlyIncoming[key] = 0;
+        monthlyOutgoing[key] = 0;
+      }
+
+      (incomingMonthly.data || []).forEach((d: any) => {
+        const key = d.received_date.substring(0, 7);
+        if (monthlyIncoming[key] !== undefined) monthlyIncoming[key]++;
+      });
+
+      (outgoingMonthly.data || []).forEach((d: any) => {
+        const key = d.issue_date.substring(0, 7);
+        if (monthlyOutgoing[key] !== undefined) monthlyOutgoing[key]++;
+      });
+
+      (incomingContractMonthly.data || []).forEach((d: any) => {
+        const key = d.created_at.substring(0, 7);
+        if (monthlyIncoming[key] !== undefined) monthlyIncoming[key]++;
+      });
+
+      (outgoingContractMonthly.data || []).forEach((d: any) => {
+        const key = d.created_at.substring(0, 7);
+        if (monthlyOutgoing[key] !== undefined) monthlyOutgoing[key]++;
+      });
+
+      // Process field data
+      const fieldIncomingCount: Record<string, number> = {};
+      const fieldOutgoingCount: Record<string, number> = {};
+      (incomingByField.data || []).forEach((d: any) => {
+        if (d.field) fieldIncomingCount[d.field] = (fieldIncomingCount[d.field] || 0) + 1;
+      });
+      (outgoingByField.data || []).forEach((d: any) => {
+        if (d.field) fieldOutgoingCount[d.field] = (fieldOutgoingCount[d.field] || 0) + 1;
+      });
+
+      const getFieldFromFormData = (formData: any): string | null => {
+        if (!formData) return null;
+        const data = typeof formData === 'string' ? JSON.parse(formData) : formData;
+        return data.field || data.FIELD || null;
+      };
+
+      (incomingContractByField.data || []).forEach((d: any) => {
+        const field = getFieldFromFormData(d.form_data);
+        if (field) fieldIncomingCount[field] = (fieldIncomingCount[field] || 0) + 1;
+      });
+
+      (outgoingContractByField.data || []).forEach((d: any) => {
+        const field = getFieldFromFormData(d.form_data);
+        if (field) fieldOutgoingCount[field] = (fieldOutgoingCount[field] || 0) + 1;
+      });
+
+      res.json({
+        totalIncoming: (incomingTotalRaw.count || 0) + (incomingContractTotal.count || 0),
+        totalOutgoing: (outgoingTotalRaw.count || 0) + (outgoingContractTotal.count || 0),
+        totalArchives: archiveTotal.count || 0,
+        incomingThisMonth: (incomingThisMonthRaw.count || 0) + (incomingContractThisMonth.count || 0),
+        outgoingThisMonth: (outgoingThisMonthRaw.count || 0) + (outgoingContractThisMonth.count || 0),
+        incomingByMonth: Object.entries(monthlyIncoming).map(([month, count]) => ({ month, count })),
+        outgoingByMonth: Object.entries(monthlyOutgoing).map(([month, count]) => ({ month, count })),
+        incomingByField: Object.entries(fieldIncomingCount).map(([field, count]) => ({ field, count })),
+        outgoingByField: Object.entries(fieldOutgoingCount).map(([field, count]) => ({ field, count }))
+      });
+    } catch (error: any) {
+      console.error("[STATISTICS] Loi lay thong ke:", error);
+      res.status(500).json({ error: "Khong the lay thong ke.", details: error.message });
+    }
+  });
+
+  // ---- ADVANCED SEARCH ----
+
+  app.get('/api/search', async (req, res) => {
+    try {
+      const supabase = await getSupabaseClient();
+      const ownerId = getOwnerId(req);
+      const rawQ = req.query.q;
+      const q = Array.isArray(rawQ) ? rawQ[0] : rawQ;
+
+      const filters = {
+        type: req.query.type as string | undefined,
+        field: req.query.field as string | undefined,
+        securityLevel: req.query.securityLevel as string | undefined,
+        urgencyLevel: req.query.urgencyLevel as string | undefined,
+        dateFrom: req.query.dateFrom as string | undefined,
+        dateTo: req.query.dateTo as string | undefined,
+        page: parseInt(req.query.page as string) || 1,
+        limit: parseInt(req.query.limit as string) || 50,
+      };
+
+      const searchTerm = String(q || '').trim();
+      const offset = (filters.page - 1) * filters.limit;
+
+      if (!searchTerm) {
+        return res.json({ incoming: [], outgoing: [], archives: [], total: 0 });
+      }
+
+      // Ham chuan hoa: bo dau tieng Viet de so sanh
+      const normalizeVietnamese = (s: string) =>
+        s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+      // Tach tu khoa thanh mang terms (giu dau va khong dau)
+      const terms = searchTerm.split(/\s+/).filter(t => t.length >= 1);
+
+      // Tao chuoi ilike cho Supabase PostgREST - dung cu phap col.ilike.%value%
+      // Moi term tao ra 2 ilike: 1 voi dau goc, 1 khong dau (de tim ca 2 truong hop)
+      const orClause = (col: string) => {
+        const clauses: string[] = [];
+        terms.forEach(t => {
+          // Tim voi tu goc (co dau)
+          clauses.push(`${col}.ilike.%${t.replace(/'/g, "''")}%`);
+          // Tim voi tu khong dau (de tim duoc khi DB luu co dau, user go khong dau)
+          const noAccent = normalizeVietnamese(t);
+          if (noAccent !== t.toLowerCase()) {
+            clauses.push(`${col}.ilike.%${noAccent.replace(/'/g, "''")}%`);
+          }
+        });
+        return clauses.join(',');
+      };
+
+      const buildDocFilters = () => {
+        const parts: string[] = [];
+        if (filters.field) parts.push(`field.eq.${filters.field}`);
+        if (filters.securityLevel) parts.push(`security_level.eq.${filters.securityLevel}`);
+        if (filters.urgencyLevel) parts.push(`urgency_level.eq.${filters.urgencyLevel}`);
+        if (filters.dateFrom) parts.push(`received_date.gte.${filters.dateFrom}`);
+        if (filters.dateTo) parts.push(`received_date.lte.${filters.dateTo}`);
+        return parts.join(',');
+      };
+
+      const buildOutgoingFilters = () => {
+        const parts: string[] = [];
+        if (filters.field) parts.push(`field.eq.${filters.field}`);
+        if (filters.securityLevel) parts.push(`security_level.eq.${filters.securityLevel}`);
+        if (filters.urgencyLevel) parts.push(`urgency_level.eq.${filters.urgencyLevel}`);
+        if (filters.dateFrom) parts.push(`issue_date.gte.${filters.dateFrom}`);
+        if (filters.dateTo) parts.push(`issue_date.lte.${filters.dateTo}`);
+        return parts.join(',');
+      };
+
+      // Helper kiem tra form_data co chua tu khoa khong (client-side filter cho contracts)
+      const searchFormData = (formData: any, term: string) => {
+        if (!formData) return false;
+        const normTerm = normalizeVietnamese(term);
+        const flat = JSON.stringify(formData).toLowerCase();
+        const flatNorm = normalizeVietnamese(flat);
+        return flat.includes(term.toLowerCase()) || flatNorm.includes(normTerm);
+      };
+
+      const filterContracts = (items: any[], type: 'incoming' | 'outgoing') => {
+        return items.filter((d: any) => {
+          const formData = typeof d.form_data === 'string'
+            ? JSON.parse(d.form_data)
+            : (d.form_data || {});
+
+          // document_type la COT RIENG cua bang contracts, khong nam trong form_data
+          // Uu tien: cot d.document_type -> form_data.documentType -> form_data.document_type
+          const docType = d.document_type || formData.documentType || formData.document_type;
+          if (type === 'incoming' && docType !== 'incoming') return false;
+          if (type === 'outgoing' && docType !== 'outgoing') return false;
+
+          if (terms.length === 0) return true;
+          // Tim kiem trong form_data (ca co dau va khong dau) HOAC file_name
+          return terms.some(t => searchFormData(formData, t) ||
+            normalizeVietnamese(d.file_name || '').includes(normalizeVietnamese(t)) ||
+            // Tim kiem trong cac cot rieng cua bang contracts (vd: contract_number, party_a_representative...)
+            normalizeVietnamese(d.contract_number || '').includes(normalizeVietnamese(t)) ||
+            normalizeVietnamese(d.party_a_representative || '').includes(normalizeVietnamese(t)) ||
+            normalizeVietnamese(d.party_b_representative || '').includes(normalizeVietnamese(t)) ||
+            normalizeVietnamese(d.project_name || '').includes(normalizeVietnamese(t)));
+        });
+      };
+
+      const allResults: { incoming: any[]; outgoing: any[]; archives: any[] } = {
+        incoming: [],
+        outgoing: [],
+        archives: []
+      };
+
+      const selectCols = '*, security_level, urgency_level';
+
+      if (!filters.type || filters.type === 'incoming') {
+        const incomingOrClause = [
+          buildDocFilters(),
+          orClause('incoming_number'),
+          orClause('document_number'),
+          orClause('sender'),
+          orClause('signer'),
+          orClause('summary'),
+          orClause('note')
+        ].filter(Boolean).join(',');
+
+        let incomingQuery = supabase
+          .from('incoming_documents')
+          .select(selectCols)
+          .eq('owner_id', ownerId)
+          .order('received_date', { ascending: false })
+          .limit(200);
+
+        if (incomingOrClause) {
+          incomingQuery = incomingQuery.or(incomingOrClause);
+        }
+
+        const { data: incomingDocs, error: incomingErr } = await incomingQuery;
+        if (incomingErr) console.error('[SEARCH] incoming_documents error:', incomingErr.message);
+
+        allResults.incoming = (incomingDocs || []).map((d: any) => ({
+          source: 'doc',
+          data: d,
+          matchField: 'incoming_document'
+        }));
+      }
+
+      if (!filters.type || filters.type === 'outgoing') {
+        const outgoingOrClause = [
+          buildOutgoingFilters(),
+          orClause('outgoing_number'),
+          orClause('document_number'),
+          orClause('receiver'),
+          orClause('signer'),
+          orClause('summary'),
+          orClause('note')
+        ].filter(Boolean).join(',');
+
+        let outgoingQuery = supabase
+          .from('outgoing_documents')
+          .select(selectCols)
+          .eq('owner_id', ownerId)
+          .order('issue_date', { ascending: false })
+          .limit(200);
+
+        if (outgoingOrClause) {
+          outgoingQuery = outgoingQuery.or(outgoingOrClause);
+        }
+
+        const { data: outgoingDocs, error: outgoingErr } = await outgoingQuery;
+        if (outgoingErr) console.error('[SEARCH] outgoing_documents error:', outgoingErr.message);
+
+        allResults.outgoing = (outgoingDocs || []).map((d: any) => ({
+          source: 'doc',
+          data: d,
+          matchField: 'outgoing_document'
+        }));
+      }
+
+      // Search contracts - fetch all for client-side deep search
+      const { data: allContracts } = await supabase
+        .from('contracts')
+        .select('id, file_name, form_data, document_type, created_at, owner_id, contract_number, party_a_representative, party_b_representative, project_name')
+        .eq('owner_id', ownerId)
+        .limit(500);
+
+      if (!filters.type || filters.type === 'incoming') {
+        const incomingContracts = filterContracts(allContracts || [], 'incoming');
+        allResults.incoming.push(...incomingContracts.map((d: any) => ({
+          source: 'contract',
+          data: d,
+          matchField: 'contract'
+        })));
+      }
+
+      if (!filters.type || filters.type === 'outgoing') {
+        const outgoingContracts = filterContracts(allContracts || [], 'outgoing');
+        allResults.outgoing.push(...outgoingContracts.map((d: any) => ({
+          source: 'contract',
+          data: d,
+          matchField: 'contract'
+        })));
+      }
+
+      if (!filters.type || filters.type === 'archive') {
+        const archiveOrClause = [
+          filters.field ? `field.eq.${filters.field}` : '',
+          orClause('archive_code'),
+          orClause('archive_name'),
+          orClause('description')
+        ].filter(Boolean).join(',');
+
+        let archiveQuery = supabase
+          .from('archives')
+          .select('*')
+          .eq('owner_id', ownerId)
+          .order('created_at', { ascending: false })
+          .limit(100);
+
+        if (archiveOrClause) {
+          archiveQuery = archiveQuery.or(archiveOrClause);
+        }
+
+        const { data: archiveDocs, error: archiveErr } = await archiveQuery;
+        if (archiveErr) console.error('[SEARCH] archives error:', archiveErr.message);
+
+        allResults.archives = (archiveDocs || []).map((d: any) => ({
+          source: 'doc',
+          data: d,
+          matchField: 'archive'
+        }));
+      }
+
+      const total = allResults.incoming.length + allResults.outgoing.length + allResults.archives.length;
+
+      const mapIncoming = (item: any) => {
+        const d = item.data;
+        if (item.source === 'contract') {
+          const formData = typeof d.form_data === 'string'
+            ? JSON.parse(d.form_data) : (d.form_data || {});
+          const num = formData.incomingNumber || formData.incoming_number || formData.documentNumber || formData.contractNumber || d.file_name || '---';
+          return {
+            type: 'incoming',
+            id: d.id,
+            source: 'contract',
+            title: `VBĐ - ${num}`,
+            subtitle: d.file_name,
+            metadata: {
+              'Số văn bản': formData.contractNumber || formData.documentNumber || '-',
+              'Người ký': formData.signer || formData.partyA?.representative || '-',
+              'Trích yếu': formData.description || formData.summary || formData.projectName || '-',
+              'Ngày đến': formData.contractDate || formData.issueDate || d.created_at?.split('T')[0],
+              'Lĩnh vực': formData.field || '-',
+              'Độ khẩn': formData.urgency || formData.urgencyLevel || 'Bình thường'
+            }
+          };
+        }
+        return {
+          type: 'incoming',
+          id: d.id,
+          source: 'doc',
+          title: `VBĐ - ${d.incoming_number}`,
+          subtitle: d.sender,
+          metadata: {
+            'Số văn bản': d.document_number || '-',
+            'Người ký': d.signer || '-',
+            'Trích yếu': d.summary || '-',
+            'Ngày đến': d.received_date,
+            'Lĩnh vực': d.field || '-',
+            'Độ khẩn': d.urgency_level || d.urgencyLevel || '-'
+          }
+        };
+      };
+
+      const mapOutgoing = (item: any) => {
+        const d = item.data;
+        if (item.source === 'contract') {
+          const formData = typeof d.form_data === 'string'
+            ? JSON.parse(d.form_data) : (d.form_data || {});
+          const num = formData.outgoingNumber || formData.outgoing_number || formData.documentNumber || formData.contractNumber || d.file_name || '---';
+          return {
+            type: 'outgoing',
+            id: d.id,
+            source: 'contract',
+            title: `VBi - ${num}`,
+            subtitle: d.file_name,
+            metadata: {
+              'Số văn bản': formData.contractNumber || formData.documentNumber || '-',
+              'Người ký': formData.signer || '-',
+              'Trích yếu': formData.description || formData.summary || formData.projectName || '-',
+              'Ngày ban hành': formData.contractDate || formData.issueDate || d.created_at?.split('T')[0],
+              'Lĩnh vực': formData.field || '-',
+              'Độ khẩn': formData.urgency || formData.urgencyLevel || 'Bình thường'
+            }
+          };
+        }
+        return {
+          type: 'outgoing',
+          id: d.id,
+          source: 'doc',
+          title: `VBi - ${d.outgoing_number}`,
+          subtitle: d.receiver,
+          metadata: {
+            'Số văn bản': d.document_number || '-',
+            'Người ký': d.signer || '-',
+            'Trích yếu': d.summary || '-',
+            'Ngày ban hành': d.issue_date,
+            'Lĩnh vực': d.field || '-',
+            'Độ khẩn': d.urgency_level || d.urgencyLevel || '-'
+          }
+        };
+      };
+
+      res.json({
+        incoming: allResults.incoming.slice(offset, offset + filters.limit).map(mapIncoming),
+        outgoing: allResults.outgoing.slice(offset, offset + filters.limit).map(mapOutgoing),
+        archives: allResults.archives.slice(offset, offset + filters.limit).map((item: any) => {
+          const d = item.data;
+          return {
+            type: 'archive',
+            id: d.id,
+            source: 'doc',
+            title: `${d.archive_code} - ${d.archive_name}`,
+            subtitle: d.field || 'Không phân loại',
+            metadata: {
+              'Lĩnh vực': d.field || '-',
+              'Năm': d.year || '-',
+              'Mô tả': d.description || '-'
+            }
+          };
+        }),
+        total,
+        page: filters.page,
+        limit: filters.limit,
+        totalPages: Math.ceil(total / filters.limit)
+      });
+    } catch (error: any) {
+      console.error("[SEARCH] Loi tim kiem:", error);
+      res.status(500).json({ error: "Khong the tim kiem.", details: error.message });
+    }
+  });
+
+  // ---- HEARTBEAT ----
+  app.post('/api/status/heartbeat', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
+  // ==========================================
+  // END DOCUMENT MANAGEMENT API
+  // ==========================================
 
   if (!process.env.VERCEL) {
     console.log(`[SERVER] Dang khoi tao che do ${process.env.NODE_ENV || 'development'}...`);
