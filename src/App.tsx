@@ -106,6 +106,7 @@ import { ContractUploadView } from './components/Contract/ContractUploadView';
 import { extractFromContract, convertContractDataToFormData } from './services/contractMistral';
 import { AgentHubView } from './components/AgentHub/AgentHubView';
 import { DossierView } from './components/DocumentManagement';
+import { TaxLookupView } from './components/TaxLookup/TaxLookupView';
 
 
 // Safe check for iframe/wallpaper environment that won't throw cross-origin errors
@@ -124,7 +125,7 @@ const isIframeMode = () => {
 };
 
 // --- Types ---
-type Tab = 'dashboard' | 'upload' | 'partners' | 'docs' | 'contract' | 'contract_upload' | 'system' | 'agent-hub' | 'dossier';
+type Tab = 'dashboard' | 'upload' | 'partners' | 'docs' | 'contract' | 'contract_upload' | 'system' | 'agent-hub' | 'dossier' | 'tax-lookup';
 
 interface Partner {
   id: string;
@@ -228,6 +229,7 @@ const Sidebar = ({
     { id: 'contract', icon: PlusSquare, label: 'Tạo hợp đồng' },
     { id: 'contract_upload', icon: UploadCloud, label: 'Tải lên hợp đồng' },
     { id: 'docs', icon: Files, label: 'Tài liệu đã tạo' },
+    { id: 'tax-lookup', icon: Search, label: 'Tra cứu thuế' },
     { id: 'system', icon: Database, label: 'Theo dõi hệ thống' },
     { id: 'agent-hub', icon: Cpu, label: 'Cấu hình Agent Hub' },
     { id: 'dossier', icon: FolderArchive, label: 'Hồ sơ' },
@@ -9055,7 +9057,7 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
 
   return (
     <div className="space-y-6" onClick={closeContextMenu}>
-      <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center bg-card-dark p-4 sm:p-6 rounded-[28px] border border-border-dark shadow-2xl gap-4">
+      <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center bg-card-dark p-4 sm:p-5 rounded-xl border border-border-dark shadow-2xl gap-4">
         <div className="flex items-center gap-3 sm:gap-4 select-none">
           <div className="size-8 sm:size-10 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
             <Users className="size-4 sm:size-5 text-primary" />
@@ -9194,41 +9196,41 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
       </AnimatePresence>
 
       {/* Desktop Table View */}
-      <div className="hidden lg:block card overflow-hidden shadow-[0_30px_100px_rgba(0,0,0,0.4)] border border-white/10 bg-card-dark/80 backdrop-blur-xl rounded-[40px]">
-        <div className="overflow-x-auto custom-scrollbar">
+      <div className="hidden lg:block card shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/10 bg-card-dark/80 backdrop-blur-xl rounded-xl overflow-hidden">
+        <div className="overflow-x-auto max-h-[calc(100vh-270px)] overflow-y-auto custom-scrollbar">
           <table className="w-full text-left border-collapse min-w-[900px] lg:min-w-[1000px] xl:min-w-[1100px]">
             <thead>
-              <tr className="bg-white/5 border-b border-white/10">
-                <th className="px-8 py-6 text-[11px] font-black text-primary uppercase tracking-[0.25em] w-[22%]">
+              <tr className="bg-[#16161c] border-b border-white/10">
+                <th className="px-5 py-3.5 text-[11px] font-black text-primary uppercase tracking-[0.2em] w-[22%] sticky top-0 bg-[#16161c] z-30">
                   <div className="flex items-center gap-2">
                     <Building2 className="size-4 opacity-70" /> Thông tin công ty
                   </div>
                 </th>
-                <th className="px-8 py-6 text-[11px] font-black text-primary uppercase tracking-[0.25em] w-[35%]">
+                <th className="px-5 py-3.5 text-[11px] font-black text-primary uppercase tracking-[0.2em] w-[35%] sticky top-0 bg-[#16161c] z-30">
                   <div className="flex items-center gap-2">
                     <MapPin className="size-4 opacity-70" /> Địa chỉ liên hệ
                   </div>
                 </th>
-                <th className="px-8 py-6 text-[11px] font-black text-primary uppercase tracking-[0.25em] w-[15%]">
+                <th className="px-5 py-3.5 text-[11px] font-black text-primary uppercase tracking-[0.2em] w-[15%] sticky top-0 bg-[#16161c] z-30">
                   <div className="flex items-center gap-2">
                     <CreditCard className="size-4 opacity-70" /> Tài khoản thanh toán
                   </div>
                 </th>
-                <th className="px-8 py-6 text-[11px] font-black text-primary uppercase tracking-[0.25em] w-[18%]">
+                <th className="px-5 py-3.5 text-[11px] font-black text-primary uppercase tracking-[0.2em] w-[18%] sticky top-0 bg-[#16161c] z-30">
                   <div className="flex items-center gap-2">
                     <UserCheck className="size-4 opacity-70" /> Đại diện pháp luật
                   </div>
                 </th>
-                <th className="py-6 pl-8 pr-[60px] text-[11px] font-black text-primary uppercase tracking-[0.25em] text-right w-[10%]">Hành động</th>
+                <th className="py-3.5 pl-5 pr-8 text-[11px] font-black text-primary uppercase tracking-[0.2em] text-right w-[10%] sticky top-0 bg-[#16161c] z-30">Hành động</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {filteredPartners.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-8 py-24 text-center">
-                    <div className="flex flex-col items-center gap-4 opacity-20">
-                      <Users className="size-16 text-white" />
-                      <p className="text-xs font-black uppercase tracking-[0.3em] text-white">Chưa có dữ liệu đối tác</p>
+                  <td colSpan={5} className="px-5 py-12 text-center">
+                    <div className="flex flex-col items-center gap-3 opacity-20">
+                      <Users className="size-12 text-white" />
+                      <p className="text-xs font-black uppercase tracking-[0.2em] text-white">Chưa có dữ liệu đối tác</p>
                     </div>
                   </td>
                 </tr>
@@ -9238,39 +9240,39 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
                     key={partner.id}
                     onClick={() => onEdit(partner)}
                     onContextMenu={(e) => handleContextMenu(e, partner)}
-                    className="cursor-pointer hover:bg-primary/5 transition-all duration-300 group relative"
+                    className="cursor-pointer hover:bg-primary/5 transition-all duration-200 group relative"
                   >
-                    <td className="px-8 py-8 relative">
-                      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <td className="px-5 py-4 relative">
+                      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                       <div className="relative z-10">
-                        <div className="font-bold text-white group-hover:text-primary transition-colors text-[15px] tracking-tight leading-tight mb-2">
+                        <div className="font-bold text-white group-hover:text-primary transition-colors text-[14px] tracking-tight leading-tight mb-1.5">
                           {partner.name}
                         </div>
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-lg group-hover:border-primary/30 transition-all">
-                          <Hash className="size-3 text-primary/60" />
-                          <span className="text-[12px] font-black text-text-dim uppercase tracking-widest">MST: {partner.taxCode}</span>
+                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-white/5 border border-white/10 rounded-md group-hover:border-primary/30 transition-all">
+                          <Hash className="size-2.5 text-primary/60" />
+                          <span className="text-[10px] font-black text-text-dim uppercase tracking-wider">MST: {partner.taxCode}</span>
                         </div>
                       </div>
                     </td>
 
-                    <td className="px-8 py-8">
-                      <div className="space-y-4 max-w-md">
-                        <div className="flex gap-3 group/item">
-                          <div className="shrink-0 size-8 rounded-xl bg-white/5 flex items-center justify-center border border-white/10 group-hover/item:border-primary/20 transition-all">
-                            <History className="size-3.5 text-text-dim" />
+                    <td className="px-5 py-4">
+                      <div className="space-y-2 max-w-md">
+                        <div className="flex gap-2 group/item">
+                          <div className="shrink-0 size-7 rounded-lg bg-white/5 flex items-center justify-center border border-white/10 group-hover/item:border-primary/20 transition-all mt-0.5">
+                            <History className="size-3 text-text-dim" />
                           </div>
-                          <div className="text-[13px] font-bold text-text-dim leading-relaxed group-hover:text-white/80 transition-colors">
-                            <span className="text-[9px] font-black text-primary/40 uppercase block mb-1 tracking-widest">Địa chỉ cũ</span>
+                          <div className="text-[12px] font-bold text-text-dim leading-relaxed group-hover:text-white/80 transition-colors">
+                            <span className="text-[8px] font-black text-primary/40 uppercase block mb-0.5 tracking-widest">Địa chỉ cũ</span>
                             {partner.address}
                           </div>
                         </div>
                         {partner.addressPostMerger && (
-                          <div className="flex gap-3 group/item p-4 bg-primary/5 rounded-2xl border border-primary/20 shadow-[0_10px_30px_rgba(249,115,22,0.1)]">
-                            <div className="shrink-0 size-8 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30">
-                              <MapPin className="size-3.5 text-primary" />
+                          <div className="flex gap-2 group/item p-2 bg-primary/5 rounded-xl border border-primary/20">
+                            <div className="shrink-0 size-7 rounded-lg bg-primary/20 flex items-center justify-center border border-primary/30 mt-0.5">
+                              <MapPin className="size-3 text-primary" />
                             </div>
-                            <div className="text-[13px] font-black text-primary leading-relaxed">
-                              <span className="text-[9px] font-black text-primary/60 uppercase block mb-1 tracking-widest">Địa chỉ mới (2025)</span>
+                            <div className="text-[12px] font-black text-primary leading-relaxed">
+                              <span className="text-[8px] font-black text-primary/60 uppercase block mb-0.5 tracking-widest">Địa chỉ mới (2025)</span>
                               {partner.addressPostMerger}
                             </div>
                           </div>
@@ -9278,26 +9280,26 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
                       </div>
                     </td>
 
-                    <td className="px-8 py-8">
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-2 text-white font-black text-sm group-hover:text-primary transition-colors">
-                          <CreditCard className="size-3.5 opacity-50" />
+                    <td className="px-5 py-4">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1.5 text-white font-black text-xs group-hover:text-primary transition-colors">
+                          <CreditCard className="size-3 opacity-50" />
                           {partner.accountNumber || '---'}
                         </div>
-                        <div className="text-[10px] text-text-dim uppercase font-black tracking-widest leading-tight pl-5 opacity-60">
+                        <div className="text-[9px] text-text-dim uppercase font-black tracking-widest leading-tight pl-4.5 opacity-60">
                           {partner.bankName || '---'}
                         </div>
                       </div>
                     </td>
 
-                    <td className="px-8 py-8 whitespace-nowrap">
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex items-center gap-2.5">
-                          <div className="size-9 rounded-full bg-gradient-to-tr from-white/10 to-white/5 border border-white/10 flex items-center justify-center shadow-lg group-hover:border-primary/30 transition-all">
-                            <UserIcon className="size-4 text-text-dim group-hover:text-primary" />
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <div className="size-7 rounded-full bg-gradient-to-tr from-white/10 to-white/5 border border-white/10 flex items-center justify-center shadow-md group-hover:border-primary/30 transition-all">
+                            <UserIcon className="size-3 text-text-dim group-hover:text-primary" />
                           </div>
                           <div>
-                            <div className="text-white font-black text-sm flex items-center gap-1.5">
+                            <div className="text-white font-black text-xs flex items-center gap-1">
                               <span className="text-primary/60">
                                 {(() => {
                                   const g = partner.gender?.toLowerCase();
@@ -9308,7 +9310,7 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
                               </span>
                               {partner.representative || '---'}
                             </div>
-                            <div className="text-[10px] text-text-dim font-black uppercase mt-1 italic tracking-wider opacity-60">
+                            <div className="text-[9px] text-text-dim font-black uppercase mt-0.5 italic tracking-wider opacity-60">
                               {partner.position || 'Giám đốc'}
                             </div>
                           </div>
@@ -9316,14 +9318,14 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
                       </div>
                     </td>
 
-                    <td className="py-6 pl-8 pr-[60px] text-right">
-                      <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
+                    <td className="py-3 pl-5 pr-8 text-right">
+                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0">
                         <button
                           onClick={() => onEdit(partner)}
-                          className="size-11 bg-white/5 border border-white/10 text-text-dim rounded-2xl flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all shadow-xl active:scale-90"
+                          className="size-8 bg-white/5 border border-white/10 text-text-dim rounded-xl flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all shadow-md active:scale-90"
                           title="Chỉnh sửa hồ sơ"
                         >
-                          <Edit3 className="size-4" />
+                          <Edit3 className="size-3.5" />
                         </button>
                         <button
                           onClick={(e) => {
@@ -9331,10 +9333,10 @@ const PartnersView = ({ partners, onEdit, onBatchEdit, onDelete }: {
                             e.preventDefault();
                             onDelete(partner.id);
                           }}
-                          className="size-11 bg-red-500/5 border border-red-500/10 text-text-dim rounded-2xl flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 transition-all shadow-xl active:scale-90"
+                          className="size-8 bg-red-500/5 border border-red-500/10 text-text-dim rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 transition-all shadow-md active:scale-90"
                           title="Xóa đối tác"
                         >
-                          <Trash2 className="size-4" />
+                          <Trash2 className="size-3.5" />
                         </button>
                       </div>
                     </td>
@@ -10389,16 +10391,17 @@ const getTemplateBuffer = async (templateId: string): Promise<ArrayBuffer> => {
   }
 };
 
-const TAB_CONFIG: Record<Tab, { hash: string, label: string }> = {
-  dashboard: { hash: 'tong-quan', label: 'Bảng điều khiển' },
-  upload: { hash: 'tai-len', label: 'Tải lên hóa đơn' },
-  partners: { hash: 'doi-tac', label: 'Đối tác & Khách hàng' },
-  docs: { hash: 'tai-lieu-da-tao', label: 'Tài liệu đã tạo' },
-  contract: { hash: 'tao-hop-dong', label: 'Tạo hợp đồng' },
-  contract_upload: { hash: 'tai-len-hop-dong', label: 'Tải lên hợp đồng' },
-  system: { hash: 'theo-doi-he-thong', label: 'Theo dõi hệ thống' },
-  'agent-hub': { hash: 'agent-hub', label: 'Cấu hình Agent Hub' },
-  dossier: { hash: 'ho-so', label: 'Hồ sơ' }
+const TAB_CONFIG: Record<Tab, { path: string, label: string }> = {
+  dashboard: { path: 'tong-quan', label: 'Bảng điều khiển' },
+  upload: { path: 'tai-len', label: 'Tải lên hóa đơn' },
+  partners: { path: 'doi-tac', label: 'Đối tác & Khách hàng' },
+  docs: { path: 'tai-lieu-da-tao', label: 'Tài liệu đã tạo' },
+  contract: { path: 'tao-hop-dong', label: 'Tạo hợp đồng' },
+  contract_upload: { path: 'tai-len-hop-dong', label: 'Tải lên hợp đồng' },
+  system: { path: 'theo-doi-he-thong', label: 'Theo dõi hệ thống' },
+  'agent-hub': { path: 'agent-hub', label: 'Cấu hình Agent Hub' },
+  dossier: { path: 'ho-so', label: 'Hồ sơ' },
+  'tax-lookup': { path: 'tra-cuu-thue', label: 'Tra cứu thuế' }
 };
 
 // Helper to remove Vietnamese diacritics while preserving case
@@ -10868,6 +10871,93 @@ export default function App() {
   const [editingContractOcr, setEditingContractOcr] = useState<SmartContract | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
+  const [partnerFormValues, setPartnerFormValues] = useState({
+    name: '',
+    taxCode: '',
+    address: '',
+    addressPostMerger: '',
+    accountNumber: '',
+    bankName: '',
+    representative: '',
+    position: 'Giám đốc',
+    gender: 'Ông'
+  });
+  const [isSearchingTaxCode, setIsSearchingTaxCode] = useState(false);
+
+  const partnerAddressRef = useRef<HTMLTextAreaElement>(null);
+  const partnerAddressPostMergerRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = partnerAddressRef.current;
+    if (el) {
+      el.style.height = 'auto';
+      el.style.height = `${el.scrollHeight}px`;
+    }
+  }, [partnerFormValues.address, editingPartner]);
+
+  useEffect(() => {
+    const el = partnerAddressPostMergerRef.current;
+    if (el) {
+      el.style.height = 'auto';
+      el.style.height = `${el.scrollHeight}px`;
+    }
+  }, [partnerFormValues.addressPostMerger, editingPartner]);
+
+  const handleFetchTaxInfoInForm = async () => {
+    const query = partnerFormValues.taxCode.trim().replace(/[^0-9\-]/g, '');
+    if (!query) {
+      toast("Vui lòng nhập mã số thuế hợp lệ", "error");
+      return;
+    }
+
+    setIsSearchingTaxCode(true);
+    try {
+      const res = await fetch(`https://api.vietqr.io/v2/business/${query}`, {
+        headers: { Accept: 'application/json' }
+      });
+
+      if (!res.ok) {
+        throw new Error(`Lỗi kết nối: HTTP ${res.status}`);
+      }
+
+      const json = await res.json();
+      if (json.code === '00' && json.data) {
+        const busData = json.data;
+        const convertResult = smartConvertAddress(busData.address);
+        
+        setPartnerFormValues(prev => ({
+          ...prev,
+          name: busData.name || '',
+          address: busData.address || '',
+          addressPostMerger: convertResult.isConverted ? convertResult.fullAddress : (convertResult.oldFullAddress || busData.address || '')
+        }));
+        
+        toast("Tự động điền thông tin doanh nghiệp thành công!", "success");
+      } else {
+        toast("Không tìm thấy thông tin cho mã số thuế này", "warning");
+      }
+    } catch (err: any) {
+      toast(`Lỗi tra cứu: ${err.message || 'Không kết nối được'}`, "error");
+    } finally {
+      setIsSearchingTaxCode(false);
+    }
+  };
+
+  useEffect(() => {
+    if (editingPartner) {
+      setPartnerFormValues({
+        name: editingPartner.name || '',
+        taxCode: editingPartner.taxCode || '',
+        address: editingPartner.address || '',
+        addressPostMerger: editingPartner.addressPostMerger || '',
+        accountNumber: editingPartner.accountNumber || '',
+        bankName: editingPartner.bankName || '',
+        representative: editingPartner.representative || '',
+        position: editingPartner.position || 'Giám đốc',
+        gender: editingPartner.gender || 'Ông'
+      });
+    }
+  }, [editingPartner]);
   const [multiPartnerEdit, setMultiPartnerEdit] = useState<{
     isOpen: boolean;
     currentIndex: number;
@@ -12570,17 +12660,14 @@ export default function App() {
     }
   };
 
-  // Sync state with Hash on mount
+  // Sync state with pathname on mount
   useEffect(() => {
-    const handleHashChange = () => {
-      const currentFullHash = window.location.hash.replace('#/', '');
-      const parts = currentFullHash.split('/');
-      const path = parts[0];
-      const sub = parts[1];
-      const slug = parts[2];
+    const handlePathChange = () => {
+      const pathSegments = window.location.pathname.split('/').filter(Boolean);
+      const firstSegment = pathSegments[0] || '';
 
       const foundTab = (Object.keys(TAB_CONFIG) as Tab[]).find(
-        key => TAB_CONFIG[key].hash === path
+        key => TAB_CONFIG[key].path === firstSegment
       );
 
       if (foundTab) {
@@ -12591,29 +12678,33 @@ export default function App() {
           setDashboardSubTab('invoices');
         }
 
-        const actualSlug = foundTab === 'dashboard' ? (parts.length > 2 ? parts[parts.length - 1] : slug) : slug;
-
         // Special handling for dashboard detail view
-        if (foundTab === 'dashboard' && actualSlug && !['Quan-ly-hoa-don', 'Quan-ly-hop-dong'].includes(actualSlug)) {
-          const sParts = actualSlug.split('-');
-          const id = sParts[sParts.length - 1];
+        if (foundTab === 'dashboard' && pathSegments.length > 2) {
+          const actualSlug = pathSegments[pathSegments.length - 1];
+          if (!['Quan-ly-hoa-don', 'Quan-ly-hop-dong'].includes(actualSlug)) {
+            const sParts = actualSlug.split('-');
+            const id = sParts[sParts.length - 1];
 
-          if (invoices.length > 0) {
-            const inv = invoices.find(i => i.id === id);
-            if (inv) {
-              setSelectedInvoice(inv);
+            if (invoices.length > 0) {
+              const inv = invoices.find(i => i.id === id);
+              if (inv) {
+                setSelectedInvoice(inv);
+              }
             }
+          } else {
+            setSelectedInvoice(null);
           }
-        } else if (foundTab === 'dashboard' && !slug) {
+        } else if (foundTab === 'dashboard') {
           setSelectedInvoice(null);
         }
 
         // Special handling for partners edit view
         if (foundTab === 'partners') {
+          const sub = pathSegments[1];
           if (sub === 'batch' || sub === 'edit') {
             const isBatch = sub === 'batch';
-            const actualSlug = slug || '';
-            const subParts = actualSlug.split('-');
+            const slug = pathSegments[2] || '';
+            const subParts = slug.split('-');
             const taxCode = subParts[0];
 
             if (partners.length > 0 && taxCode) {
@@ -12634,35 +12725,37 @@ export default function App() {
             setMultiPartnerEdit(null);
           }
         }
-      } else if (!currentFullHash || currentFullHash === '/') {
-        window.location.hash = `#/${TAB_CONFIG.dashboard.hash}/`;
+      } else if (!firstSegment) {
+        // Redirect root to dashboard
+        window.history.replaceState(null, '', `/${TAB_CONFIG.dashboard.path}/`);
       }
     };
 
-    window.addEventListener('hashchange', handleHashChange);
-    handleHashChange(); // Initial check
+    // Listen to popstate (back/forward navigation)
+    window.addEventListener('popstate', handlePathChange);
+    handlePathChange(); // Initial check
 
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('popstate', handlePathChange);
   }, [invoices.length, partners.length]); // Re-run when invoices or partners are loaded to catch direct links
 
-  // Sync Hash with Multi-Partner Edit
+  // Sync pathname with Multi-Partner Edit
   useEffect(() => {
     if (multiPartnerEdit?.isOpen) {
       const currentPartner = partners[multiPartnerEdit.currentIndex];
       if (currentPartner) {
         const cleanName = removeTones(currentPartner.name).replace(/\s+/g, '').toUpperCase();
-        window.location.hash = `#/${TAB_CONFIG.partners.hash}/batch/${currentPartner.taxCode}-${cleanName}/`;
+        window.history.replaceState(null, '', `/${TAB_CONFIG.partners.path}/batch/${currentPartner.taxCode}-${cleanName}/`);
       }
     }
   }, [multiPartnerEdit?.currentIndex, multiPartnerEdit?.isOpen, partners]);
 
-  // Update Hash when Tab changes manually
+  // Update pathname when Tab changes manually
   function handleTabChange(tab: Tab) {
     console.log("DEBUG: handleTabChange click tab =", tab);
     if (tab === 'dashboard') {
-      window.location.hash = `#/${TAB_CONFIG[tab].hash}/Quan-ly-hoa-don/`;
+      window.history.replaceState(null, '', `/${TAB_CONFIG[tab].path}/Quan-ly-hoa-don/`);
     } else {
-      window.location.hash = `#/${TAB_CONFIG[tab].hash}/`;
+      window.history.replaceState(null, '', `/${TAB_CONFIG[tab].path}/`);
     }
     setActiveTab(tab);
     if (tab === 'dashboard') {
@@ -12671,7 +12764,7 @@ export default function App() {
   }
 
   const handleDashboardSubTabChange = (subTab: 'invoices') => {
-    window.location.hash = `#/${TAB_CONFIG.dashboard.hash}/Quan-ly-hoa-don/`;
+    window.history.replaceState(null, '', `/${TAB_CONFIG.dashboard.path}/Quan-ly-hoa-don/`);
   };
 
   const handleInvoiceSelect = (inv: Invoice | null) => {
@@ -12679,10 +12772,10 @@ export default function App() {
       const baseName = inv.fileName.replace(/\.[^/.]+$/, "");
       const cleanFileName = removeTones(baseName);
 
-      window.location.hash = `#/${TAB_CONFIG.dashboard.hash}/Quan-ly-hoa-don/${cleanFileName}-${inv.id}/`;
+      window.history.replaceState(null, '', `/${TAB_CONFIG.dashboard.path}/Quan-ly-hoa-don/${cleanFileName}-${inv.id}/`);
       setSelectedInvoice(inv);
     } else {
-      window.location.hash = `#/${TAB_CONFIG.dashboard.hash}/Quan-ly-hoa-don/`;
+      window.history.replaceState(null, '', `/${TAB_CONFIG.dashboard.path}/Quan-ly-hoa-don/`);
       setSelectedInvoice(null);
     }
   };
@@ -12690,11 +12783,11 @@ export default function App() {
   const handlePartnerEditSelect = (p: Partner | null) => {
     if (p) {
       const cleanName = removeTones(p.name).replace(/\s+/g, '').toUpperCase();
-      window.location.hash = `#/${TAB_CONFIG.partners.hash}/edit/${p.taxCode}-${cleanName}/`;
+      window.history.replaceState(null, '', `/${TAB_CONFIG.partners.path}/edit/${p.taxCode}-${cleanName}/`);
       setEditingPartner(p);
       setMultiPartnerEdit(null);
     } else {
-      window.location.hash = `#/${TAB_CONFIG.partners.hash}/`;
+      window.history.replaceState(null, '', `/${TAB_CONFIG.partners.path}/`);
       setEditingPartner(null);
     }
   };
@@ -12706,7 +12799,7 @@ export default function App() {
     }
     const firstPartner = partners[0];
     const cleanName = removeTones(firstPartner.name).replace(/\s+/g, '').toUpperCase();
-    window.location.hash = `#/${TAB_CONFIG.partners.hash}/batch/${firstPartner.taxCode}-${cleanName}/`;
+    window.history.replaceState(null, '', `/${TAB_CONFIG.partners.path}/batch/${firstPartner.taxCode}-${cleanName}/`);
     setMultiPartnerEdit({
       isOpen: true,
       currentIndex: 0,
@@ -14556,6 +14649,9 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
             {activeTab === 'system' && (
               <SystemMonitorView />
             )}
+            {activeTab === 'tax-lookup' && (
+              <TaxLookupView />
+            )}
             {activeTab === 'agent-hub' && (
               <AgentHubView />
             )}
@@ -14877,46 +14973,42 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 250 }}
-              className="bg-card-dark rounded-t-[32px] md:rounded-[48px] shadow-[0_50px_100px_rgba(0,0,0,0.6)] w-full max-w-4xl overflow-hidden border border-white/10 flex flex-col h-[91vh] md:h-auto md:max-h-[88vh]"
+              className="bg-card-dark rounded-t-[32px] md:rounded-[32px] shadow-[0_50px_100px_rgba(0,0,0,0.6)] w-full max-w-4xl overflow-hidden border border-white/10 flex flex-col h-[91vh] md:h-auto md:max-h-[90vh]"
             >
               {/* Modern Header */}
-              <div className="p-4 sm:p-5 md:p-10 border-b border-white/5 flex justify-between items-center bg-white/5 relative overflow-hidden shrink-0 select-none pt-5 sm:pt-6 md:pt-10">
+              <div className="p-4 md:p-6 border-b border-white/5 flex justify-between items-center bg-white/5 relative overflow-hidden shrink-0 select-none">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-orange-400 to-primary/20" />
-                <div className="flex items-center gap-3 md:gap-5 relative z-10">
-                  <div className="size-8 md:size-16 bg-primary/20 text-primary rounded-xl md:rounded-[24px] flex items-center justify-center border border-primary/30 shadow-2xl shrink-0">
-                    <Building2 className="size-4 md:size-8" />
+                <div className="flex items-center gap-3 relative z-10">
+                  <div className="size-10 bg-primary/20 text-primary rounded-xl flex items-center justify-center border border-primary/30 shadow-lg shrink-0">
+                    <Building2 className="size-5" />
                   </div>
                   <div>
-                    <h3 className="text-sm sm:text-lg md:text-2xl font-black text-white uppercase tracking-widest">{editingPartner.id === 'new' ? 'Khởi tạo đối tác mới' : 'Cập nhật hồ sơ đối tác'}</h3>
-                    <p className="text-text-dim text-[8px] md:text-xs font-bold uppercase tracking-[0.2em] mt-0.5 md:mt-1.5 opacity-60">Chuẩn hóa dữ liệu hệ thống doanh nghiệp</p>
+                    <h3 className="text-base font-black text-white uppercase tracking-wider">{editingPartner.id === 'new' ? 'Khởi tạo đối tác mới' : 'Cập nhật hồ sơ đối tác'}</h3>
+                    <p className="text-text-dim text-[9px] font-bold uppercase tracking-[0.15em] mt-0.5 opacity-60">Chuẩn hóa dữ liệu hệ thống doanh nghiệp</p>
                   </div>
                 </div>
-                <button type="button" onClick={() => handlePartnerEditSelect(null)} className="size-8 md:size-12 flex items-center justify-center text-text-dim hover:text-white hover:bg-white/10 rounded-2xl transition-all shrink-0">
-                  <X className="size-4 md:size-6" />
+                <button type="button" onClick={() => handlePartnerEditSelect(null)} className="size-9 flex items-center justify-center text-text-dim hover:text-white hover:bg-white/10 rounded-xl transition-all shrink-0">
+                  <X className="size-5" />
                 </button>
               </div>
 
               <form
-                className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-12 space-y-5 sm:space-y-8 md:space-y-12 custom-scrollbar pb-[calc(1rem+env(safe-area-inset-bottom,0px))] md:pb-12"
+                className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 custom-scrollbar pb-[calc(1rem+env(safe-area-inset-bottom,0px))] md:pb-6"
                 onSubmit={async (e) => {
                   e.preventDefault();
-                  const formData = new FormData(e.currentTarget);
                   setIsProcessing(true);
                   try {
                     const updatePayload: Partial<Partner> = {
-                      representative: formData.get('representative') as string,
-                      position: formData.get('position') as string,
-                      gender: formData.get('gender') as string,
-                      address: formData.get('address') as string,
-                      addressPostMerger: formData.get('addressPostMerger') as string,
-                      accountNumber: formData.get('accountNumber') as string,
-                      bankName: formData.get('bankName') as string,
+                      name: partnerFormValues.name,
+                      taxCode: partnerFormValues.taxCode,
+                      representative: partnerFormValues.representative,
+                      position: partnerFormValues.position,
+                      gender: partnerFormValues.gender,
+                      address: partnerFormValues.address,
+                      addressPostMerger: partnerFormValues.addressPostMerger,
+                      accountNumber: partnerFormValues.accountNumber,
+                      bankName: partnerFormValues.bankName,
                     };
-
-                    if (editingPartner.id === 'new') {
-                      updatePayload.name = formData.get('name') as string;
-                      updatePayload.taxCode = formData.get('taxCode') as string;
-                    }
 
                     await handleUpdatePartner(editingPartner.id, updatePayload);
                     handlePartnerEditSelect(null);
@@ -14928,135 +15020,173 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                   }
                 }}
               >
-                {/* SECTION 1: IDENTITY */}
-                <div className="space-y-6">
-                  <div className="flex items-center gap-3 text-primary">
-                    <Fingerprint className="size-5" />
-                    <span className="text-[11px] font-black uppercase tracking-[0.3em]">Định danh doanh nghiệp</span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-8">
-                    <div className="md:col-span-2">
-                      <label className="text-[11px] font-black text-text-dim uppercase block mb-3 tracking-widest ml-1">Tên pháp nhân công ty</label>
-                      {editingPartner.id === 'new' ? (
-                        <input name="name" required placeholder="Ví dụ: CÔNG TY TNHH XÂY DỰNG ABC..." className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-base font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white" />
-                      ) : (
-                        <div className="p-4 px-6 bg-white/5 rounded-2xl border border-white/10 shadow-inner">
-                          <div className="text-base font-black text-white">{editingPartner.name}</div>
-                        </div>
-                      )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                  {/* LEFT COLUMN: IDENTITY & ADDRESSES */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-primary border-b border-white/5 pb-2">
+                      <Fingerprint className="size-4 shrink-0" />
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em]">Doanh nghiệp & Địa chỉ</span>
                     </div>
-                    <div>
-                      <label className="text-[11px] font-black text-text-dim uppercase block mb-3 tracking-widest ml-1">Mã số thuế</label>
-                      {editingPartner.id === 'new' ? (
-                        <input name="taxCode" required placeholder="Số MST..." className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-base font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white" />
-                      ) : (
-                        <div className="p-4 px-6 bg-white/5 rounded-2xl border border-white/10 shadow-inner">
-                          <div className="text-base font-black text-primary tracking-[0.1em]">{editingPartner.taxCode}</div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
 
-                {/* SECTION 2: ADDRESSES */}
-                <div className="space-y-6">
-                  <div className="flex items-center gap-3 text-primary">
-                    <MapPin className="size-5" />
-                    <span className="text-[11px] font-black uppercase tracking-[0.3em]">Thông tin địa chỉ hành chính</span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-10">
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center px-1">
-                        <label className="text-[11px] font-black text-text-dim uppercase tracking-widest">Địa chỉ gốc (Trước 1/7/2025)</label>
+                    <div>
+                      <label className="text-[10px] font-black text-text-dim uppercase block mb-1.5 ml-1">Tên pháp nhân công ty</label>
+                      <input
+                        name="name"
+                        required
+                        placeholder="Ví dụ: CÔNG TY TNHH XÂY DỰNG ABC..."
+                        value={partnerFormValues.name}
+                        onChange={e => setPartnerFormValues({ ...partnerFormValues, name: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs sm:text-sm font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black text-text-dim uppercase block mb-1.5 ml-1">Mã số thuế</label>
+                      <div className="flex gap-2">
+                        <input
+                          name="taxCode"
+                          required
+                          placeholder="Số MST..."
+                          value={partnerFormValues.taxCode}
+                          onChange={e => setPartnerFormValues({ ...partnerFormValues, taxCode: e.target.value.replace(/[^0-9\-]/g, '') })}
+                          className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs sm:text-sm font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white"
+                        />
+                        <button
+                          type="button"
+                          disabled={isSearchingTaxCode || !partnerFormValues.taxCode}
+                          onClick={handleFetchTaxInfoInForm}
+                          className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black text-[10px] uppercase tracking-wider rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-1 shrink-0"
+                        >
+                          {isSearchingTaxCode ? <Loader2 className="size-3 animate-spin" /> : <Search className="size-3" />}
+                          Tra cứu
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between items-center mb-1.5">
+                        <label className="text-[10px] font-black text-text-dim uppercase tracking-widest ml-1">Địa chỉ gốc (Trước 1/7/2025)</label>
                         <button
                           type="button"
                           onClick={() => {
-                            const addrInput = (document.getElementsByName('address')[0] as HTMLTextAreaElement).value;
+                            const addrInput = partnerFormValues.address;
                             if (!addrInput) return;
                             const result = smartConvertAddress(addrInput);
                             if (result.isConverted) {
-                              (document.getElementsByName('address')[0] as HTMLTextAreaElement).value = result.oldFullAddress || addrInput;
-                              (document.getElementsByName('addressPostMerger')[0] as HTMLTextAreaElement).value = result.fullAddress;
-                              toast("Đã chuyển đổi thành công!", "success");
+                              setPartnerFormValues(prev => ({
+                                ...prev,
+                                address: result.oldFullAddress || addrInput,
+                                addressPostMerger: result.fullAddress
+                              }));
+                              toast("Đã chuẩn hóa địa chỉ!", "success");
                             } else {
-                              toast("Địa chỉ đã chuẩn hoặc không cần chuyển đổi", "info");
+                              toast("Địa chỉ đã chuẩn hoặc không cần sáp nhập", "info");
                             }
                           }}
-                          className="text-[10px] font-black text-primary hover:text-white hover:bg-primary px-4 py-1.5 rounded-xl transition-all border border-primary/30 uppercase tracking-widest flex items-center gap-2"
+                          className="text-[9px] font-black text-primary hover:text-white hover:bg-primary px-2 py-0.5 rounded-lg transition-all border border-primary/30 uppercase tracking-wider flex items-center gap-1"
                         >
-                          <Zap className="size-3" /> Tự động chuẩn hóa
+                          <Zap className="size-2.5" /> Chuẩn hóa
                         </button>
                       </div>
                       <textarea
+                        ref={partnerAddressRef}
                         name="address"
-                        defaultValue={editingPartner.address}
-                        placeholder="Nhập địa chỉ đầy đủ..."
-                        className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-3xl text-base font-medium focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white min-h-[140px] leading-relaxed"
+                        value={partnerFormValues.address}
+                        onChange={e => setPartnerFormValues({ ...partnerFormValues, address: e.target.value })}
+                        placeholder="Nhập địa chỉ..."
+                        className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs sm:text-sm font-medium focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white min-h-[50px] leading-relaxed resize-none overflow-y-hidden"
                       />
                     </div>
-                    <div className="space-y-4">
-                      <label className="text-[11px] font-black text-text-dim uppercase tracking-widest block px-1">Địa chỉ sau khi sáp nhập (Từ 1/7/2025)</label>
+
+                    <div>
+                      <label className="text-[10px] font-black text-text-dim uppercase tracking-widest block mb-1.5 ml-1">Địa chỉ sáp nhập mới (Sau 1/7/2025)</label>
                       <textarea
+                        ref={partnerAddressPostMergerRef}
                         name="addressPostMerger"
-                        defaultValue={editingPartner.addressPostMerger}
-                        placeholder="Hệ thống sẽ tự động tạo địa chỉ mới nếu bạn bấm Chuẩn hóa..."
-                        className="w-full px-6 py-5 bg-primary/5 border border-primary/20 rounded-3xl text-base font-black text-primary focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none min-h-[140px] leading-relaxed placeholder:text-primary/30"
+                        value={partnerFormValues.addressPostMerger}
+                        onChange={e => setPartnerFormValues({ ...partnerFormValues, addressPostMerger: e.target.value })}
+                        placeholder="Địa chỉ mới sau sáp nhập..."
+                        className="w-full px-4 py-2 bg-primary/5 border border-primary/20 rounded-xl text-xs sm:text-sm font-black text-primary focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none min-h-[50px] leading-relaxed resize-none placeholder:text-primary/30 overflow-y-hidden"
                       />
                     </div>
                   </div>
-                </div>
 
-                {/* SECTION 3: FINANCE & REP */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-12">
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-3 text-primary">
-                      <CreditCard className="size-5" />
-                      <span className="text-[11px] font-black uppercase tracking-[0.3em]">Tài khoản ngân hàng</span>
+                  {/* RIGHT COLUMN: BANK INFO & LEGAL REPRESENTATIVE */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-primary border-b border-white/5 pb-2">
+                      <CreditCard className="size-4 shrink-0" />
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em]">Tài chính & Đại diện</span>
                     </div>
-                    <div className="grid grid-cols-1 gap-6">
-                      <div className="space-y-3">
-                        <label className="text-[11px] font-black text-text-dim uppercase tracking-widest block ml-1">Số tài khoản</label>
-                        <input name="accountNumber" defaultValue={editingPartner.accountNumber} placeholder="Nhập số tài khoản..." className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-base font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white" />
-                      </div>
-                      <div className="space-y-3">
-                        <label className="text-[11px] font-black text-text-dim uppercase tracking-widest block ml-1">Tên ngân hàng & Chi nhánh</label>
-                        <input name="bankName" defaultValue={editingPartner.bankName} placeholder="Ví dụ: VCB - CN Tân Sơn Nhất..." className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-base font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white" />
-                      </div>
-                    </div>
-                  </div>
 
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-3 text-primary">
-                      <UserCheck className="size-5" />
-                      <span className="text-[11px] font-black uppercase tracking-[0.3em]">Đại diện pháp luật</span>
+                    <div>
+                      <label className="text-[10px] font-black text-text-dim uppercase block mb-1.5 ml-1">Số tài khoản ngân hàng</label>
+                      <input
+                        name="accountNumber"
+                        value={partnerFormValues.accountNumber}
+                        onChange={e => setPartnerFormValues({ ...partnerFormValues, accountNumber: e.target.value })}
+                        placeholder="Nhập số tài khoản..."
+                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs sm:text-sm font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white"
+                      />
                     </div>
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="col-span-2 space-y-3">
-                        <label className="text-[11px] font-black text-text-dim uppercase tracking-widest block ml-1">Họ và tên đại diện</label>
-                        <input name="representative" defaultValue={editingPartner.representative} placeholder="Nhập họ tên đầy đủ..." className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-base font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white" />
+
+                    <div>
+                      <label className="text-[10px] font-black text-text-dim uppercase block mb-1.5 ml-1">Tên ngân hàng & Chi nhánh</label>
+                      <input
+                        name="bankName"
+                        value={partnerFormValues.bankName}
+                        onChange={e => setPartnerFormValues({ ...partnerFormValues, bankName: e.target.value })}
+                        placeholder="Ví dụ: VCB - CN Tân Sơn Nhất..."
+                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs sm:text-sm font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black text-text-dim uppercase block mb-1.5 ml-1">Họ và tên người đại diện pháp luật</label>
+                      <input
+                        name="representative"
+                        value={partnerFormValues.representative}
+                        onChange={e => setPartnerFormValues({ ...partnerFormValues, representative: e.target.value })}
+                        placeholder="Nhập họ và tên..."
+                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs sm:text-sm font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-black text-text-dim uppercase block mb-1.5 ml-1">Chức vụ</label>
+                        <input
+                          name="position"
+                          value={partnerFormValues.position}
+                          onChange={e => setPartnerFormValues({ ...partnerFormValues, position: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs sm:text-sm font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white"
+                        />
                       </div>
-                      <div className="space-y-3">
-                        <label className="text-[11px] font-black text-text-dim uppercase tracking-widest block ml-1">Chức vụ</label>
-                        <input name="position" defaultValue={editingPartner.position || 'Giám đốc'} className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-base font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white" />
-                      </div>
-                      <div className="space-y-3">
-                        <label className="text-[11px] font-black text-text-dim uppercase tracking-widest block ml-1">Xưng hô</label>
-                        <select name="gender" defaultValue={editingPartner.gender || 'Ông'} className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-base font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white appearance-none cursor-pointer">
-                          <option value="Ông" className="bg-card-dark text-white">Ông</option>
-                          <option value="Bà" className="bg-card-dark text-white">Bà</option>
-                        </select>
+                      <div>
+                        <label className="text-[10px] font-black text-text-dim uppercase block mb-1.5 ml-1">Xưng hô</label>
+                        <div className="relative">
+                          <select
+                            name="gender"
+                            value={partnerFormValues.gender}
+                            onChange={e => setPartnerFormValues({ ...partnerFormValues, gender: e.target.value })}
+                            className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs sm:text-sm font-bold focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none text-white appearance-none cursor-pointer"
+                          >
+                            <option value="Ông" className="bg-card-dark text-white">Ông</option>
+                            <option value="Bà" className="bg-card-dark text-white">Bà</option>
+                          </select>
+                          <ChevronDown className="size-4 text-text-dim pointer-events-none absolute right-4 top-1/2 -translate-y-1/2" />
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Footer Buttons */}
-                <div className="pt-6 sm:pt-10 flex gap-4 sm:gap-6 border-t border-white/5 shrink-0">
-                  <button type="submit" disabled={isProcessing} className="flex-1 py-5 bg-primary text-white rounded-[24px] text-sm font-black uppercase tracking-[0.3em] shadow-[0_20px_40px_rgba(249,115,22,0.3)] hover:translate-y-[-4px] active:scale-95 transition-all flex items-center justify-center gap-3">
-                    {isProcessing ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}
+                <div className="pt-4 flex gap-4 border-t border-white/5 shrink-0">
+                  <button type="submit" disabled={isProcessing} className="flex-1 py-3.5 bg-primary text-white rounded-xl text-xs font-black uppercase tracking-[0.2em] shadow-lg shadow-primary/20 hover:translate-y-[-2px] active:scale-95 transition-all flex items-center justify-center gap-2">
+                    {isProcessing ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
                     {editingPartner.id === 'new' ? 'Hoàn tất khởi tạo' : 'Lưu thay đổi hồ sơ'}
                   </button>
-                  <button type="button" onClick={() => handlePartnerEditSelect(null)} className="px-10 py-5 bg-white/5 text-text-dim hover:text-white border border-white/10 rounded-[24px] text-sm font-black uppercase tracking-[0.3em] transition-all hover:bg-white/10">Hủy bỏ</button>
+                  <button type="button" onClick={() => handlePartnerEditSelect(null)} className="px-8 py-3.5 bg-white/5 text-text-dim hover:text-white border border-white/10 rounded-xl text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-white/10 active:scale-95">Hủy bỏ</button>
                 </div>
               </form>
             </motion.div>
@@ -15107,7 +15237,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                       if (Object.keys(multiPartnerEdit.drafts).length > 0) {
                         setMultiPartnerEdit(prev => prev ? { ...prev, showExitConfirm: true } : null);
                       } else {
-                        window.location.hash = `#/${TAB_CONFIG.partners.hash}/`;
+                        window.history.replaceState(null, '', `/${TAB_CONFIG.partners.path}/`);
                         setMultiPartnerEdit(null);
                       }
                     }}
@@ -15307,7 +15437,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                         if (Object.keys(multiPartnerEdit.drafts).length > 0) {
                           setMultiPartnerEdit(prev => prev ? { ...prev, showExitConfirm: true } : null);
                         } else {
-                          window.location.hash = `#/${TAB_CONFIG.partners.hash}/`;
+                          window.history.replaceState(null, '', `/${TAB_CONFIG.partners.path}/`);
                           setMultiPartnerEdit(null);
                         }
                       }}
@@ -15325,7 +15455,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                         try {
                           await Promise.all(ids.map(id => handleUpdatePartner(id, drafts[id])));
                           toast(`Đã đồng bộ hóa dữ liệu cho ${ids.length} đối tác`, "success");
-                          window.location.hash = `#/${TAB_CONFIG.partners.hash}/`;
+                          window.history.replaceState(null, '', `/${TAB_CONFIG.partners.path}/`);
                           setMultiPartnerEdit(null);
                         } catch (err) {
                           toast("Lỗi đồng bộ dữ liệu", "error");
@@ -15378,7 +15508,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                 </button>
                 <button
                   onClick={() => {
-                    window.location.hash = `#/${TAB_CONFIG.partners.hash}/`;
+                    window.history.replaceState(null, '', `/${TAB_CONFIG.partners.path}/`);
                     setMultiPartnerEdit(null);
                   }}
                   className="flex-1 py-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all shadow-lg"
