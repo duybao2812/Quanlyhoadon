@@ -14,6 +14,7 @@ import os from 'os';
 import { JSDOM } from 'jsdom';
 import { exec } from 'child_process';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import crypto from 'crypto';
 
 dotenv.config();
 
@@ -21,7 +22,12 @@ const app = express();
 const PORT = 3000;
 
 // Tang gioi han body parser len 500MB de xu ly PDF lon (base64 tang ~33% kich thuoc)
-app.use(express.json({ limit: '500mb' }));
+app.use(express.json({
+  limit: '500mb',
+  verify: (req: any, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 app.use(express.urlencoded({ limit: '500mb', extended: true }));
 app.use('/templates', express.static(path.join(process.cwd(), 'templates')));
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
@@ -2608,398 +2614,372 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
   });
 
   // ==========================================
-  // CASSO INTEGRATION API - Dong bo giao dich ngan hang
+  // SEPAY INTEGRATION API - Webhook & Giao dich ngan hang
   // ==========================================
 
-  // Ham noi bo: doi soat hoa don voi giao dich moi
-  // Kiem tra so tien va cap nhat payment_status = 'paid' neu khop
-  async function doiSoatHoaDon(
+  // Ham noi bo: doi soat hoa don thong minh theo code va so tien
+  async function doiSoatHoaDonSepay(
     supabaseClient: any,
-    giaoDich: { id: string; casso_id: number; amount: number; description: string; owner_id: string }
+    transaction: { id: string; owner_id: string; amount_in: number; code: string | null; content: string }
   ) {
-    // Chi xu ly giao dich tien vao (amount duong)
-    if (giaoDich.amount <= 0) return;
+    // Chi doi soat giao dich tien vao (amount_in > 0) va co owner_id
+    if (!transaction.owner_id || transaction.amount_in <= 0) return;
 
-    // Lay danh sach hoa don chua thanh toan cua nguoi dung
-    const { data: dsHoaDon } = await supabaseClient
+    console.log(`[SEPAY] Dang doi soat giao dich ${transaction.id} cho owner ${transaction.owner_id} (So tien: ${transaction.amount_in})...`);
+
+    // Lay danh sach hoa don chua thanh toan cua owner
+    const { data: dsHoaDon, error: dbError } = await supabaseClient
       .from('invoices')
-      .select('id, total_amount, file_name')
-      .eq('owner_id', giaoDich.owner_id)
-      .eq('payment_status', 'unpaid')
-      .not('total_amount', 'is', null);
+      .select('id, total_amount, file_name, extracted_data')
+      .eq('owner_id', transaction.owner_id)
+      .eq('payment_status', 'unpaid');
 
-    if (!dsHoaDon || dsHoaDon.length === 0) return;
+    if (dbError || !dsHoaDon || dsHoaDon.length === 0) {
+      console.log(`[SEPAY] Khong co hoa don nao chua thanh toan de doi soat.`);
+      return;
+    }
 
-    // Tim hoa don khop voi so tien giao dich (chenh lech <= 1%)
-    const hoaDonKhop = dsHoaDon.find((hd: any) => {
-      const soTien = parseFloat(hd.total_amount);
-      const chenh_lech = Math.abs(soTien - giaoDich.amount) / soTien;
-      return chenh_lech <= 0.01;
-    });
+    let hoaDonKhop = null;
 
-    if (!hoaDonKhop) return;
+    // Uu tien 1: So khop bang Code thanh toan + So tien
+    if (transaction.code) {
+      const codeClean = transaction.code.trim().toLowerCase();
+      hoaDonKhop = dsHoaDon.find((hd) => {
+        const hdNum = (hd.extracted_data?.invoice?.number || '').toString().toLowerCase().trim();
+        const hdId = (hd.id || '').toString().toLowerCase().trim();
+        const hdFile = (hd.file_name || '').toString().toLowerCase().trim();
 
-    // Cap nhat payment_status cua hoa don sang 'paid'
-    await supabaseClient
+        const matchesCode = (hdNum === codeClean) || 
+                            (hdId === codeClean) || 
+                            (hdFile.includes(codeClean));
+
+        if (matchesCode) {
+          const totalAmt = hd.total_amount || hd.extracted_data?.totals?.grandTotal || hd.extracted_data?.totals?.total;
+          if (!totalAmt) return false;
+          const soTien = typeof totalAmt === 'string' ? parseFloat(totalAmt) : totalAmt;
+          const chenh_lech = Math.abs(soTien - transaction.amount_in) / soTien;
+          return chenh_lech <= 0.01; // sai so <= 1%
+        }
+        return false;
+      });
+    }
+
+    // Uu tien 2: Neu khong tim thay theo code, quet xem invoice number / ID co trong content (mo ta) + So tien khong
+    if (!hoaDonKhop && transaction.content) {
+      const contentLower = transaction.content.toLowerCase();
+      hoaDonKhop = dsHoaDon.find((hd) => {
+        const hdNum = (hd.extracted_data?.invoice?.number || '').toString().toLowerCase().trim();
+        const hdId = (hd.id || '').toString().toLowerCase().trim();
+
+        const hasNumInContent = hdNum && contentLower.includes(hdNum);
+        const hasIdInContent = hdId && contentLower.includes(hdId);
+
+        if (hasNumInContent || hasIdInContent) {
+          const totalAmt = hd.total_amount || hd.extracted_data?.totals?.grandTotal || hd.extracted_data?.totals?.total;
+          if (!totalAmt) return false;
+          const soTien = typeof totalAmt === 'string' ? parseFloat(totalAmt) : totalAmt;
+          const chenh_lech = Math.abs(soTien - transaction.amount_in) / soTien;
+          return chenh_lech <= 0.01;
+        }
+        return false;
+      });
+    }
+
+    if (!hoaDonKhop) {
+      console.log(`[SEPAY] Giao dich ${transaction.id} khong tuong thich code/content + so tien voi bat ky hoa don nao.`);
+      return;
+    }
+
+    console.log(`[SEPAY] Phat hien hoa don trung khop: ${hoaDonKhop.id}. Dang tien hanh thanh toan...`);
+
+    // 1. Cap nhat trang thai hoa don sang 'paid'
+    const { error: updateInvoiceErr } = await supabaseClient
       .from('invoices')
       .update({ payment_status: 'paid', updated_at: new Date().toISOString() })
       .eq('id', hoaDonKhop.id);
 
-    // Cap nhat trang thai doi soat cua giao dich
-    await supabaseClient
-      .from('casso_transactions')
-      .update({ match_status: 'matched', matched_invoice_id: hoaDonKhop.id })
-      .eq('id', giaoDich.id);
+    if (updateInvoiceErr) {
+      console.error(`[SEPAY] Loi cap nhat trang thai hoa don:`, updateInvoiceErr.message);
+      return;
+    }
 
-    console.log(`[CASSO] Doi soat thanh cong: Giao dich ${giaoDich.casso_id} khop voi hoa don ${hoaDonKhop.id}`);
+    // 2. Cap nhat trang thai giao dich sang 'matched' va link voi matched_invoice_id
+    const { error: updateTxErr } = await supabaseClient
+      .from('tb_transactions')
+      .update({ match_status: 'matched', matched_invoice_id: hoaDonKhop.id })
+      .eq('id', transaction.id);
+
+    if (updateTxErr) {
+      console.error(`[SEPAY] Loi lien ket giao dich voi hoa don:`, updateTxErr.message);
+      return;
+    }
+
+    console.log(`[SEPAY] Doi soat thanh cong: Giao dich ${transaction.id} da khop voi hoa don ${hoaDonKhop.id}`);
   }
 
-  // ---------------------------------------------------
-  // Endpoint 1: Tao grant token de mo cua so Cas Link
-  // POST /api/casso/grant-create
-  // ---------------------------------------------------
-  app.post('/api/casso/grant-create', async (req, res) => {
+  // POST /api/sepay-webhook (Nhan webhook tu SePay)
+  app.post('/api/sepay-webhook', async (req, res) => {
     try {
-      const cassoClientId = process.env.CASSO_CLIENT_ID;
-      const cassoSecretKey = process.env.CASSO_SECRET_KEY;
+      console.log('[SEPAY WEBHOOK] Incoming request headers:', JSON.stringify(req.headers, null, 2));
+      console.log('[SEPAY WEBHOOK] Incoming request body:', JSON.stringify(req.body, null, 2));
 
-      if (!cassoClientId || !cassoSecretKey) {
-        return res.status(500).json({ error: 'CASSO_CLIENT_ID hoac CASSO_SECRET_KEY chua duoc cau hinh trong .env' });
+      // 1. Kiem tra dinh dang Content-Type
+      if (req.headers['content-type'] !== 'application/json' && !req.headers['content-type']?.includes('application/json')) {
+        console.warn('[SEPAY WEBHOOK] Rejecting non-JSON content type');
+        return res.status(400).json({ error: 'Content-Type must be application/json' });
       }
 
-      console.log('[CASSO] Dang tao grant token tu Casso...');
+      // 2. Kiem tra bao mat Webhook (Ho tro ca HMAC-SHA256 va API Key de linh hoat)
+      const expectedKey = process.env.SEPAY_WEBHOOK_KEY;
+      const signatureHeader = req.headers['x-sepay-signature'] || req.headers['X-SePay-Signature'];
+      const timestampHeader = req.headers['x-sepay-timestamp'] || req.headers['X-SePay-Timestamp'];
 
-      // Goi API Casso de tao grant token cho phan quyen giao dich
-      const response = await fetch('https://cas.so/general/api/grant/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-client-id': cassoClientId,
-          'x-secret-key': cassoSecretKey
-        },
-        body: JSON.stringify({ scopes: ['transaction'] })
-      });
-
-      const ketQua = await response.json();
-      console.log('[CASSO] Grant create response:', JSON.stringify(ketQua));
-
-      if (!response.ok || !ketQua.data?.grantToken) {
-        return res.status(400).json({ error: 'Khong the tao grant token tu Casso', details: ketQua });
-      }
-
-      res.json({ grantToken: ketQua.data.grantToken });
-    } catch (error: any) {
-      console.error('[CASSO] Loi tao grant token:', error.message);
-      res.status(500).json({ error: 'Loi ket noi den Casso', details: error.message });
-    }
-  });
-
-  // ---------------------------------------------------
-  // Endpoint 2: Doi publicToken lay accessToken vinh vien
-  // POST /api/casso/token-exchange
-  // Body: { publicToken: string, ownerId: string }
-  // ---------------------------------------------------
-  app.post('/api/casso/token-exchange', async (req, res) => {
-    try {
-      const { publicToken, ownerId } = req.body;
-
-      if (!publicToken || !ownerId) {
-        return res.status(400).json({ error: 'Thieu publicToken hoac ownerId' });
-      }
-
-      const cassoClientId = process.env.CASSO_CLIENT_ID;
-      const cassoSecretKey = process.env.CASSO_SECRET_KEY;
-
-      if (!cassoClientId || !cassoSecretKey) {
-        return res.status(500).json({ error: 'CASSO_CLIENT_ID hoac CASSO_SECRET_KEY chua duoc cau hinh' });
-      }
-
-      console.log(`[CASSO] Dang doi publicToken cho user ${ownerId}...`);
-
-      // Goi API Casso de doi publicToken lay accessToken vinh vien
-      const response = await fetch('https://cas.so/general/api/grant/exchange', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-client-id': cassoClientId,
-          'x-secret-key': cassoSecretKey
-        },
-        body: JSON.stringify({ publicToken })
-      });
-
-      const ketQua = await response.json();
-      console.log('[CASSO] Token exchange response:', JSON.stringify(ketQua));
-
-      if (!response.ok || !ketQua.data?.accessToken) {
-        return res.status(400).json({ error: 'Khong the doi token tu Casso', details: ketQua });
-      }
-
-      const { accessToken, grantId } = ketQua.data;
-
-      // Luu accessToken vao Supabase (upsert theo owner_id)
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(
-        process.env.SUPABASE_URL || '',
-        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || ''
-      );
-
-      const { error: dbError } = await supabase
-        .from('casso_connections')
-        .upsert({
-          owner_id: ownerId,
-          grant_id: grantId || null,
-          access_token: accessToken,
-          status: 'active',
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'owner_id' });
-
-      if (dbError) {
-        console.error('[CASSO] Loi luu ket noi vao DB:', dbError.message);
-        return res.status(500).json({ error: 'Luu token vao database that bai', details: dbError.message });
-      }
-
-      console.log(`[CASSO] Ket noi thanh cong cho user ${ownerId}`);
-      res.json({ success: true, message: 'Ket noi tai khoan ngan hang thanh cong' });
-
-    } catch (error: any) {
-      console.error('[CASSO] Loi doi token:', error.message);
-      res.status(500).json({ error: 'Loi xu ly doi token', details: error.message });
-    }
-  });
-
-  // ---------------------------------------------------
-  // Endpoint 3: Dong bo thu cong lich su giao dich
-  // POST /api/casso/sync
-  // Body: { ownerId: string, fromDate?: string }
-  // ---------------------------------------------------
-  app.post('/api/casso/sync', async (req, res) => {
-    try {
-      const { ownerId, fromDate } = req.body;
-
-      if (!ownerId) {
-        return res.status(400).json({ error: 'Thieu ownerId' });
-      }
-
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(
-        process.env.SUPABASE_URL || '',
-        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || ''
-      );
-
-      // Lay accessToken tu database cua nguoi dung
-      const { data: ketNoi, error: dbErr } = await supabase
-        .from('casso_connections')
-        .select('access_token')
-        .eq('owner_id', ownerId)
-        .eq('status', 'active')
-        .single();
-
-      if (dbErr || !ketNoi) {
-        return res.status(404).json({ error: 'Khong tim thay ket noi Casso cho nguoi dung nay' });
-      }
-
-      // Tao URL goi API Casso voi cac tham so
-      const ngayBatDau = fromDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const urlCasso = `https://oauth.casso.vn/v2/transactions?fromDate=${ngayBatDau}&pageSize=50&sort=DESC`;
-
-      console.log(`[CASSO] Dang dong bo giao dich cho user ${ownerId} tu ngay ${ngayBatDau}...`);
-
-      const response = await fetch(urlCasso, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${ketNoi.access_token}`
+      if (signatureHeader && timestampHeader) {
+        // A. Xac thuc bang HMAC-SHA256
+        if (!expectedKey) {
+          console.warn('[SEPAY WEBHOOK] Loi: Chua cau hinh SEPAY_WEBHOOK_KEY de xac thuc HMAC');
+          return res.status(500).json({ error: 'Webhook key not configured on server' });
         }
-      });
 
-      const ketQua = await response.json();
-
-      if (!response.ok || ketQua.error !== 0) {
-        return res.status(400).json({ error: 'Casso API tra ve loi', details: ketQua });
-      }
-
-      const danhSachGiaoDich = ketQua.data?.records || [];
-      let soMoi = 0;
-      let soDaSoat = 0;
-
-      // Luu tung giao dich vao database (bo qua neu da ton tai theo casso_id)
-      for (const gd of danhSachGiaoDich) {
-        const { data: gdMoi, error: insertErr } = await supabase
-          .from('casso_transactions')
-          .upsert({
-            owner_id: ownerId,
-            casso_id: gd.id,
-            tid: gd.tid,
-            amount: gd.amount,
-            description: gd.description,
-            when_date: gd.when ? new Date(gd.when).toISOString() : null,
-            bank_sub_acc_id: gd.bankSubAccId,
-            bank_code_name: gd.bankCodeName,
-            match_status: 'unmatched'
-          }, { onConflict: 'casso_id', ignoreDuplicates: true })
-          .select('id, casso_id, amount, description, owner_id')
-          .single();
-
-        if (!insertErr && gdMoi) {
-          soMoi++;
-          // Chay doi soat tu dong
-          await doiSoatHoaDon(supabase, { ...gdMoi, owner_id: ownerId });
-          if (gdMoi) soDaSoat++;
+        // 1. Chong Replay Attack (neu chenh lech > 5 phut = 300s)
+        const timestamp = Number(timestampHeader);
+        const now = Math.floor(Date.now() / 1000);
+        if (isNaN(timestamp) || Math.abs(now - timestamp) > 300) {
+          console.warn(`[SEPAY WEBHOOK] Rejecting expired timestamp: ${timestampHeader} (Server: ${now})`);
+          return res.status(401).json({ error: 'Timestamp expired' });
         }
-      }
 
-      console.log(`[CASSO] Dong bo xong: ${soMoi} giao dich moi, ${soDaSoat} da doi soat`);
-      res.json({
-        success: true,
-        soGiaoDich: danhSachGiaoDich.length,
-        soMoi,
-        message: `Da dong bo ${soMoi} giao dich moi`
-      });
+        // 2. Tinh toan chu ky tu raw body
+        const rawBodyStr = (req as any).rawBody ? (req as any).rawBody.toString('utf-8') : '';
+        const dataToVerify = `${timestampHeader}.${rawBodyStr}`;
+        const calculatedSignature = crypto
+          .createHmac('sha256', expectedKey)
+          .update(dataToVerify)
+          .digest('hex');
 
-    } catch (error: any) {
-      console.error('[CASSO] Loi dong bo giao dich:', error.message);
-      res.status(500).json({ error: 'Loi dong bo giao dich', details: error.message });
-    }
-  });
+        // 3. So sanh chu ky
+        let incomingSignature = String(signatureHeader);
+        if (incomingSignature.startsWith('sha256=')) {
+          incomingSignature = incomingSignature.substring(7);
+        }
 
-  // ---------------------------------------------------
-  // Endpoint 4: Webhook nhan giao dich tu dong tu Casso
-  // POST /api/webhook-casso (endpoint cong khai)
-  // ---------------------------------------------------
-  app.post('/api/webhook-casso', async (req, res) => {
-    // Luon tra ve 200 OK ngay lap tuc de Casso khong retry
-    res.status(200).json({ status: 'ok' });
+        if (incomingSignature !== calculatedSignature) {
+          console.warn('[SEPAY WEBHOOK] Canh bao: Chu ky HMAC-SHA256 khong khop!');
+          return res.status(401).json({ error: 'Invalid signature' });
+        }
 
-    try {
-      // Xac thuc bang Secure-Token trong header
-      const webhookToken = process.env.CASSO_WEBHOOK_TOKEN;
-      const tokenNhanDuoc = req.headers['secure-token'] || req.headers['Secure-Token'];
-
-      if (webhookToken && tokenNhanDuoc !== webhookToken) {
-        console.warn('[CASSO WEBHOOK] Canh bao: Secure-Token khong hop le, bo qua request');
-        return;
+        console.log('[SEPAY WEBHOOK] Xac thuc HMAC-SHA256 thanh cong.');
+      } else {
+        // B. Fallback sang xac thuc API Key
+        const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+        if (expectedKey && authHeader !== `Apikey ${expectedKey}`) {
+          console.warn('[SEPAY WEBHOOK] Canh bao: Authorization API Key khong hop le hoac thieu');
+          return res.status(401).json({ error: 'Unauthorized key' });
+        }
       }
 
       const payload = req.body;
-      console.log('[CASSO WEBHOOK] Nhan duoc payload:', JSON.stringify(payload).substring(0, 500));
-
-      // Lay danh sach giao dich tu payload Casso
-      // Cau truc: { error: 0, data: { records: [...] } } hoac { error: 0, data: [...] }
-      let danhSachGiaoDich = [];
-      if (Array.isArray(payload?.data)) {
-        danhSachGiaoDich = payload.data;
-      } else if (Array.isArray(payload?.data?.records)) {
-        danhSachGiaoDich = payload.data.records;
-      } else if (payload?.id) {
-        // Casso doi khi gui tung giao dich don le
-        danhSachGiaoDich = [payload];
+      if (!payload || payload.id === undefined || payload.id === null || payload.id === '') {
+        console.warn('[SEPAY WEBHOOK] Payload thieu thong tin id giao dich');
+        return res.status(400).json({ error: 'Missing transaction id' });
       }
 
-      if (danhSachGiaoDich.length === 0) {
-        console.log('[CASSO WEBHOOK] Khong co giao dich trong payload');
-        return;
+      const txId = String(payload.id);
+      console.log(`[SEPAY WEBHOOK] Nhan duoc thong bao giao dich ID: ${txId}`);
+
+      const supabase = await getSupabaseClient();
+
+      // 3. Logic chong trung lap (Idempotency)
+      const { data: existingTx } = await supabase
+        .from('tb_transactions')
+        .select('id')
+        .eq('id', txId)
+        .maybeSingle();
+
+      if (existingTx) {
+        console.log(`[SEPAY WEBHOOK] Giao dich ID ${txId} da duoc xu ly truoc do, bo qua.`);
+        return res.status(200).json({ success: true });
       }
 
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(
-        process.env.SUPABASE_URL || '',
-        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || ''
-      );
+      // 4. Phan tich cac truong thong tin tu payload SePay
+      const gateway = payload.gateway || 'Unknown';
+      
+      let transactionDate = payload.transactionDate || new Date().toISOString();
+      if (typeof transactionDate === 'string' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(transactionDate)) {
+        transactionDate = transactionDate.replace(' ', 'T') + '+07:00';
+      }
 
-      for (const gd of danhSachGiaoDich) {
-        // Tim owner_id dua tren so tai khoan trong casso_connections
-        const { data: dsKetNoi } = await supabase
-          .from('casso_connections')
+      const accountNumber = payload.accountNumber || '';
+      const subAccount = payload.subAccount || '';
+      const transferType = payload.transferType || 'in';
+      const transferAmount = Number(payload.transferAmount || 0);
+      const accumulated = Number(payload.accumulated || 0);
+      const code = payload.code || null;
+      const content = payload.content || '';
+      const referenceNumber = payload.referenceCode || '';
+      const body = payload.description || '';
+
+      const amountIn = transferType === 'in' ? transferAmount : 0;
+      const amountOut = transferType === 'out' ? transferAmount : 0;
+
+      // 5. Tim owner_id lien ket voi account_number tu sepay_accounts
+      let ownerId = null;
+      const { data: accountConn } = await supabase
+        .from('sepay_accounts')
+        .select('owner_id')
+        .eq('account_number', accountNumber)
+        .maybeSingle();
+
+      if (accountConn) {
+        ownerId = accountConn.owner_id;
+      }
+
+      // 6. Test Local Fallback (chi kich hoat trong moi truong development hoac co flag SEPAY_TEST_FALLBACK)
+      const isDev = process.env.NODE_ENV === 'development';
+      const isTestFallback = process.env.SEPAY_TEST_FALLBACK === 'true';
+
+      if (!ownerId && (isDev || isTestFallback)) {
+        console.log(`[SEPAY WEBHOOK] Khong tim thay so tai khoan dang ky. Dang ap dung fallback test local...`);
+        // Tim bat ky hoa don hoac hop dong nao de lay owner_id test
+        const { data: sampleInvoice } = await supabase
+          .from('invoices')
           .select('owner_id')
-          .eq('status', 'active');
+          .limit(1)
+          .maybeSingle();
 
-        // Neu chi co 1 ket noi, gan luon cho owner do
-        // (He thong hien tai 1 nguoi dung - 1 ket noi)
-        const ownerId = dsKetNoi?.[0]?.owner_id;
-        if (!ownerId) {
-          console.warn('[CASSO WEBHOOK] Khong tim duoc owner_id, bo qua giao dich:', gd.id);
-          continue;
-        }
-
-        // Luu giao dich (bo qua neu da ton tai)
-        const { data: gdMoi, error: insertErr } = await supabase
-          .from('casso_transactions')
-          .upsert({
-            owner_id: ownerId,
-            casso_id: gd.id,
-            tid: gd.tid,
-            amount: gd.amount,
-            description: gd.description,
-            when_date: gd.when ? new Date(gd.when).toISOString() : null,
-            bank_sub_acc_id: gd.bankSubAccId,
-            bank_code_name: gd.bankCodeName,
-            match_status: 'unmatched'
-          }, { onConflict: 'casso_id', ignoreDuplicates: true })
-          .select('id, casso_id, amount, description, owner_id')
-          .single();
-
-        if (!insertErr && gdMoi) {
-          await doiSoatHoaDon(supabase, { ...gdMoi, owner_id: ownerId });
-          console.log(`[CASSO WEBHOOK] Da xu ly giao dich ${gd.id}`);
+        if (sampleInvoice) {
+          ownerId = sampleInvoice.owner_id;
+          console.log(`[SEPAY WEBHOOK] Fallback test local thanh cong. Su dung owner_id: ${ownerId}`);
         }
       }
 
-    } catch (error: any) {
-      console.error('[CASSO WEBHOOK] Loi xu ly webhook:', error.message);
-      // Khong tra ve loi vi da res 200 o tren
+      if (!ownerId) {
+        console.warn(`[SEPAY WEBHOOK] Bo qua giao dich ID ${txId}: Khong xac dinh duoc nguoi dung so huu tai khoan ${accountNumber}.`);
+        // Khong tra ve loi 400 ma van tra ve 200 de tranh SePay retry gui lai giao dich khong lien quan
+        return res.status(200).json({ success: true, message: 'Owner not resolved' });
+      }
+
+      // 7. Ghi nhan giao dich vao tb_transactions
+      const { data: newTx, error: insertErr } = await supabase
+        .from('tb_transactions')
+        .insert({
+          id: txId,
+          owner_id: ownerId,
+          gateway,
+          transaction_date: transactionDate,
+          account_number: accountNumber,
+          sub_account: subAccount || null,
+          amount_in: amountIn,
+          amount_out: amountOut,
+          accumulated,
+          code,
+          content,
+          reference_number: referenceNumber,
+          body,
+          match_status: 'unmatched'
+        })
+        .select()
+        .single();
+
+      if (insertErr || !newTx) {
+        console.error('[SEPAY WEBHOOK] Loi insert giao dich vao database:', insertErr?.message);
+        return res.status(500).json({ error: 'Database insert failed' });
+      }
+
+      // 8. Kich hoat doi soat hoa don tu dong
+      await doiSoatHoaDonSepay(supabase, {
+        id: txId,
+        owner_id: ownerId,
+        amount_in: amountIn,
+        code,
+        content
+      });
+
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error('[SEPAY WEBHOOK] Loi nghiem trong khi nhan webhook:', error.message);
+      res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   });
 
-  // Endpoint lay danh sach giao dich va trang thai ket noi
-  // GET /api/casso/status?ownerId=xxx
-  app.get('/api/casso/status', async (req, res) => {
+  // GET /api/sepay/status (Lay thong tin ket noi va lich su giao dich cho nguoi dung)
+  app.get('/api/sepay/status', async (req, res) => {
     try {
       const { ownerId } = req.query;
       if (!ownerId) return res.status(400).json({ error: 'Thieu ownerId' });
 
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(
-        process.env.SUPABASE_URL || '',
-        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || ''
-      );
+      const supabase = await getSupabaseClient();
 
-      const [{ data: ketNoi }, { data: danhSachGd }] = await Promise.all([
-        supabase.from('casso_connections').select('id, account_no, bank_name, status, created_at').eq('owner_id', ownerId).eq('status', 'active').single(),
-        supabase.from('casso_transactions').select('*').eq('owner_id', ownerId).order('when_date', { ascending: false }).limit(50)
+      const [{ data: accounts }, { data: transactions }] = await Promise.all([
+        supabase.from('sepay_accounts').select('*').eq('owner_id', ownerId),
+        supabase.from('tb_transactions').select('*').eq('owner_id', ownerId).order('transaction_date', { ascending: false }).limit(50)
       ]);
 
       res.json({
-        connected: !!ketNoi,
-        connection: ketNoi || null,
-        transactions: danhSachGd || []
+        connected: Array.isArray(accounts) && accounts.length > 0,
+        accounts: accounts || [],
+        transactions: transactions || []
       });
-    } catch (error: any) {
-      res.status(500).json({ error: 'Loi lay trang thai', details: error.message });
+    } catch (error) {
+      console.error('[SEPAY API] Loi lay status:', error.message);
+      res.status(500).json({ error: 'Loi he thong', details: error.message });
     }
   });
 
-  // Endpoint ngat ket noi Casso
-  // DELETE /api/casso/disconnect
-  app.delete('/api/casso/disconnect', async (req, res) => {
+  // POST /api/sepay/register-account (Dang ky so tai khoan nhan tien de nhan webhook)
+  app.post('/api/sepay/register-account', async (req, res) => {
     try {
-      const { ownerId } = req.body;
-      if (!ownerId) return res.status(400).json({ error: 'Thieu ownerId' });
+      const { ownerId, bankName, accountNumber } = req.body;
+      if (!ownerId || !bankName || !accountNumber) {
+        return res.status(400).json({ error: 'Thieu thong tin ownerId, bankName hoac accountNumber' });
+      }
 
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(
-        process.env.SUPABASE_URL || '',
-        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || ''
-      );
+      const supabase = await getSupabaseClient();
+      const { data, error } = await supabase
+        .from('sepay_accounts')
+        .upsert({
+          owner_id: ownerId,
+          bank_name: bankName,
+          account_number: accountNumber.trim()
+        }, { onConflict: 'account_number' })
+        .select()
+        .single();
 
-      await supabase.from('casso_connections').update({ status: 'revoked' }).eq('owner_id', ownerId);
-      res.json({ success: true });
-    } catch (error: any) {
-      res.status(500).json({ error: 'Loi ngat ket noi', details: error.message });
+      if (error) {
+        console.error('[SEPAY API] Loi insert account:', error.message);
+        return res.status(500).json({ error: 'Database update failed', details: error.message });
+      }
+
+      res.json({ success: true, account: data });
+    } catch (error) {
+      res.status(500).json({ error: 'Loi dang ky tai khoan', details: error.message });
     }
   });
 
-  // ==========================================
-  // END CASSO INTEGRATION API
-  // ==========================================
+  // DELETE /api/sepay/unregister-account (Huy dang ky so tai khoan nhan tien)
+  app.post('/api/sepay/unregister-account', async (req, res) => {
+    try {
+      const { ownerId, accountNumber } = req.body;
+      if (!ownerId || !accountNumber) {
+        return res.status(400).json({ error: 'Thieu ownerId hoac accountNumber' });
+      }
+
+      const supabase = await getSupabaseClient();
+      const { error } = await supabase
+        .from('sepay_accounts')
+        .delete()
+        .eq('owner_id', ownerId)
+        .eq('account_number', accountNumber);
+
+      if (error) {
+        return res.status(500).json({ error: 'Database delete failed', details: error.message });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Loi huy dang ky', details: error.message });
+    }
+  });
 
   // ---- HEARTBEAT ----
   app.post('/api/status/heartbeat', (req, res) => {

@@ -29,6 +29,11 @@ export interface IncomingDocument {
   ownerId: string;
   createdAt: string;
   updatedAt: string;
+  form_data?: any;
+  document_type?: string;
+  file_name?: string;
+  created_at?: string;
+  pdf_url?: string;
 }
 
 export interface IncomingDocumentFormData {
@@ -88,6 +93,11 @@ export interface OutgoingDocument {
   ownerId: string;
   createdAt: string;
   updatedAt: string;
+  form_data?: any;
+  document_type?: string;
+  file_name?: string;
+  created_at?: string;
+  pdf_url?: string;
 }
 
 export interface OutgoingDocumentFormData {
