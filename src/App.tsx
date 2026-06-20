@@ -66,7 +66,8 @@ import {
   Building,
   Save,
   BarChart3,
-  FolderArchive
+  FolderArchive,
+  Landmark
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
@@ -107,6 +108,7 @@ import { extractFromContract, convertContractDataToFormData } from './services/c
 import { AgentHubView } from './components/AgentHub/AgentHubView';
 import { DossierView } from './components/DocumentManagement';
 import { TaxLookupView } from './components/TaxLookup/TaxLookupView';
+import TransactionsView from './components/Casso/TransactionsView';
 
 
 // Safe check for iframe/wallpaper environment that won't throw cross-origin errors
@@ -125,7 +127,7 @@ const isIframeMode = () => {
 };
 
 // --- Types ---
-type Tab = 'dashboard' | 'upload' | 'partners' | 'docs' | 'contract' | 'contract_upload' | 'system' | 'agent-hub' | 'dossier' | 'tax-lookup';
+type Tab = 'dashboard' | 'upload' | 'partners' | 'docs' | 'contract' | 'contract_upload' | 'system' | 'agent-hub' | 'dossier' | 'tax-lookup' | 'transactions';
 
 interface Partner {
   id: string;
@@ -230,6 +232,7 @@ const Sidebar = ({
     { id: 'contract_upload', icon: UploadCloud, label: 'Tải lên hợp đồng' },
     { id: 'docs', icon: Files, label: 'Tài liệu đã tạo' },
     { id: 'tax-lookup', icon: Search, label: 'Tra cứu thuế' },
+    { id: 'transactions', icon: Landmark, label: 'Giao dịch ngân hàng' },
     { id: 'system', icon: Database, label: 'Theo dõi hệ thống' },
     { id: 'agent-hub', icon: Cpu, label: 'Cấu hình Agent Hub' },
     { id: 'dossier', icon: FolderArchive, label: 'Hồ sơ' },
@@ -10401,7 +10404,8 @@ const TAB_CONFIG: Record<Tab, { path: string, label: string }> = {
   system: { path: 'theo-doi-he-thong', label: 'Theo dõi hệ thống' },
   'agent-hub': { path: 'agent-hub', label: 'Cấu hình Agent Hub' },
   dossier: { path: 'ho-so', label: 'Hồ sơ' },
-  'tax-lookup': { path: 'tra-cuu-thue', label: 'Tra cứu thuế' }
+  'tax-lookup': { path: 'tra-cuu-thue', label: 'Tra cứu thuế' },
+  'transactions': { path: 'giao-dich', label: 'Giao dịch ngân hàng' }
 };
 
 // Helper to remove Vietnamese diacritics while preserving case
@@ -14651,6 +14655,9 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
             )}
             {activeTab === 'tax-lookup' && (
               <TaxLookupView />
+            )}
+            {activeTab === 'transactions' && user && (
+              <TransactionsView ownerId={user.uid} />
             )}
             {activeTab === 'agent-hub' && (
               <AgentHubView />

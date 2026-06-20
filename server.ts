@@ -2607,6 +2607,400 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
     }
   });
 
+  // ==========================================
+  // CASSO INTEGRATION API - Dong bo giao dich ngan hang
+  // ==========================================
+
+  // Ham noi bo: doi soat hoa don voi giao dich moi
+  // Kiem tra so tien va cap nhat payment_status = 'paid' neu khop
+  async function doiSoatHoaDon(
+    supabaseClient: any,
+    giaoDich: { id: string; casso_id: number; amount: number; description: string; owner_id: string }
+  ) {
+    // Chi xu ly giao dich tien vao (amount duong)
+    if (giaoDich.amount <= 0) return;
+
+    // Lay danh sach hoa don chua thanh toan cua nguoi dung
+    const { data: dsHoaDon } = await supabaseClient
+      .from('invoices')
+      .select('id, total_amount, file_name')
+      .eq('owner_id', giaoDich.owner_id)
+      .eq('payment_status', 'unpaid')
+      .not('total_amount', 'is', null);
+
+    if (!dsHoaDon || dsHoaDon.length === 0) return;
+
+    // Tim hoa don khop voi so tien giao dich (chenh lech <= 1%)
+    const hoaDonKhop = dsHoaDon.find((hd: any) => {
+      const soTien = parseFloat(hd.total_amount);
+      const chenh_lech = Math.abs(soTien - giaoDich.amount) / soTien;
+      return chenh_lech <= 0.01;
+    });
+
+    if (!hoaDonKhop) return;
+
+    // Cap nhat payment_status cua hoa don sang 'paid'
+    await supabaseClient
+      .from('invoices')
+      .update({ payment_status: 'paid', updated_at: new Date().toISOString() })
+      .eq('id', hoaDonKhop.id);
+
+    // Cap nhat trang thai doi soat cua giao dich
+    await supabaseClient
+      .from('casso_transactions')
+      .update({ match_status: 'matched', matched_invoice_id: hoaDonKhop.id })
+      .eq('id', giaoDich.id);
+
+    console.log(`[CASSO] Doi soat thanh cong: Giao dich ${giaoDich.casso_id} khop voi hoa don ${hoaDonKhop.id}`);
+  }
+
+  // ---------------------------------------------------
+  // Endpoint 1: Tao grant token de mo cua so Cas Link
+  // POST /api/casso/grant-create
+  // ---------------------------------------------------
+  app.post('/api/casso/grant-create', async (req, res) => {
+    try {
+      const cassoClientId = process.env.CASSO_CLIENT_ID;
+      const cassoSecretKey = process.env.CASSO_SECRET_KEY;
+
+      if (!cassoClientId || !cassoSecretKey) {
+        return res.status(500).json({ error: 'CASSO_CLIENT_ID hoac CASSO_SECRET_KEY chua duoc cau hinh trong .env' });
+      }
+
+      console.log('[CASSO] Dang tao grant token tu Casso...');
+
+      // Goi API Casso de tao grant token cho phan quyen giao dich
+      const response = await fetch('https://cas.so/general/api/grant/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-client-id': cassoClientId,
+          'x-secret-key': cassoSecretKey
+        },
+        body: JSON.stringify({ scopes: ['transaction'] })
+      });
+
+      const ketQua = await response.json();
+      console.log('[CASSO] Grant create response:', JSON.stringify(ketQua));
+
+      if (!response.ok || !ketQua.data?.grantToken) {
+        return res.status(400).json({ error: 'Khong the tao grant token tu Casso', details: ketQua });
+      }
+
+      res.json({ grantToken: ketQua.data.grantToken });
+    } catch (error: any) {
+      console.error('[CASSO] Loi tao grant token:', error.message);
+      res.status(500).json({ error: 'Loi ket noi den Casso', details: error.message });
+    }
+  });
+
+  // ---------------------------------------------------
+  // Endpoint 2: Doi publicToken lay accessToken vinh vien
+  // POST /api/casso/token-exchange
+  // Body: { publicToken: string, ownerId: string }
+  // ---------------------------------------------------
+  app.post('/api/casso/token-exchange', async (req, res) => {
+    try {
+      const { publicToken, ownerId } = req.body;
+
+      if (!publicToken || !ownerId) {
+        return res.status(400).json({ error: 'Thieu publicToken hoac ownerId' });
+      }
+
+      const cassoClientId = process.env.CASSO_CLIENT_ID;
+      const cassoSecretKey = process.env.CASSO_SECRET_KEY;
+
+      if (!cassoClientId || !cassoSecretKey) {
+        return res.status(500).json({ error: 'CASSO_CLIENT_ID hoac CASSO_SECRET_KEY chua duoc cau hinh' });
+      }
+
+      console.log(`[CASSO] Dang doi publicToken cho user ${ownerId}...`);
+
+      // Goi API Casso de doi publicToken lay accessToken vinh vien
+      const response = await fetch('https://cas.so/general/api/grant/exchange', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-client-id': cassoClientId,
+          'x-secret-key': cassoSecretKey
+        },
+        body: JSON.stringify({ publicToken })
+      });
+
+      const ketQua = await response.json();
+      console.log('[CASSO] Token exchange response:', JSON.stringify(ketQua));
+
+      if (!response.ok || !ketQua.data?.accessToken) {
+        return res.status(400).json({ error: 'Khong the doi token tu Casso', details: ketQua });
+      }
+
+      const { accessToken, grantId } = ketQua.data;
+
+      // Luu accessToken vao Supabase (upsert theo owner_id)
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || ''
+      );
+
+      const { error: dbError } = await supabase
+        .from('casso_connections')
+        .upsert({
+          owner_id: ownerId,
+          grant_id: grantId || null,
+          access_token: accessToken,
+          status: 'active',
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'owner_id' });
+
+      if (dbError) {
+        console.error('[CASSO] Loi luu ket noi vao DB:', dbError.message);
+        return res.status(500).json({ error: 'Luu token vao database that bai', details: dbError.message });
+      }
+
+      console.log(`[CASSO] Ket noi thanh cong cho user ${ownerId}`);
+      res.json({ success: true, message: 'Ket noi tai khoan ngan hang thanh cong' });
+
+    } catch (error: any) {
+      console.error('[CASSO] Loi doi token:', error.message);
+      res.status(500).json({ error: 'Loi xu ly doi token', details: error.message });
+    }
+  });
+
+  // ---------------------------------------------------
+  // Endpoint 3: Dong bo thu cong lich su giao dich
+  // POST /api/casso/sync
+  // Body: { ownerId: string, fromDate?: string }
+  // ---------------------------------------------------
+  app.post('/api/casso/sync', async (req, res) => {
+    try {
+      const { ownerId, fromDate } = req.body;
+
+      if (!ownerId) {
+        return res.status(400).json({ error: 'Thieu ownerId' });
+      }
+
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || ''
+      );
+
+      // Lay accessToken tu database cua nguoi dung
+      const { data: ketNoi, error: dbErr } = await supabase
+        .from('casso_connections')
+        .select('access_token')
+        .eq('owner_id', ownerId)
+        .eq('status', 'active')
+        .single();
+
+      if (dbErr || !ketNoi) {
+        return res.status(404).json({ error: 'Khong tim thay ket noi Casso cho nguoi dung nay' });
+      }
+
+      // Tao URL goi API Casso voi cac tham so
+      const ngayBatDau = fromDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const urlCasso = `https://oauth.casso.vn/v2/transactions?fromDate=${ngayBatDau}&pageSize=50&sort=DESC`;
+
+      console.log(`[CASSO] Dang dong bo giao dich cho user ${ownerId} tu ngay ${ngayBatDau}...`);
+
+      const response = await fetch(urlCasso, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${ketNoi.access_token}`
+        }
+      });
+
+      const ketQua = await response.json();
+
+      if (!response.ok || ketQua.error !== 0) {
+        return res.status(400).json({ error: 'Casso API tra ve loi', details: ketQua });
+      }
+
+      const danhSachGiaoDich = ketQua.data?.records || [];
+      let soMoi = 0;
+      let soDaSoat = 0;
+
+      // Luu tung giao dich vao database (bo qua neu da ton tai theo casso_id)
+      for (const gd of danhSachGiaoDich) {
+        const { data: gdMoi, error: insertErr } = await supabase
+          .from('casso_transactions')
+          .upsert({
+            owner_id: ownerId,
+            casso_id: gd.id,
+            tid: gd.tid,
+            amount: gd.amount,
+            description: gd.description,
+            when_date: gd.when ? new Date(gd.when).toISOString() : null,
+            bank_sub_acc_id: gd.bankSubAccId,
+            bank_code_name: gd.bankCodeName,
+            match_status: 'unmatched'
+          }, { onConflict: 'casso_id', ignoreDuplicates: true })
+          .select('id, casso_id, amount, description, owner_id')
+          .single();
+
+        if (!insertErr && gdMoi) {
+          soMoi++;
+          // Chay doi soat tu dong
+          await doiSoatHoaDon(supabase, { ...gdMoi, owner_id: ownerId });
+          if (gdMoi) soDaSoat++;
+        }
+      }
+
+      console.log(`[CASSO] Dong bo xong: ${soMoi} giao dich moi, ${soDaSoat} da doi soat`);
+      res.json({
+        success: true,
+        soGiaoDich: danhSachGiaoDich.length,
+        soMoi,
+        message: `Da dong bo ${soMoi} giao dich moi`
+      });
+
+    } catch (error: any) {
+      console.error('[CASSO] Loi dong bo giao dich:', error.message);
+      res.status(500).json({ error: 'Loi dong bo giao dich', details: error.message });
+    }
+  });
+
+  // ---------------------------------------------------
+  // Endpoint 4: Webhook nhan giao dich tu dong tu Casso
+  // POST /api/webhook-casso (endpoint cong khai)
+  // ---------------------------------------------------
+  app.post('/api/webhook-casso', async (req, res) => {
+    // Luon tra ve 200 OK ngay lap tuc de Casso khong retry
+    res.status(200).json({ status: 'ok' });
+
+    try {
+      // Xac thuc bang Secure-Token trong header
+      const webhookToken = process.env.CASSO_WEBHOOK_TOKEN;
+      const tokenNhanDuoc = req.headers['secure-token'] || req.headers['Secure-Token'];
+
+      if (webhookToken && tokenNhanDuoc !== webhookToken) {
+        console.warn('[CASSO WEBHOOK] Canh bao: Secure-Token khong hop le, bo qua request');
+        return;
+      }
+
+      const payload = req.body;
+      console.log('[CASSO WEBHOOK] Nhan duoc payload:', JSON.stringify(payload).substring(0, 500));
+
+      // Lay danh sach giao dich tu payload Casso
+      // Cau truc: { error: 0, data: { records: [...] } } hoac { error: 0, data: [...] }
+      let danhSachGiaoDich = [];
+      if (Array.isArray(payload?.data)) {
+        danhSachGiaoDich = payload.data;
+      } else if (Array.isArray(payload?.data?.records)) {
+        danhSachGiaoDich = payload.data.records;
+      } else if (payload?.id) {
+        // Casso doi khi gui tung giao dich don le
+        danhSachGiaoDich = [payload];
+      }
+
+      if (danhSachGiaoDich.length === 0) {
+        console.log('[CASSO WEBHOOK] Khong co giao dich trong payload');
+        return;
+      }
+
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || ''
+      );
+
+      for (const gd of danhSachGiaoDich) {
+        // Tim owner_id dua tren so tai khoan trong casso_connections
+        const { data: dsKetNoi } = await supabase
+          .from('casso_connections')
+          .select('owner_id')
+          .eq('status', 'active');
+
+        // Neu chi co 1 ket noi, gan luon cho owner do
+        // (He thong hien tai 1 nguoi dung - 1 ket noi)
+        const ownerId = dsKetNoi?.[0]?.owner_id;
+        if (!ownerId) {
+          console.warn('[CASSO WEBHOOK] Khong tim duoc owner_id, bo qua giao dich:', gd.id);
+          continue;
+        }
+
+        // Luu giao dich (bo qua neu da ton tai)
+        const { data: gdMoi, error: insertErr } = await supabase
+          .from('casso_transactions')
+          .upsert({
+            owner_id: ownerId,
+            casso_id: gd.id,
+            tid: gd.tid,
+            amount: gd.amount,
+            description: gd.description,
+            when_date: gd.when ? new Date(gd.when).toISOString() : null,
+            bank_sub_acc_id: gd.bankSubAccId,
+            bank_code_name: gd.bankCodeName,
+            match_status: 'unmatched'
+          }, { onConflict: 'casso_id', ignoreDuplicates: true })
+          .select('id, casso_id, amount, description, owner_id')
+          .single();
+
+        if (!insertErr && gdMoi) {
+          await doiSoatHoaDon(supabase, { ...gdMoi, owner_id: ownerId });
+          console.log(`[CASSO WEBHOOK] Da xu ly giao dich ${gd.id}`);
+        }
+      }
+
+    } catch (error: any) {
+      console.error('[CASSO WEBHOOK] Loi xu ly webhook:', error.message);
+      // Khong tra ve loi vi da res 200 o tren
+    }
+  });
+
+  // Endpoint lay danh sach giao dich va trang thai ket noi
+  // GET /api/casso/status?ownerId=xxx
+  app.get('/api/casso/status', async (req, res) => {
+    try {
+      const { ownerId } = req.query;
+      if (!ownerId) return res.status(400).json({ error: 'Thieu ownerId' });
+
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || ''
+      );
+
+      const [{ data: ketNoi }, { data: danhSachGd }] = await Promise.all([
+        supabase.from('casso_connections').select('id, account_no, bank_name, status, created_at').eq('owner_id', ownerId).eq('status', 'active').single(),
+        supabase.from('casso_transactions').select('*').eq('owner_id', ownerId).order('when_date', { ascending: false }).limit(50)
+      ]);
+
+      res.json({
+        connected: !!ketNoi,
+        connection: ketNoi || null,
+        transactions: danhSachGd || []
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: 'Loi lay trang thai', details: error.message });
+    }
+  });
+
+  // Endpoint ngat ket noi Casso
+  // DELETE /api/casso/disconnect
+  app.delete('/api/casso/disconnect', async (req, res) => {
+    try {
+      const { ownerId } = req.body;
+      if (!ownerId) return res.status(400).json({ error: 'Thieu ownerId' });
+
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.SUPABASE_URL || '',
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || ''
+      );
+
+      await supabase.from('casso_connections').update({ status: 'revoked' }).eq('owner_id', ownerId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: 'Loi ngat ket noi', details: error.message });
+    }
+  });
+
+  // ==========================================
+  // END CASSO INTEGRATION API
+  // ==========================================
+
   // ---- HEARTBEAT ----
   app.post('/api/status/heartbeat', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
