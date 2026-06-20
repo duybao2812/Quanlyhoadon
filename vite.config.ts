@@ -1,4 +1,4 @@
-﻿import tailwindcss from '@tailwindcss/vite';
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
@@ -7,6 +7,9 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
+  const isVercel = !!process.env.VERCEL;
+  const isDev = mode === 'development';
+  const base = (isVercel || isDev) ? '/' : './';
   return {
     plugins: [
       react(),
@@ -75,7 +78,7 @@ export default defineConfig(({ mode }) => {
         }
       })
     ],
-    base: './',
+    base,
     define: {
       'process.env.MISTRAL_API_KEY': JSON.stringify(env.MISTRAL_API_KEY),
     },
@@ -88,9 +91,9 @@ export default defineConfig(({ mode }) => {
       chunkSizeWarningLimit: 2000,
       rollupOptions: {
         output: {
-          entryFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
-          chunkFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
-          assetFileNames: `assets/[name]-[hash]-${Date.now()}.[ext]`
+          entryFileNames: `assets/[name]-[hash].js`,
+          chunkFileNames: `assets/[name]-[hash].js`,
+          assetFileNames: `assets/[name]-[hash].[ext]`
         }
       }
     },

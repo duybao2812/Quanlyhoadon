@@ -575,18 +575,33 @@ async function startServer() {
     console.log(`[AUTH] Lưu phiên đăng nhập từ trình duyệt bên ngoài cho user: ${sessionData?.email}`);
     
     try {
-      const sessionPath = path.join(process.cwd(), 'uploads', 'session_auth.json');
+      let sessionPath = path.join(process.cwd(), 'uploads', 'session_auth.json');
+      if (process.env.VERCEL) {
+        sessionPath = path.join(os.tmpdir(), 'session_auth.json');
+      } else {
+        const uploadsDir = path.join(process.cwd(), 'uploads');
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+      }
       fs.writeFileSync(sessionPath, JSON.stringify(sessionData, null, 2), 'utf-8');
       res.json({ success: true, message: 'Đã lưu phiên đăng nhập thành công!' });
     } catch (err: any) {
       console.error('Lỗi khi lưu phiên đăng nhập:', err);
-      res.status(500).json({ error: 'Không thể lưu phiên đăng nhập', details: err.message });
+      if (process.env.VERCEL) {
+        res.json({ success: true, warning: 'Không thể ghi file trên Vercel, bỏ qua lưu session.', error: err.message });
+      } else {
+        res.status(500).json({ error: 'Không thể lưu phiên đăng nhập', details: err.message });
+      }
     }
   });
 
   app.get('/api/auth/get-session', (req, res) => {
     try {
-      const sessionPath = path.join(process.cwd(), 'uploads', 'session_auth.json');
+      let sessionPath = path.join(process.cwd(), 'uploads', 'session_auth.json');
+      if (process.env.VERCEL) {
+        sessionPath = path.join(os.tmpdir(), 'session_auth.json');
+      }
       if (fs.existsSync(sessionPath)) {
         const rawData = fs.readFileSync(sessionPath, 'utf-8');
         const sessionData = JSON.parse(rawData);
