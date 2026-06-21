@@ -11,7 +11,6 @@ import FormData from 'form-data';
 import OpenAI from 'openai';
 import os from 'os';
 import { exec } from 'child_process';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import crypto from 'crypto';
 
 dotenv.config();
@@ -663,10 +662,36 @@ async function startServer() {
     }
   }, 10 * 60 * 1000); // chay moi 10 phut
 
+  let pdfjsLibInstance: any = null;
+
+  async function getPdfjsLib() {
+    if (pdfjsLibInstance) return pdfjsLibInstance;
+
+    // Polyfills for Node.js environment where these browser globals are missing (e.g. Vercel)
+    if (typeof globalThis.DOMMatrix === 'undefined') {
+      (globalThis as any).DOMMatrix = class DOMMatrix {
+        constructor(init?: any) {}
+      };
+    }
+    if (typeof globalThis.ImageData === 'undefined') {
+      (globalThis as any).ImageData = class ImageData {
+        constructor(width: number, height: number, settings?: any) {}
+      };
+    }
+    if (typeof globalThis.Path2D === 'undefined') {
+      (globalThis as any).Path2D = class Path2D {};
+    }
+
+    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    pdfjsLibInstance = pdfjs;
+    return pdfjs;
+  }
+
   async function extractTextFromPdfBuffer(buffer: Buffer): Promise<string> {
     try {
+      const pdfjs = await getPdfjsLib();
       const data = new Uint8Array(buffer);
-      const loadingTask = pdfjsLib.getDocument({ data });
+      const loadingTask = pdfjs.getDocument({ data });
       const pdf = await loadingTask.promise;
       let fullText = '';
       
@@ -735,8 +760,9 @@ async function startServer() {
             contractTasks[taskId].progress = 'Đang kiểm tra định dạng PDF local...';
             try {
               // Lay so trang cua PDF de tinh toan trung binh ky tu tren moi trang
+              const pdfjs = await getPdfjsLib();
               const data = new Uint8Array(buffer);
-              const loadingTask = pdfjsLib.getDocument({ data });
+              const loadingTask = pdfjs.getDocument({ data });
               const pdf = await loadingTask.promise;
               const numPages = pdf.numPages;
 
