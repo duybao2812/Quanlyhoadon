@@ -3103,7 +3103,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
 
       const [{ data: accounts, error: errAcc }, { data: transactions, error: errTx }] = await Promise.all([
         supabase.from('sepay_accounts').select('*').eq('owner_id', ownerId),
-        supabase.from('tb_transactions').select('*').eq('owner_id', ownerId).order('transaction_date', { ascending: false }).limit(50)
+        supabase.from('tb_transactions').select('*').eq('owner_id', ownerId).order('transaction_date', { ascending: false })
       ]);
 
       if (errAcc || errTx) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Landmark,
   RefreshCw,
@@ -14,8 +14,12 @@ import {
   Trash2,
   Info,
   Check,
-  Search
+  Search,
+  FileSpreadsheet
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 import { useToast } from '../Notifications';
 
 interface SepayAccount {
@@ -229,12 +233,113 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
     }
   };
 
+  // Tinh toan so du luy ke thuc te tren giao dien (running balance) cho tung so tai khoan doc lap
+  const transactionsWithBalance = useMemo(() => {
+    if (transactions.length === 0) return [];
+    
+    // Phan nhom giao dich theo so tai khoan nhan
+    const groups: Record<string, SepayTransaction[]> = {};
+    transactions.forEach(tx => {
+      const acc = tx.account_number || 'unknown';
+      if (!groups[acc]) {
+        groups[acc] = [];
+      }
+      groups[acc].push(tx);
+    });
+
+    const processedTxs: (SepayTransaction & { computedAccumulated: number })[] = [];
+
+    // Tinh toan doc lap cho tung nhom tai khoan
+    Object.keys(groups).forEach(acc => {
+      const group = groups[acc];
+      
+      // Sap xep tu cu nhat den moi nhat (ngay tang dan)
+      const sorted = [...group].sort((a, b) => 
+        new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime()
+      );
+      
+      const n = sorted.length;
+      const balances = new Array(n).fill(null);
+      
+      // Tim cac diem moc so du thuc te (accumulated > 0) tu database
+      for (let i = 0; i < n; i++) {
+        const tx = sorted[i];
+        if (tx.accumulated && Number(tx.accumulated) > 0) {
+          balances[i] = Number(tx.accumulated);
+        }
+      }
+      
+      const firstAnchorIdx = balances.findIndex(b => b !== null);
+      
+      if (firstAnchorIdx !== -1) {
+        // 1. Loang nguoc ve phia truoc (tu anchor dau tien tro ve cu nhat)
+        let currentBal = balances[firstAnchorIdx];
+        for (let i = firstAnchorIdx - 1; i >= 0; i--) {
+          const nextTx = sorted[i + 1];
+          const isCredit = Number(nextTx.amount_in) > 0;
+          const amount = isCredit ? Number(nextTx.amount_in) : Number(nextTx.amount_out);
+          if (isCredit) {
+            currentBal -= amount;
+          } else {
+            currentBal += amount;
+          }
+          balances[i] = currentBal;
+        }
+        
+        // 2. Loang xuoi ve phia sau (tu anchor dau tien tro ve moi nhat)
+        currentBal = balances[firstAnchorIdx];
+        for (let i = firstAnchorIdx + 1; i < n; i++) {
+          if (balances[i] !== null) {
+            currentBal = balances[i];
+          } else {
+            const tx = sorted[i];
+            const isCredit = Number(tx.amount_in) > 0;
+            const amount = isCredit ? Number(tx.amount_in) : Number(tx.amount_out);
+            if (isCredit) {
+              currentBal += amount;
+            } else {
+              currentBal -= amount;
+            }
+            balances[i] = currentBal;
+          }
+        }
+      } else {
+        // Neu khong co diem moc nao khac 0, mac dinh loang tu 0 di len
+        let currentBal = 0;
+        for (let i = 0; i < n; i++) {
+          const tx = sorted[i];
+          const isCredit = Number(tx.amount_in) > 0;
+          const amount = isCredit ? Number(tx.amount_in) : Number(tx.amount_out);
+          if (isCredit) {
+            currentBal += amount;
+          } else {
+            currentBal -= amount;
+          }
+          balances[i] = currentBal;
+        }
+      }
+      
+      // Gan lai gia tri
+      for (let i = 0; i < n; i++) {
+        processedTxs.push({
+          ...sorted[i],
+          computedAccumulated: balances[i]
+        });
+      }
+    });
+
+    // Sap xep giam dan theo thoi gian de hien thi giao dich moi nhat len dau
+    return processedTxs.sort((a, b) => 
+      new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
+    );
+  }, [transactions]);
+
   // Thống kê sơ bộ
   const totalIn = transactions.reduce((sum, tx) => sum + Number(tx.amount_in), 0);
   const totalOut = transactions.reduce((sum, tx) => sum + Number(tx.amount_out), 0);
   const matchedCount = transactions.filter(tx => tx.match_status === 'matched').length;
 
-  const filteredTransactions = transactions.filter(tx => {
+  const filteredTransactions = transactionsWithBalance.filter(tx => {
     // 1. Lọc theo tài khoản đã chọn
     if (filterAccount !== 'all' && tx.account_number !== filterAccount) {
       return false;
@@ -256,8 +361,202 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
     return true;
   });
 
+  // Xuất file Excel lịch sử giao dịch chuyên nghiệp bằng ExcelJS
+  const handleExportExcel = async () => {
+    try {
+      const sortedTxs = [...filteredTransactions].sort((a, b) => 
+        new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime()
+      );
+
+      // Tính tổng thu, tổng chi, chênh lệch
+      const totalInExcel = sortedTxs.reduce((sum, tx) => sum + Number(tx.amount_in), 0);
+      const totalOutExcel = sortedTxs.reduce((sum, tx) => sum + Number(tx.amount_out), 0);
+      const diffExcel = totalInExcel - totalOutExcel;
+
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Nhật ký giao dịch');
+      
+      // Đảm bảo bật hiển thị đường lưới trong Excel
+      worksheet.views = [{ showGridLines: true }];
+
+      // 1. Tiêu đề Báo cáo (Dòng 1)
+      worksheet.mergeCells('A1:K1');
+      const titleCell = worksheet.getCell('A1');
+      titleCell.value = 'BÁO CÁO CHI TIẾT BIẾN ĐỘNG SỐ DƯ TÀI KHOẢN';
+      titleCell.font = { name: 'Arial', size: 15, bold: true, color: { argb: 'FFFFFFFF' } };
+      titleCell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF1F2937' } // Gray-800 sang trọng
+      };
+      titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      worksheet.getRow(1).height = 40;
+
+      // 2. Metadata (Dòng 2)
+      worksheet.mergeCells('A2:K2');
+      const metaCell = worksheet.getCell('A2');
+      metaCell.value = `Thời gian xuất: ${formatDisplayDate(new Date().toISOString())} | Tài khoản lọc: ${
+        filterAccount === 'all' ? 'TẤT CẢ TÀI KHOẢN' : filterAccount
+      }`;
+      metaCell.font = { name: 'Arial', size: 9, italic: true, color: { argb: 'FF555555' } };
+      metaCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      worksheet.getRow(2).height = 20;
+
+      // 3. Khối thẻ Tổng quan (Dòng 3 & 4)
+      worksheet.getRow(3).height = 18;
+      worksheet.getRow(4).height = 25;
+
+      const borderStyle = { style: 'thin' as const, color: { argb: 'FFD1D5DB' } };
+
+      // Thiết lập ô thẻ
+      const setupSummaryCard = (
+        headerCells: string,
+        valueCells: string,
+        headerCellRef: string,
+        valueCellRef: string,
+        title: string,
+        value: number,
+        bgColor: string,
+        textColor: string
+      ) => {
+        worksheet.mergeCells(headerCells);
+        worksheet.mergeCells(valueCells);
+
+        const hCell = worksheet.getCell(headerCellRef);
+        hCell.value = title;
+        hCell.font = { name: 'Arial', size: 8, bold: true, color: { argb: 'FF4B5563' } };
+        hCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+        hCell.alignment = { horizontal: 'center', vertical: 'middle' };
+        hCell.border = { top: borderStyle, left: borderStyle, right: borderStyle };
+
+        const vCell = worksheet.getCell(valueCellRef);
+        vCell.value = value;
+        vCell.font = { name: 'Arial', size: 12, bold: true, color: { argb: textColor } };
+        vCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+        vCell.alignment = { horizontal: 'center', vertical: 'middle' };
+        vCell.numFmt = '#,##0" đ"';
+        vCell.border = { bottom: borderStyle, left: borderStyle, right: borderStyle };
+      };
+
+      // Card Tổng Thu (Cột B & C)
+      setupSummaryCard('B3:C3', 'B4:C4', 'B3', 'B4', 'TỔNG THU (GHI CÓ)', totalInExcel, 'FFE2F0D9', 'FF2E7D32');
+
+      // Card Tổng Chi (Cột E & F)
+      setupSummaryCard('E3:F3', 'E4:F4', 'E3', 'E4', 'TỔNG CHI (GHI NỢ)', totalOutExcel, 'FFFCE4D6', 'FFC62828');
+
+      // Card Chênh Lệch (Cột H & I)
+      setupSummaryCard(
+        'H3:I3', 
+        'H4:I4', 
+        'H3', 
+        'H4', 
+        'CHÊNH LỆCH THU CHI', 
+        diffExcel, 
+        diffExcel >= 0 ? 'FFE2F0D9' : 'FFFCE4D6', 
+        diffExcel >= 0 ? 'FF2E7D32' : 'FFC62828'
+      );
+
+      // 4. Bảng Dữ liệu giao dịch (Excel Table chính thống bắt đầu từ Dòng 6)
+      const headers = [
+        "STT",
+        "Thời Gian",
+        "Ngân Hàng",
+        "Số Tài Khoản",
+        "Nội Dung Chuyển Khoản",
+        "Số Tiền Ghi Có (Thu)",
+        "Số Tiền Ghi Nợ (Chi)",
+        "Số Dư Lũy Kế",
+        "Mã Giao Dịch",
+        "Mã Tham Chiếu",
+        "Trạng Thái"
+      ];
+
+      // Tạo danh sách các dòng dữ liệu
+      const rows = sortedTxs.map((tx, idx) => {
+        const isCredit = Number(tx.amount_in) > 0;
+        return [
+          idx + 1,
+          formatDisplayDate(tx.transaction_date),
+          tx.gateway,
+          tx.account_number,
+          tx.content,
+          isCredit ? Number(tx.amount_in) : 0,
+          !isCredit ? Number(tx.amount_out) : 0,
+          Number(tx.computedAccumulated),
+          tx.code || '',
+          tx.reference_number || '',
+          tx.match_status === 'matched' ? 'Đã khớp' : 'Chưa khớp'
+        ];
+      });
+
+      // Khởi tạo bảng dữ liệu Table (đáp ứng tính năng PivotTable)
+      worksheet.addTable({
+        name: 'TransactionsTable',
+        ref: 'A6',
+        headerRow: true,
+        totalsRow: false,
+        style: {
+          theme: 'TableStyleMedium9', // Giao diện bảng hiện đại, chuyên nghiệp
+          showRowStripes: true,
+        },
+        columns: headers.map(h => ({ name: h, filterButton: true })),
+        rows: rows
+      });
+
+      // Thiết lập độ rộng cột cho từng cột trong worksheet
+      worksheet.columns = [
+        { key: 'stt', width: 6 },
+        { key: 'time', width: 22 },
+        { key: 'bank', width: 14 },
+        { key: 'acc', width: 18 },
+        { key: 'content', width: 50 },
+        { key: 'credit', width: 20 },
+        { key: 'debit', width: 20 },
+        { key: 'balance', width: 20 },
+        { key: 'tx_code', width: 16 },
+        { key: 'ref', width: 16 },
+        { key: 'status', width: 16 }
+      ];
+
+      // Cấu hình định dạng căn lề và số tiền cho các ô trong bảng
+      const startRow = 7;
+      const endRow = 6 + sortedTxs.length;
+
+      for (let r = startRow; r <= endRow; r++) {
+        const row = worksheet.getRow(r);
+        
+        // Định dạng hiển thị tiền tệ
+        row.getCell(6).numFmt = '#,##0" đ"';
+        row.getCell(7).numFmt = '#,##0" đ"';
+        row.getCell(8).numFmt = '#,##0" đ"';
+
+        // Căn lề các ô
+        row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' }; // STT
+        row.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' }; // Thời Gian
+        row.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' }; // Ngân Hàng
+        row.getCell(4).alignment = { horizontal: 'center', vertical: 'middle' }; // Số Tài Khoản
+        row.getCell(5).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true }; // Nội Dung
+        row.getCell(6).alignment = { horizontal: 'right', vertical: 'middle' }; // Ghi Có
+        row.getCell(7).alignment = { horizontal: 'right', vertical: 'middle' }; // Ghi Nợ
+        row.getCell(8).alignment = { horizontal: 'right', vertical: 'middle' }; // Số Dư Lũy Kế
+        row.getCell(9).alignment = { horizontal: 'left', vertical: 'middle' }; // Mã GD
+        row.getCell(10).alignment = { horizontal: 'left', vertical: 'middle' }; // Mã Ref
+        row.getCell(11).alignment = { horizontal: 'center', vertical: 'middle' }; // Trạng Thái
+      }
+
+      // Tạo file và lưu trữ
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      saveAs(blob, `Lich_su_giao_dich_ngan_hang_${new Date().getTime()}.xlsx`);
+      toast("Đã xuất lịch sử giao dịch ra Excel thành công!", "success");
+    } catch (err: any) {
+      console.error("Excel export error:", err);
+      toast("Lỗi khi xuất file Excel: " + err.message, "error");
+    }
+  };
+
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)] p-2 space-y-4 max-w-[1600px] mx-auto overflow-hidden">
+    <div className="flex flex-col h-full w-full p-2 space-y-4 max-w-[1600px] mx-auto overflow-hidden">
       
       {/* HEADER SECTION */}
       <div className="flex shrink-0 flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-border-dark pb-3">
@@ -288,6 +587,14 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleExportExcel}
+            className="btn-secondary flex items-center gap-1.5 text-xs bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:bg-emerald-600/20"
+          >
+            <FileSpreadsheet size={13} />
+            XUẤT EXCEL
+          </button>
+
           <button
             onClick={handleRefresh}
             disabled={isLoading || isSyncing}
@@ -399,7 +706,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
                           <span className={`text-xs font-extrabold ${isCredit ? 'text-emerald-400' : 'text-rose-400'}`}>
                             {isCredit ? '+' : '-'}{formatCurrency(displayAmount)}
                           </span>
-                          <p className="text-[9px] text-text-dim font-mono mt-0.5">Dư: {formatCurrency(tx.accumulated)}</p>
+                          <p className="text-[9px] text-text-dim font-mono mt-0.5">Dư: {formatCurrency(tx.computedAccumulated)}</p>
                         </td>
                         
                         {/* TRẠNG THÁI ĐỐI SOÁT */}
@@ -425,7 +732,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
           </div>
         </div>
 
-        {/* RIGHT COLUMN: STATS, ACTIONS, ACCOUNTS LIST */}
+        {/* RIGHT COLUMN: STATS, ACTIONS, ACCOUNTS LIST (FIXED/STATIC) */}
         <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-4 min-h-0">
           
           {/* STATS OVERVIEW */}
@@ -484,7 +791,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
                     placeholder="Nhập số tài khoản..."
                     value={newAccountNumber}
                     onChange={(e) => setNewAccountNumber(e.target.value.replace(/[^0-9]/g, ''))}
-                    className="w-full px-4 py-2.5 bg-black/40 border border-border-dark rounded-xl text-xs focus:outline-none focus:border-primary/40 focus:ring-4 focus:ring-primary/5 text-white placeholder:text-text-dim font-mono"
+                    className="w-full px-4 py-2.5 bg-black/40 border border-border-dark rounded-xl text-xs focus:outline-none focus:border-primary/45 focus:ring-4 focus:ring-primary/5 text-white placeholder:text-text-dim font-mono"
                     required
                   />
                 </div>
