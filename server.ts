@@ -2818,6 +2818,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
   // POST /api/sepay-webhook (Nhan webhook tu SePay)
   app.post('/api/sepay-webhook', async (req, res) => {
     try {
+      console.log("[SePay Webhook Payload]:", JSON.stringify(req.body, null, 2));
       console.log('[SEPAY WEBHOOK] Incoming request headers:', JSON.stringify(req.headers, null, 2));
       console.log('[SEPAY WEBHOOK] Incoming request body:', JSON.stringify(req.body, null, 2));
 
@@ -2913,14 +2914,36 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
       const subAccount = payload.subAccount || '';
       const transferType = payload.transferType || 'in';
       const transferAmount = Number(payload.transferAmount || 0);
-      const accumulated = Number(payload.accumulated || 0);
+
+      const amountIn = transferType === 'in' ? transferAmount : 0;
+      const amountOut = transferType === 'out' ? transferAmount : 0;
+
+      let accumulated = Number(payload.accumulated || 0);
+      
+      // Neu accumulated tu SePay bang 0 (hoac khong co), hay tinh toan dua tren giao dich truoc do cua tai khoan nay
+      if (!accumulated || accumulated === 0) {
+        console.log(`[SEPAY WEBHOOK] accumulated bang 0. Dang truy van giao dich truoc do cua tai khoan ${accountNumber} de tinh toan...`);
+        const { data: lastTx } = await supabase
+          .from('tb_transactions')
+          .select('accumulated')
+          .eq('account_number', accountNumber)
+          .order('transaction_date', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (lastTx) {
+          const prevAcc = Number(lastTx.accumulated || 0);
+          accumulated = prevAcc + amountIn - amountOut;
+          console.log(`[SEPAY WEBHOOK] Tinh toan accumulated thanh cong. So du cu: ${prevAcc}, So du moi: ${accumulated}`);
+        } else {
+          console.log(`[SEPAY WEBHOOK] Khong tim thay giao dich truoc do, giu nguyen accumulated = 0`);
+        }
+      }
+
       const code = payload.code || null;
       const content = payload.content || '';
       const referenceNumber = payload.referenceCode || '';
       const body = payload.description || '';
-
-      const amountIn = transferType === 'in' ? transferAmount : 0;
-      const amountOut = transferType === 'out' ? transferAmount : 0;
 
       // 5. Tim owner_id lien ket voi account_number tu sepay_accounts
       let ownerId = null;

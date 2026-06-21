@@ -13,7 +13,8 @@ import {
   Plus,
   Trash2,
   Info,
-  Check
+  Check,
+  Search
 } from 'lucide-react';
 import { useToast } from '../Notifications';
 
@@ -119,6 +120,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
   const [newAccountNumber, setNewAccountNumber] = useState('');
   const [isSubmittingAccount, setIsSubmittingAccount] = useState(false);
   const [filterAccount, setFilterAccount] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Danh sách ngân hàng phổ biến
   const popularBanks = [
@@ -233,26 +235,59 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
   const matchedCount = transactions.filter(tx => tx.match_status === 'matched').length;
 
   const filteredTransactions = transactions.filter(tx => {
-    if (filterAccount === 'all') return true;
-    return tx.account_number === filterAccount;
+    // 1. Lọc theo tài khoản đã chọn
+    if (filterAccount !== 'all' && tx.account_number !== filterAccount) {
+      return false;
+    }
+    
+    // 2. Lọc theo nội dung tìm kiếm
+    if (searchQuery.trim() !== '') {
+      const q = searchQuery.toLowerCase().trim();
+      const contentMatch = (tx.content || '').toLowerCase().includes(q);
+      const amountInMatch = String(tx.amount_in || '').includes(q);
+      const amountOutMatch = String(tx.amount_out || '').includes(q);
+      const refMatch = (tx.reference_number || '').toLowerCase().includes(q);
+      const gatewayMatch = (tx.gateway || '').toLowerCase().includes(q);
+      const codeMatch = (tx.code || '').toLowerCase().includes(q);
+      
+      return contentMatch || amountInMatch || amountOutMatch || refMatch || gatewayMatch || codeMatch;
+    }
+    
+    return true;
   });
 
   return (
     <div className="flex flex-col h-[calc(100vh-100px)] p-2 space-y-4 max-w-[1600px] mx-auto overflow-hidden">
       
       {/* HEADER SECTION */}
-      <div className="flex shrink-0 flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border-dark pb-3">
-        <div className="flex items-center gap-3">
-          <div className="size-10 bg-primary/10 border border-primary/20 rounded-2xl flex items-center justify-center text-primary">
-            <Landmark size={20} />
+      <div className="flex shrink-0 flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-border-dark pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-1 min-w-0">
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="size-10 bg-primary/10 border border-primary/20 rounded-2xl flex items-center justify-center text-primary">
+              <Landmark size={20} />
+            </div>
+            <div>
+              <h1 className="text-base font-extrabold text-white uppercase tracking-wider">Giao dịch ngân hàng</h1>
+              <p className="text-xs text-text-dim">Nhận biến động số dư tự động qua Webhook SePay</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-base font-extrabold text-white uppercase tracking-wider">Giao dịch ngân hàng</h1>
-            <p className="text-xs text-text-dim">Nhận biến động số dư tự động qua Webhook SePay</p>
+          
+          {/* SEARCH INPUT */}
+          <div className="relative flex-1 max-w-md w-full">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-dim">
+              <Search size={14} />
+            </div>
+            <input
+              type="text"
+              placeholder="Tìm kiếm nội dung chuyển khoản, số tiền, ref..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-black/40 border border-border-dark rounded-xl text-xs focus:outline-none focus:border-primary/45 focus:ring-4 focus:ring-primary/5 text-white placeholder:text-text-dim"
+            />
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={handleRefresh}
             disabled={isLoading || isSyncing}
@@ -310,7 +345,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
               </div>
             ) : filteredTransactions.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-xs text-text-dim italic uppercase tracking-wider py-20 text-center">
-                Chưa phát sinh giao dịch nào được ghi nhận.
+                {searchQuery.trim() !== '' ? 'Không tìm thấy giao dịch nào phù hợp.' : 'Chưa phát sinh giao dịch nào được ghi nhận.'}
               </div>
             ) : (
               <table className="w-full text-left text-xs border-collapse">
@@ -391,7 +426,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
         </div>
 
         {/* RIGHT COLUMN: STATS, ACTIONS, ACCOUNTS LIST */}
-        <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-4 overflow-y-auto pr-1 min-h-0">
+        <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-4 min-h-0">
           
           {/* STATS OVERVIEW */}
           <div className="grid grid-cols-2 gap-3 bg-white/[0.01] border border-border-dark/45 p-4 rounded-3xl shadow-lg backdrop-blur-md shrink-0">
@@ -475,22 +510,22 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
           )}
 
           {/* LINKED ACCOUNTS LIST */}
-          <div className="bg-sidebar-dark/30 border border-border-dark rounded-3xl p-5 space-y-4">
-            <h3 className="text-xs font-black uppercase text-white tracking-widest flex items-center gap-2">
+          <div className="bg-sidebar-dark/30 border border-border-dark rounded-3xl p-5 space-y-4 flex-1 min-h-0 flex flex-col">
+            <h3 className="text-xs font-black uppercase text-white tracking-widest flex items-center gap-2 shrink-0">
               <span className="size-2 rounded-full bg-blue-500 shadow-md shadow-blue-500/50" />
               Tài khoản đã liên kết
             </h3>
             
             {accounts.length === 0 ? (
-              <div className="text-center py-6 text-xs text-text-dim italic">
+              <div className="text-center py-6 text-xs text-text-dim italic shrink-0">
                 Chưa có tài khoản ngân hàng nào được liên kết.
               </div>
             ) : (
-              <div className="flex flex-col gap-2.5">
+              <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2.5 min-h-0">
                 {accounts.map(acc => {
                   const badgeStyle = getAccountBadgeStyle(acc.bank_name, acc.account_number);
                   return (
-                    <div key={acc.id} className="flex items-center justify-between p-3 bg-black/30 border border-border-dark rounded-2xl hover:border-primary/20 transition-all">
+                    <div key={acc.id} className="flex items-center justify-between p-3 bg-black/30 border border-border-dark rounded-2xl hover:border-primary/20 transition-all shrink-0">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="size-8 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0">
                           <Landmark size={14} />
@@ -505,7 +540,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
                       
                       <button
                         onClick={() => handleRemoveAccount(acc.account_number)}
-                        className="p-1.5 bg-white/5 border border-border-dark text-text-dim hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all"
+                        className="p-1.5 bg-white/5 border border-border-dark text-text-dim hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all shrink-0"
                         title="Ngắt liên kết"
                       >
                         <Link2Off size={13} />
