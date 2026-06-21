@@ -1,5 +1,4 @@
 import express from 'express';
-import { createServer as createViteServer, type ViteDevServer } from 'vite';
 import path from 'path';
 import fs from 'fs';
 import PizZip from 'pizzip';
@@ -11,7 +10,6 @@ import axios from 'axios';
 import FormData from 'form-data';
 import OpenAI from 'openai';
 import os from 'os';
-import { JSDOM } from 'jsdom';
 import { exec } from 'child_process';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import crypto from 'crypto';
@@ -183,7 +181,8 @@ function getNetworkAddress() {
 }
 
 async function createDevViteServer() {
-  return createViteServer({
+  const { createServer } = await import('vite');
+  return createServer({
     server: {
       middlewareMode: true,
       host: true,
@@ -271,11 +270,13 @@ async function startServer() {
   console.log("👉 Buoc 1: Bat dau khoi dong...");
   console.log('[SERVER] Bat dau khoi dong ung dung...');
 
-  if (!fs.existsSync('uploads/templates')) {
-    fs.mkdirSync('uploads/templates', { recursive: true });
-  }
-  if (!fs.existsSync('uploads/temp')) {
-    fs.mkdirSync('uploads/temp', { recursive: true });
+  if (!process.env.VERCEL) {
+    if (!fs.existsSync('uploads/templates')) {
+      fs.mkdirSync('uploads/templates', { recursive: true });
+    }
+    if (!fs.existsSync('uploads/temp')) {
+      fs.mkdirSync('uploads/temp', { recursive: true });
+    }
   }
 
   app.get('/api/templates', (req, res) => {
@@ -576,19 +577,37 @@ async function startServer() {
     
     try {
       let sessionPath = path.join(process.cwd(), 'uploads', 'session_auth.json');
-      if (process.env.VERCEL) {
+      const isVercelLike = process.env.VERCEL || process.env.NOW_REGION || !fs.existsSync(process.cwd());
+      
+      if (isVercelLike) {
         sessionPath = path.join(os.tmpdir(), 'session_auth.json');
       } else {
-        const uploadsDir = path.join(process.cwd(), 'uploads');
-        if (!fs.existsSync(uploadsDir)) {
-          fs.mkdirSync(uploadsDir, { recursive: true });
+        try {
+          const uploadsDir = path.join(process.cwd(), 'uploads');
+          if (!fs.existsSync(uploadsDir)) {
+            fs.mkdirSync(uploadsDir, { recursive: true });
+          }
+        } catch (dirErr) {
+          sessionPath = path.join(os.tmpdir(), 'session_auth.json');
         }
       }
-      fs.writeFileSync(sessionPath, JSON.stringify(sessionData, null, 2), 'utf-8');
-      res.json({ success: true, message: 'Đã lưu phiên đăng nhập thành công!' });
+      
+      try {
+        fs.writeFileSync(sessionPath, JSON.stringify(sessionData, null, 2), 'utf-8');
+        res.json({ success: true, message: 'Đã lưu phiên đăng nhập thành công!' });
+      } catch (writeErr: any) {
+        if (sessionPath !== path.join(os.tmpdir(), 'session_auth.json')) {
+          const fallbackPath = path.join(os.tmpdir(), 'session_auth.json');
+          fs.writeFileSync(fallbackPath, JSON.stringify(sessionData, null, 2), 'utf-8');
+          res.json({ success: true, warning: 'Lưu phiên vào thư mục tạm thời do lỗi ghi đè.', message: 'Đã lưu phiên đăng nhập thành công!' });
+        } else {
+          throw writeErr;
+        }
+      }
     } catch (err: any) {
       console.error('Lỗi khi lưu phiên đăng nhập:', err);
-      if (process.env.VERCEL) {
+      const isServerless = process.env.VERCEL || process.env.NOW_REGION || err.code === 'EROFS';
+      if (isServerless) {
         res.json({ success: true, warning: 'Không thể ghi file trên Vercel, bỏ qua lưu session.', error: err.message });
       } else {
         res.status(500).json({ error: 'Không thể lưu phiên đăng nhập', details: err.message });
@@ -599,7 +618,8 @@ async function startServer() {
   app.get('/api/auth/get-session', (req, res) => {
     try {
       let sessionPath = path.join(process.cwd(), 'uploads', 'session_auth.json');
-      if (process.env.VERCEL) {
+      const isVercelLike = process.env.VERCEL || process.env.NOW_REGION;
+      if (isVercelLike) {
         sessionPath = path.join(os.tmpdir(), 'session_auth.json');
       }
       if (fs.existsSync(sessionPath)) {
@@ -607,6 +627,14 @@ async function startServer() {
         const sessionData = JSON.parse(rawData);
         return res.json(sessionData);
       }
+      
+      const fallbackPath = path.join(os.tmpdir(), 'session_auth.json');
+      if (fs.existsSync(fallbackPath)) {
+        const rawData = fs.readFileSync(fallbackPath, 'utf-8');
+        const sessionData = JSON.parse(rawData);
+        return res.json(sessionData);
+      }
+
       res.status(404).json({ error: 'Không tìm thấy phiên đăng nhập đã lưu.' });
     } catch (err: any) {
       console.error('Lỗi khi đọc phiên đăng nhập:', err);
@@ -1266,7 +1294,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
     }
   });
 
-  app.post('/api/generate', (req, res) => {
+  app.post('/api/generate', async (req, res) => {
     const { templateType, data, partnerA, partnerB, contractNumber, contractDate } = req.body;
     let templatePath = path.join(process.cwd(), 'uploads/templates', `${templateType}.docx`);
 
@@ -1479,6 +1507,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
 
         // 2. Validate XML syntax using Node's jsdom DOMParser and ensure no w:tbl is nested inside w:p
         try {
+          const { JSDOM } = await import('jsdom');
           const dom = new JSDOM();
           const parser = new dom.window.DOMParser();
           const xmlDoc = parser.parseFromString(fixedXml, "text/xml");
@@ -1523,16 +1552,22 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
 
   // Helper function to get Supabase client with service role (bypass RLS for server operations)
   async function getSupabaseClient() {
+    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+    if (!url || !key) {
+      throw new Error('Cấu hình Supabase (URL hoặc Key) bị thiếu trên máy chủ. Vui lòng thiết lập biến môi trường.');
+    }
     const { createClient } = await import('@supabase/supabase-js');
-    return createClient(
-      process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
-      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
-    );
+    return createClient(url, key);
   }
 
   // Get owner ID from request headers
   function getOwnerId(req: express.Request): string {
-    return (req.headers['x-custom-user-id'] as string) || (req.query.ownerId as string) || '';
+    return (req.headers['x-custom-user-id'] as string) || 
+           (req.query.ownerId as string) || 
+           (req.query.userid as string) || 
+           (req.query.userId as string) || 
+           '';
   }
 
   // ---- INCOMING DOCUMENTS ----
@@ -2920,8 +2955,8 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
   // GET /api/sepay/status (Lay thong tin ket noi va lich su giao dich cho nguoi dung)
   app.get('/api/sepay/status', async (req, res) => {
     try {
-      const { ownerId } = req.query;
-      if (!ownerId) return res.status(400).json({ error: 'Thieu ownerId' });
+      const ownerId = getOwnerId(req);
+      if (!ownerId) return res.status(400).json({ error: 'Thieu ownerId hoặc userid' });
 
       const supabase = await getSupabaseClient();
 

@@ -91,7 +91,16 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
     try {
       setIsLoading(true);
       const res = await fetch(`/api/sepay/status?ownerId=${ownerId}`);
-      if (!res.ok) throw new Error('Không thể kết nối đến máy chủ.');
+      if (!res.ok) {
+        let errMsg = 'Không thể kết nối đến máy chủ.';
+        try {
+          const errData = await res.json();
+          if (errData && (errData.details || errData.error)) {
+            errMsg = errData.details || errData.error;
+          }
+        } catch (_) {}
+        throw new Error(errMsg);
+      }
       const data = await res.json();
       setAccounts(data.accounts || []);
       setTransactions(data.transactions || []);
