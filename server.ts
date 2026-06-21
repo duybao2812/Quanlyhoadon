@@ -1592,8 +1592,15 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
 
   // Helper function to get Supabase client with service role (bypass RLS for server operations)
   async function getSupabaseClient() {
-    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+    let url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
+    let key = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '').trim();
+    
+    // Remove enclosing double/single quotes if any (common Vercel pasting issue)
+    if (url.startsWith('"') && url.endsWith('"')) url = url.slice(1, -1);
+    if (url.startsWith("'") && url.endsWith("'")) url = url.slice(1, -1);
+    if (key.startsWith('"') && key.endsWith('"')) key = key.slice(1, -1);
+    if (key.startsWith("'") && key.endsWith("'")) key = key.slice(1, -1);
+
     if (!url || !key) {
       throw new Error('Cấu hình Supabase (URL hoặc Key) bị thiếu trên máy chủ. Vui lòng thiết lập biến môi trường.');
     }
@@ -2820,7 +2827,9 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
       }
 
       // 2. Kiem tra bao mat Webhook (Ho tro ca HMAC-SHA256 va API Key de linh hoat)
-      const expectedKey = process.env.SEPAY_WEBHOOK_KEY;
+      let expectedKey = (process.env.SEPAY_WEBHOOK_KEY || '').trim();
+      if (expectedKey.startsWith('"') && expectedKey.endsWith('"')) expectedKey = expectedKey.slice(1, -1);
+      if (expectedKey.startsWith("'") && expectedKey.endsWith("'")) expectedKey = expectedKey.slice(1, -1);
       const signatureHeader = req.headers['x-sepay-signature'] || req.headers['X-SePay-Signature'];
       const timestampHeader = req.headers['x-sepay-timestamp'] || req.headers['X-SePay-Timestamp'];
 
