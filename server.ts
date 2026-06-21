@@ -283,6 +283,43 @@ async function startServer() {
   console.log("👉 Buoc 1: Bat dau khoi dong...");
   console.log('[SERVER] Bat dau khoi dong ung dung...');
 
+  function sanitizeEnvValue(val: string | undefined): string {
+    if (!val) return '';
+    let cleaned = val.trim();
+    while ((cleaned.startsWith('"') && cleaned.endsWith('"')) || 
+           (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+      cleaned = cleaned.slice(1, -1);
+      cleaned = cleaned.trim();
+    }
+    return cleaned;
+  }
+
+  // Helper function to get Supabase client with service role (bypass RLS for server operations)
+  async function getSupabaseClient(useServiceRole = true) {
+    const url = sanitizeEnvValue(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
+    let key = '';
+    if (useServiceRole) {
+      key = sanitizeEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY);
+    } else {
+      key = sanitizeEnvValue(process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY);
+    }
+    
+    // Log safe diagnostic info
+    console.log(`[SUPABASE_CLIENT] Khoi tao client. URL: "${url}" (len: ${url.length}), Key len: ${key ? key.length : 0}`);
+    if (url) {
+      console.log(`[SUPABASE_CLIENT] URL bat dau bang: "${url.substring(0, 10)}...", ket thuc: "...${url.substring(url.length - 10)}"`);
+    }
+    if (key) {
+      console.log(`[SUPABASE_CLIENT] Key bat dau bang: "${key.substring(0, 10)}...", ket thuc: "...${key.substring(key.length - 10)}"`);
+    }
+
+    if (!url || !key) {
+      throw new Error('Cấu hình Supabase (URL hoặc Key) bị thiếu trên máy chủ. Vui lòng thiết lập biến môi trường.');
+    }
+    const { createClient } = await import('@supabase/supabase-js');
+    return createClient(url, key);
+  }
+
   if (!process.env.VERCEL) {
     if (!fs.existsSync('uploads/templates')) {
       fs.mkdirSync('uploads/templates', { recursive: true });
@@ -980,11 +1017,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
   app.post('/api/contracts/save', async (req, res) => {
     try {
       const contractData = req.body;
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(
-        process.env.SUPABASE_URL || '',
-        process.env.SUPABASE_ANON_KEY || ''
-      );
+      const supabase = await getSupabaseClient(false);
 
       const { data, error } = await supabase
         .from('contracts')
@@ -1015,11 +1048,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
   // API lay danh sach hop dong
   app.get('/api/contracts', async (req, res) => {
     try {
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(
-        process.env.SUPABASE_URL || '',
-        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || ''
-      );
+      const supabase = await getSupabaseClient(true);
 
       const ownerId = req.headers['x-custom-user-id'] as string || req.query.ownerId as string;
       const documentType = req.query.documentType as string;
@@ -1056,11 +1085,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
   // API cap nhat document_type cua hop dong
   app.patch('/api/contracts/:id/document-type', async (req, res) => {
     try {
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(
-        process.env.SUPABASE_URL || '',
-        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || ''
-      );
+      const supabase = await getSupabaseClient(true);
 
       const ownerId = req.headers['x-custom-user-id'] as string;
       const { documentType } = req.body;
@@ -1113,11 +1138,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
   // API cap nhat hop dong (general update)
   app.patch('/api/contracts/:id', async (req, res) => {
     try {
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(
-        process.env.SUPABASE_URL || '',
-        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || ''
-      );
+      const supabase = await getSupabaseClient(true);
 
       const ownerId = req.headers['x-custom-user-id'] as string;
       const contractId = req.params.id;
@@ -1177,11 +1198,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
   // API xoa hop dong
   app.delete('/api/contracts/:id', async (req, res) => {
     try {
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(
-        process.env.SUPABASE_URL || '',
-        process.env.SUPABASE_ANON_KEY || ''
-      );
+      const supabase = await getSupabaseClient(false);
 
       const { error } = await supabase
         .from('contracts')
@@ -1590,23 +1607,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
   // DOCUMENT MANAGEMENT API
   // ==========================================
 
-  // Helper function to get Supabase client with service role (bypass RLS for server operations)
-  async function getSupabaseClient() {
-    let url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
-    let key = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '').trim();
-    
-    // Remove enclosing double/single quotes if any (common Vercel pasting issue)
-    if (url.startsWith('"') && url.endsWith('"')) url = url.slice(1, -1);
-    if (url.startsWith("'") && url.endsWith("'")) url = url.slice(1, -1);
-    if (key.startsWith('"') && key.endsWith('"')) key = key.slice(1, -1);
-    if (key.startsWith("'") && key.endsWith("'")) key = key.slice(1, -1);
-
-    if (!url || !key) {
-      throw new Error('Cấu hình Supabase (URL hoặc Key) bị thiếu trên máy chủ. Vui lòng thiết lập biến môi trường.');
-    }
-    const { createClient } = await import('@supabase/supabase-js');
-    return createClient(url, key);
-  }
+  // Note: getSupabaseClient has been moved to the top of startServer to be in scope for all routes
 
   // Get owner ID from request headers
   function getOwnerId(req: express.Request): string {
@@ -3001,27 +3002,104 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
     }
   });
 
+  // GET /api/debug/test-supabase (DEBUG API to check Supabase connection and settings)
+  app.get('/api/debug/test-supabase', async (req, res) => {
+    try {
+      const url = sanitizeEnvValue(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
+      const key = sanitizeEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY);
+      
+      const testResults: any = {
+        envUrlPresent: !!process.env.SUPABASE_URL,
+        envKeyPresent: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        viteUrlPresent: !!process.env.VITE_SUPABASE_URL,
+        viteKeyPresent: !!process.env.VITE_SUPABASE_ANON_KEY,
+        sanitizedUrl: url,
+        keyLength: key.length,
+        nodeVersion: process.version,
+        platform: process.platform,
+        vercel: !!process.env.VERCEL,
+      };
+
+      // Try a direct fetch to the Supabase rest endpoint first to see if fetch itself fails
+      try {
+        const start = Date.now();
+        const fetchRes = await fetch(`${url}/rest/v1/`, {
+          headers: {
+            'apikey': key,
+            'Authorization': `Bearer ${key}`
+          }
+        });
+        testResults.directFetch = {
+          status: fetchRes.status,
+          statusText: fetchRes.statusText,
+          timeMs: Date.now() - start
+        };
+      } catch (fetchErr: any) {
+        testResults.directFetchError = {
+          message: fetchErr.message,
+          stack: fetchErr.stack,
+          cause: fetchErr.cause ? {
+            message: fetchErr.cause.message,
+            code: fetchErr.cause.code,
+            stack: fetchErr.cause.stack
+          } : null
+        };
+      }
+
+      // Try using the Supabase client
+      try {
+        const supabase = await getSupabaseClient();
+        const start = Date.now();
+        const { data, error } = await supabase.from('sepay_accounts').select('count', { count: 'exact', head: true });
+        testResults.supabaseClient = {
+          data,
+          error,
+          timeMs: Date.now() - start
+        };
+      } catch (clientErr: any) {
+        testResults.supabaseClientError = {
+          message: clientErr.message,
+          stack: clientErr.stack
+        };
+      }
+
+      res.json(testResults);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message, stack: err.stack });
+    }
+  });
+
   // GET /api/sepay/status (Lay thong tin ket noi va lich su giao dich cho nguoi dung)
   app.get('/api/sepay/status', async (req, res) => {
     try {
       const ownerId = getOwnerId(req);
       if (!ownerId) return res.status(400).json({ error: 'Thieu ownerId hoặc userid' });
 
+      console.log(`[SEPAY API] Lay status cho ownerId: ${ownerId}`);
       const supabase = await getSupabaseClient();
 
-      const [{ data: accounts }, { data: transactions }] = await Promise.all([
+      const [{ data: accounts, error: errAcc }, { data: transactions, error: errTx }] = await Promise.all([
         supabase.from('sepay_accounts').select('*').eq('owner_id', ownerId),
         supabase.from('tb_transactions').select('*').eq('owner_id', ownerId).order('transaction_date', { ascending: false }).limit(50)
       ]);
+
+      if (errAcc || errTx) {
+        console.error('[SEPAY API] Loi lay status tu database:', { errAcc, errTx });
+        return res.status(500).json({ 
+          error: 'Loi truy van database', 
+          details: errAcc?.message || errTx?.message,
+          errors: { accounts: errAcc, transactions: errTx } 
+        });
+      }
 
       res.json({
         connected: Array.isArray(accounts) && accounts.length > 0,
         accounts: accounts || [],
         transactions: transactions || []
       });
-    } catch (error) {
-      console.error('[SEPAY API] Loi lay status:', error.message);
-      res.status(500).json({ error: 'Loi he thong', details: error.message });
+    } catch (error: any) {
+      console.error('[SEPAY API] Loi lay status (catch):', error);
+      res.status(500).json({ error: 'Loi he thong', details: error.message, stack: error.stack, cause: error.cause });
     }
   });
 
@@ -3033,6 +3111,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
         return res.status(400).json({ error: 'Thieu thong tin ownerId, bankName hoac accountNumber' });
       }
 
+      console.log(`[SEPAY API] Dang ky tai khoan: user=${ownerId}, bank=${bankName}, acc=${accountNumber}`);
       const supabase = await getSupabaseClient();
       const { data, error } = await supabase
         .from('sepay_accounts')
@@ -3045,13 +3124,15 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
         .single();
 
       if (error) {
-        console.error('[SEPAY API] Loi insert account:', error.message);
-        return res.status(500).json({ error: 'Database update failed', details: error.message });
+        console.error('[SEPAY API] Loi insert account (database error):', error);
+        return res.status(500).json({ error: 'Database update failed', details: error.message, fullError: error });
       }
 
+      console.log(`[SEPAY API] Dang ky tai khoan thanh cong:`, data);
       res.json({ success: true, account: data });
-    } catch (error) {
-      res.status(500).json({ error: 'Loi dang ky tai khoan', details: error.message });
+    } catch (error: any) {
+      console.error('[SEPAY API] Loi dang ky tai khoan (catch):', error);
+      res.status(500).json({ error: 'Loi dang ky tai khoan', details: error.message, stack: error.stack, cause: error.cause });
     }
   });
 

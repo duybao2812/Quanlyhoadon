@@ -145,7 +145,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
       });
 
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || 'Đăng ký tài khoản thất bại.');
+      if (!res.ok) throw new Error(result.details || result.error || 'Đăng ký tài khoản thất bại.');
 
       toast('Liên kết tài khoản ngân hàng thành công!', 'success');
       setNewAccountNumber('');
@@ -177,7 +177,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
 
       if (!res.ok) {
         const result = await res.json();
-        throw new Error(result.error || 'Hủy liên kết thất bại.');
+        throw new Error(result.details || result.error || 'Hủy liên kết thất bại.');
       }
 
       toast('Đã ngắt liên kết tài khoản ngân hàng.', 'info');
