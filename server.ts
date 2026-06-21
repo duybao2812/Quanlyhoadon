@@ -29,7 +29,21 @@ app.use(express.urlencoded({ limit: '500mb', extended: true }));
 app.use('/templates', express.static(path.join(process.cwd(), 'templates')));
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
-const upload = multer({ dest: 'uploads/temp' });
+const isVercelEnvironment = process.env.VERCEL || process.env.NOW_REGION;
+const tempUploadDir = isVercelEnvironment ? os.tmpdir() : path.join(process.cwd(), 'uploads/temp');
+
+if (!isVercelEnvironment) {
+  try {
+    const tempDir = path.join(process.cwd(), 'uploads/temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+  } catch (e) {
+    console.warn("Could not create local temp upload dir:", e);
+  }
+}
+
+const upload = multer({ dest: tempUploadDir });
 
 // Initialize Mistral on server-side
 const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY || 'da1QD7MoXhRA2JRujftHQOEOmRE6lpVj';
