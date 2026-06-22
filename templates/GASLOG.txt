@@ -1,0 +1,7 @@
+09:58:32	Thông tin	--- Bắt đầu phân tích cú pháp email ID: 19eb453d20dce994 ---
+09:58:32	Thông tin	Số tài khoản nhận diện: 62530338
+09:58:32	Thông tin	Loại giao dịch: DEBIT, Số tiền: 5044932
+09:58:32	Thông tin	Số dư tài khoản: 55637859
+09:58:32	Thông tin	Nội dung giao dịch trích xuất: TRICH TAI KHOAN 62530338 DE THU NO TAI KHOAN VAY 535570119.
+09:58:32	Thông tin	Đã trích xuất giao dịch: 5044932 VND, TK: 62530338 (DEBIT)
+09:58:33	Thông tin	Thông tin: POST bank_accounts không thành công (HTTP 409), đang thử GET lại...

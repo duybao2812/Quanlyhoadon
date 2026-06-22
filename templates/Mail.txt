@@ -1,0 +1,79 @@
+Delivered-To: huynhbao281201@gmail.com
+Received: by 2002:ad4:4c09:0:b0:8ce:e34c:5bc7 with SMTP id bz9csp2228256qvb; Fri, 19 Jun 2026 20:32:05 -0700 (PDT)
+X-Received: by 2002:a05:6a00:744b:b0:82f:9d21:d352 with SMTP id d2e1a72fcca58-8455075f2b3mr5279130b3a.9.1781926324921; Fri, 19 Jun 2026 20:32:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1781926324; cv=none; d=google.com; s=arc-20260327; b=r1YuTJFUK6ILGEsZswcHO6CnTeUYM7BwUsh2Rcwa05NH9fj8KZFHBDV8hTwluGJLko G9sh3BpLFv1P3EDk3+pwzosP8mUEBcPJ7JyFPyAAuNgpFB+WYAqNsTVDKV+Ku0uRXWqk EDsNHxHYUUAAFvunjuJ5TjviEuSBszAIOSPgMO+Cs1IOsaj2WlIGIiN3b5uBFdwAtJ5p sXW29dTmTiJjGjLXasIppugM8aAUB0XEeL3FaoXEf9/yeTNaZQXw8if/fihY8aj0FqsX pNr093xsuSDre4GZi0e3jtc99aqYpBoAAKuINjWuoVB6LtGlhJEQ2IDICwem8wKimPy6 jMoA==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327; h=content-transfer-encoding:mime-version:subject:to:from:date :message-id:dkim-signature; bh=2g7XHveXnwMzw2poSLVp7FzULD9IPNkJDFwp9ZcdKoo=; fh=deiSY0f4aLNyO63VYxwKokV2WcfuiFO0GALi58O+HU8=; b=XDz4l1qVA5siS4+sxmC6L6aiqEeCjAMVIKl8lfQs7YeVUSC49BUj4cJPQpoo84z8dV IHdvnKEZUEe9x7+XTkmxJztnhZIsy5tmnSSqCgyarh4F63cm0jEnsMczQ7aSI9YE1EEB 4aS4ShEjAGtUagqYPpgwkXxqQTPVRWBbRcY95lTXD6NrNHvby07HUGrC4od7lIHXac1C r8QP4i3FW4bQFLfujCZxoCJd8UkUDeD5w8Nmk2I8twjkh9u4IFO5yhrhjPM5xxWaKnRX ybyNyira4ICq6BGGSHYjml6/TVMCnbBWu9QlmomnjcjzTT3YSg4Lev8ckumSUsZU4KIe f+bw==; dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com; dkim=pass header.i=@acb.com.vn header.s=s1 header.b=IIW4SRbg; spf=pass (google.com: domain of mailalert@acb.com.vn designates 202.59.253.47 as permitted sender) smtp.mailfrom=mailalert@acb.com.vn; dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=acb.com.vn
+Return-Path: <mailalert@acb.com.vn>
+Received: from mx14.acb.com.vn (mx14.acb.com.vn. [202.59.253.47]) by mx.google.com with ESMTPS id d2e1a72fcca58-84564e8b185si1681641b3a.191.2026.06.19.20.32.04 for <huynhbao281201@gmail.com> (version=TLS1_2 cipher=ECDHE-ECDSA-AES128-GCM-SHA256 bits=128/128); Fri, 19 Jun 2026 20:32:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mailalert@acb.com.vn designates 202.59.253.47 as permitted sender) client-ip=202.59.253.47;
+Authentication-Results: mx.google.com; dkim=pass header.i=@acb.com.vn header.s=s1 header.b=IIW4SRbg; spf=pass (google.com: domain of mailalert@acb.com.vn designates 202.59.253.47 as permitted sender) smtp.mailfrom=mailalert@acb.com.vn; dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=acb.com.vn
+DKIM-Signature: v=1; a=rsa-sha256; d=acb.com.vn; s=s1; c=relaxed/relaxed; t=1781926301; h=from:subject:to:date:message-id; bh=2g7XHveXnwMzw2poSLVp7FzULD9IPNkJDFwp9ZcdKoo=; b=IIW4SRbgBDrtugn+LMhF2929TxGFJtRMd7fOdXXeAFNYnQot4UlXBrHNPBhqTUIWWWmDqxCk/dG 7SPZomj36Qgi7Q1VxyPlY3dxRzDhFr0K7Ozaq81xRlw6QfKNa7IJgWzBqbQly7r/sAvp/7w0enU51 75JGc5TR9Td2eJtHmhKSJVZ0EgxNJP+ri2FB2iME0VZ5lPmwLbN+a8IW3z8PCEy4PEjiJJYN6eTyc EPozLpbDzDDW1OqPJK8l5KuYRVnOVAw8O0ijzKQoWQnyqnm3Kd1mrE4SoIuipiiwJrnQaOFtCdOGb lTmQyD/CNVQ7Spk1MbSvboVpmCm9pbrqf+sg==
+Received: from mail.acb.com.vn (10.56.238.63) by mx14.acb.com.vn (10.56.205.82) with Microsoft SMTP Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.2.2562.27; Sat, 20 Jun 2026 10:31:40 +0700
+Received: from PQTEXCMBXV001.acb.acbcorp.vn (10.56.238.63) by PQTEXCMBXV001.acb.acbcorp.vn (10.56.238.63) with Microsoft SMTP Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.2.2562.29; Sat, 20 Jun 2026 10:31:40 +0700
+Received: from DCMBAAPPV46 (10.56.225.53) by PQTEXCMBXV001.acb.acbcorp.vn (10.56.238.63) with Microsoft SMTP Server id 15.2.2562.29 via Frontend Transport; Sat, 20 Jun 2026 10:31:40 +0700
+Message-ID: <7406023.5423231781926299878.JavaMail.Admin@DCMBAAPPV46>
+Date: Sat, 20 Jun 2026 10:31:39 +0700
+From: <mailalert@acb.com.vn>
+To: <huynhbao281201@gmail.com>
+Subject: ACB-Dich vu bao so du tu dong
+MIME-Version: 1.0
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Return-Path: mailalert@acb.com.vn
+Received-SPF: None (mx14.acb.com.vn: mailalert@acb.com.vn does not designate permitted sender hosts)
+
+<table><tr><td><img src=3D"https://online.acb.com.vn/news/images/logo.jpg" =
+/><br><br></td></tr><tr><td>K&iacute;nh g&#7917;i Qu&yacute; kh&aacute;ch h=
+&agrave;ng.
+         <br><br>ACB tr&acirc;n tr&#7885;ng th&ocirc;ng b&aacute;o t&agrave=
+;i kho&#7843;n <b>62530338</b> c&#7911;a Qu&yacute; kh&aacute;ch &#273;&ati=
+lde; thay &#273;&#7893;i s&#7889; d&#432; nh&#432; sau:
+         <br>S&#7889; d&#432; m&#7899;i c&#7911;a t&agrave;i kho&#7843;n tr=
+&ecirc;n l&agrave;: <b>10,000,000.00 VND</b> t&iacute;nh &#273;&#7871;n <b>=
+20/06/2026</b>.<br>Giao d&#7883;ch m&#7899;i nh&#7845;t:Ghi c&oacute; <b>+1=
+0,000,000.00 VND</b>.<br>N&#7897;i dung giao d&#7883;ch: <b>IB HUYNH VAN MU=
+OI EM CHUYEN KHOAN</b>.<br><br>C&#7843;m &#417;n Qu&yacute; kh&aacute;ch h&=
+agrave;ng &#273;&atilde; s&#7917; d&#7909;ng S&#7843;n ph&#7849;m/ D&#7883;=
+ch v&#7909;
+            c&#7911;a ACB. Ch&uacute;ng t&ocirc;i mong &#273;&#432;&#7907;c=
+ ti&#7871;p t&#7909;c ph&#7909;c v&#7909; Qu&yacute; kh&aacute;ch h&agrave;=
+ng.
+            <br>Tr&acirc;n tr&#7885;ng.
+            <br><br></td></tr><tr><td>
+            <br>-----------------------------------------------------------=
+-------------------------------------------------------</td></tr>
+            <tr><td>Dear Customers,
+         <br><br>ACB respectfully updates your <b>62530338</b> account bala=
+nce, as follows:
+         <br>Updated account balance: <b>10,000,000.00 VND</b> up to <b>20/=
+06/2026</b>.<br>Latest transaction: Credit <b>+10,000,000.00 VND</b>.<br>Co=
+ntent: <b>IB HUYNH VAN MUOI EM CHUYEN KHOAN</b>.<br><br>Thank you for using=
+ ACB=E2=80=99s Product/Service. We look forward to serving you in the futur=
+e.
+            <br>Yours faithfully,
+            <br></td></tr><tr><td><br><img src=3D"https://online.acb.com.vn=
+/news/images/stories/baner-730x100-100316.gif"/></td></tr>
+            <tr><td align=3D"center">
+            <br>-----------------------------------------------------------=
+-------------------------------------------------------</td></tr>
+            <tr><td ><p align=3D"center">&#272;&acirc;y l&agrave; d&#7883;c=
+h v&#7909; Email t&#7921; &#273;&#7897;ng c&#7911;a ACB, Qu&yacute; kh&aacu=
+te;ch=20
+            vui l&ograve;ng kh&ocirc;ng "Reply".
+            <br>M&#7885;i th&ocirc;ng tin c&#7847;n h&#7895; tr&#7907;, Qu&=
+yacute; kh&aacute;ch vui l&ograve;ng li&ecirc;n h&#7879;:
+            <br>Trung T&acirc;m D&#7883;ch V&#7909; Kh&aacute;ch H&agrave;n=
+g 24/7
+            <br>1900545486 - (028) 38 247 247
+            <br>1800577775 (Mi&#7877;n ph&iacute; - D&agrave;nh cho KH &#43=
+2;u ti&ecirc;n)
+            <br><br>Please do not reply to this automated email. For furthe=
+r information, please contact Call Center
+            <br>24/7 at 1900545486 =E2=80=93 (028) 38 247 247
+            <br>1800577775 (free and available for priority customers.)
+            </p></td></tr>
+            <tr><td align=3D"center">
+             --------------------------------------------------------------=
+----------------------------------------------------</td></tr>
+            </table>

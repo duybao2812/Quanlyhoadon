@@ -12,3 +12,4 @@ scratch/
 uploads/
 *.pdf
 *.docx
+credentials.json
