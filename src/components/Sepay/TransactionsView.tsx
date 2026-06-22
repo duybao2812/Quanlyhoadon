@@ -15,7 +15,9 @@ import {
   Info,
   Check,
   Search,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Hash,
+  TrendingUp
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
@@ -124,6 +126,8 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
   const [newAccountNumber, setNewAccountNumber] = useState('');
   const [isSubmittingAccount, setIsSubmittingAccount] = useState(false);
   const [filterAccount, setFilterAccount] = useState<string>('all');
+  const [filterType, setFilterType] = useState<'all' | 'credit' | 'debit'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'matched' | 'unmatched'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Danh sách ngân hàng phổ biến
@@ -334,18 +338,26 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
     );
   }, [transactions]);
 
-  // Thống kê sơ bộ
-  const totalIn = transactions.reduce((sum, tx) => sum + Number(tx.amount_in), 0);
-  const totalOut = transactions.reduce((sum, tx) => sum + Number(tx.amount_out), 0);
-  const matchedCount = transactions.filter(tx => tx.match_status === 'matched').length;
-
   const filteredTransactions = transactionsWithBalance.filter(tx => {
     // 1. Lọc theo tài khoản đã chọn
     if (filterAccount !== 'all' && tx.account_number !== filterAccount) {
       return false;
     }
     
-    // 2. Lọc theo nội dung tìm kiếm
+    // 2. Lọc theo loại giao dịch
+    if (filterType === 'credit' && Number(tx.amount_in) === 0) {
+      return false;
+    }
+    if (filterType === 'debit' && Number(tx.amount_out) === 0) {
+      return false;
+    }
+    
+    // 3. Lọc theo trạng thái đối soát
+    if (filterStatus !== 'all' && tx.match_status !== filterStatus) {
+      return false;
+    }
+    
+    // 4. Lọc theo nội dung tìm kiếm
     if (searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase().trim();
       const contentMatch = (tx.content || '').toLowerCase().includes(q);
@@ -360,6 +372,12 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
     
     return true;
   });
+
+  // Thống kê dựa trên dữ liệu lọc
+  const totalIn = filteredTransactions.reduce((sum, tx) => sum + Number(tx.amount_in), 0);
+  const totalOut = filteredTransactions.reduce((sum, tx) => sum + Number(tx.amount_out), 0);
+  const matchedCount = filteredTransactions.filter(tx => tx.match_status === 'matched').length;
+  const diffAmount = totalIn - totalOut;
 
   // Xuất file Excel lịch sử giao dịch chuyên nghiệp bằng ExcelJS
   const handleExportExcel = async () => {
@@ -627,21 +645,46 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
               </h3>
             </div>
             
-            {/* Filter Dropdown */}
-            {accounts.length > 0 && (
+            {/* Filter Dropdowns */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Lọc theo tài khoản */}
+              {accounts.length > 0 && (
+                <select
+                  value={filterAccount}
+                  onChange={(e) => setFilterAccount(e.target.value)}
+                  className="px-2.5 py-1.5 bg-black/40 border border-border-dark rounded-xl text-[10px] font-bold text-white focus:outline-none focus:border-primary/40 cursor-pointer"
+                >
+                  <option value="all" className="bg-[#1E1E1E]">TẤT CẢ TÀI KHOẢN</option>
+                  {accounts.map(acc => (
+                    <option key={acc.id} value={acc.account_number} className="bg-[#1E1E1E]">
+                      {acc.bank_name} - {acc.account_number}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {/* Lọc theo loại giao dịch */}
               <select
-                value={filterAccount}
-                onChange={(e) => setFilterAccount(e.target.value)}
-                className="px-3 py-1.5 bg-black/40 border border-border-dark rounded-xl text-[10px] font-bold text-white focus:outline-none focus:border-primary/40 focus:ring-4 focus:ring-primary/5 cursor-pointer max-w-[200px]"
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value as any)}
+                className="px-2.5 py-1.5 bg-black/40 border border-border-dark rounded-xl text-[10px] font-bold text-white focus:outline-none focus:border-primary/40 cursor-pointer"
               >
-                <option value="all" className="bg-[#1E1E1E]">TẤT CẢ TÀI KHOẢN</option>
-                {accounts.map(acc => (
-                  <option key={acc.id} value={acc.account_number} className="bg-[#1E1E1E]">
-                    {acc.bank_name} - {acc.account_number}
-                  </option>
-                ))}
+                <option value="all" className="bg-[#1E1E1E]">TẤT CẢ PHÁT SINH</option>
+                <option value="credit" className="bg-[#1E1E1E]">GHI CÓ (THU)</option>
+                <option value="debit" className="bg-[#1E1E1E]">GHI NỢ (CHI)</option>
               </select>
-            )}
+
+              {/* Lọc theo trạng thái đối soát */}
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value as any)}
+                className="px-2.5 py-1.5 bg-black/40 border border-border-dark rounded-xl text-[10px] font-bold text-white focus:outline-none focus:border-primary/40 cursor-pointer"
+              >
+                <option value="all" className="bg-[#1E1E1E]">TẤT CẢ ĐỐI SOÁT</option>
+                <option value="matched" className="bg-[#1E1E1E]">ĐÃ KHỚP</option>
+                <option value="unmatched" className="bg-[#1E1E1E]">CHƯA KHỚP</option>
+              </select>
+            </div>
           </div>
 
           <div className="flex-1 overflow-auto">
@@ -690,8 +733,8 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
                         </td>
                         
                         {/* NỘI DUNG CHUYỂN KHOẢN */}
-                        <td className="px-5 py-3.5 max-w-xs xl:max-w-sm">
-                          <p className="text-xs text-white leading-relaxed line-clamp-2" title={tx.content}>
+                        <td className="px-5 py-3.5 max-w-xs xl:max-w-sm break-words">
+                          <p className="text-xs text-white leading-relaxed whitespace-pre-wrap break-words">
                             {tx.content}
                           </p>
                           {tx.code && (
@@ -739,9 +782,19 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
           <div className="grid grid-cols-2 gap-3 bg-white/[0.01] border border-border-dark/45 p-4 rounded-3xl shadow-lg backdrop-blur-md shrink-0">
             {[
               { label: 'Tài khoản liên kết', value: accounts.length, unit: 'TK', color: 'text-blue-500 bg-blue-500/10 border-blue-500/20', icon: Landmark },
+              { label: 'Số lượng giao dịch', value: filteredTransactions.length, unit: 'GD', color: 'text-amber-500 bg-amber-500/10 border-amber-500/20', icon: Hash },
               { label: 'Doanh thu nhận (CÓ)', value: formatCurrency(totalIn), unit: '', color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20', icon: ArrowDownLeft },
               { label: 'Chi phí trả (NỢ)', value: formatCurrency(totalOut), unit: '', color: 'text-rose-500 bg-rose-500/10 border-rose-500/20', icon: ArrowUpRight },
-              { label: 'Giao dịch đối soát', value: matchedCount, unit: 'HĐ', color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20', icon: CheckCircle2 },
+              { label: 'Giao dịch đối soát', value: matchedCount, unit: 'GD', color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20', icon: CheckCircle2 },
+              { 
+                label: 'Chênh lệch thu chi', 
+                value: formatCurrency(diffAmount), 
+                unit: '', 
+                color: diffAmount >= 0 
+                  ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' 
+                  : 'text-rose-400 bg-rose-500/10 border-rose-500/20', 
+                icon: TrendingUp 
+              },
             ].map((stat) => {
               const Icon = stat.icon;
               return (

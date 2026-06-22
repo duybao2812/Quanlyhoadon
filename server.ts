@@ -2715,15 +2715,18 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
   // SEPAY INTEGRATION API - Webhook & Giao dich ngan hang
   // ==========================================
 
-  // Ham noi bo: doi soat hoa don thong minh theo code va so tien
+  // Ham noi bo: doi soat hoa don thong minh theo code va so tien (co tuy chon tat log)
   async function doiSoatHoaDonSepay(
     supabaseClient: any,
-    transaction: { id: string; owner_id: string; amount_in: number; code: string | null; content: string }
+    transaction: { id: string; owner_id: string; amount_in: number; code: string | null; content: string },
+    options: { quiet?: boolean } = {}
   ) {
     // Chi doi soat giao dich tien vao (amount_in > 0) va co owner_id
     if (!transaction.owner_id || transaction.amount_in <= 0) return;
 
-    console.log(`[SEPAY] Dang doi soat giao dich ${transaction.id} cho owner ${transaction.owner_id} (So tien: ${transaction.amount_in})...`);
+    if (!options.quiet) {
+      console.log(`[SEPAY] Dang doi soat giao dich ${transaction.id} cho owner ${transaction.owner_id} (So tien: ${transaction.amount_in})...`);
+    }
 
     // Lay danh sach hoa don chua thanh toan cua owner
     const { data: dsHoaDon, error: dbError } = await supabaseClient
@@ -2733,7 +2736,9 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
       .eq('payment_status', 'unpaid');
 
     if (dbError || !dsHoaDon || dsHoaDon.length === 0) {
-      console.log(`[SEPAY] Khong co hoa don nao chua thanh toan de doi soat.`);
+      if (!options.quiet) {
+        console.log(`[SEPAY] Khong co hoa don nao chua thanh toan de doi soat.`);
+      }
       return;
     }
 
@@ -2784,7 +2789,9 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
     }
 
     if (!hoaDonKhop) {
-      console.log(`[SEPAY] Giao dich ${transaction.id} khong tuong thich code/content + so tien voi bat ky hoa don nao.`);
+      if (!options.quiet) {
+        console.log(`[SEPAY] Giao dich ${transaction.id} khong tuong thich code/content + so tien voi bat ky hoa don nao.`);
+      }
       return;
     }
 
@@ -3184,10 +3191,234 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
     }
   });
 
+  // POST /api/bank-transactions (Nhan giao dich tu AgentHub Bank Email Plugin)
+  app.post('/api/bank-transactions', async (req, res) => {
+    try {
+      const raw = req.body || {};
+      console.log("[BANK TRANSACTION] Received:", JSON.stringify(raw, null, 2));
+
+      // Normalize PascalCase keys (from C#) to camelCase keys
+      const tx = {
+        id: raw.id || raw.Id,
+        bankCode: raw.bankCode || raw.BankCode,
+        accountNumber: raw.accountNumber || raw.AccountNumber,
+        transactionDate: raw.transactionDate || raw.TransactionDate,
+        amount: raw.amount !== undefined ? raw.amount : raw.Amount,
+        transactionType: raw.transactionType || raw.TransactionType,
+        balance: raw.balance !== undefined ? raw.balance : raw.Balance,
+        description: raw.description || raw.Description,
+        gmailMessageId: raw.gmailMessageId || raw.GmailMessageId,
+        emailUid: raw.emailUid || raw.EmailUid,
+        emailAccount: raw.emailAccount || raw.EmailAccount
+      };
+
+      if (!tx.accountNumber || !tx.bankCode) {
+        return res.status(400).json({ error: 'Missing accountNumber or bankCode', received: raw });
+      }
+
+      const supabase = await getSupabaseClient();
+
+      // 1. Tim owner_id lien ket voi account_number tu sepay_accounts
+      let ownerId = null;
+      const { data: accountConn } = await supabase
+        .from('sepay_accounts')
+        .select('owner_id, bank_name')
+        .eq('account_number', tx.accountNumber)
+        .maybeSingle();
+
+      if (accountConn) {
+        ownerId = accountConn.owner_id;
+      }
+
+      // 2. Fallback neu la moi truong development hoac chua lien ket
+      if (!ownerId) {
+        const isDev = process.env.NODE_ENV === 'development' || !process.env.VERCEL;
+        if (isDev) {
+          const { data: sampleInvoice } = await supabase
+            .from('invoices')
+            .select('owner_id')
+            .limit(1)
+            .maybeSingle();
+          if (sampleInvoice) {
+            ownerId = sampleInvoice.owner_id;
+            console.log(`[BANK TRANSACTION] Fallback test owner_id resolved: ${ownerId}`);
+          }
+        }
+      }
+
+      if (!ownerId) {
+        console.warn(`[BANK TRANSACTION] Bo qua giao dich: So tai khoan ${tx.accountNumber} chua duoc lien ket voi user nao.`);
+        return res.status(400).json({ error: 'Bank account not linked to any registered user.' });
+      }
+
+      // 3. Dam bao bank_accounts co ban ghi tuong ung de thoa man khoa ngoai (foreign key)
+      let { data: bankAccount } = await supabase
+        .from('bank_accounts')
+        .select('id')
+        .eq('owner_id', ownerId)
+        .eq('bank_code', tx.bankCode)
+        .eq('account_number', tx.accountNumber)
+        .maybeSingle();
+
+      if (!bankAccount) {
+        const { data: newAcc, error: accErr } = await supabase
+          .from('bank_accounts')
+          .insert({
+            owner_id: ownerId,
+            bank_code: tx.bankCode,
+            account_number: tx.accountNumber,
+            account_name: accountConn?.bank_name || tx.bankCode,
+            email_account: tx.emailAccount || 'system@agenthub.local',
+            is_active: true
+          })
+          .select('id')
+          .maybeSingle();
+        
+        if (!accErr && newAcc) {
+          bankAccount = newAcc;
+        }
+      }
+      const bankAccountId = bankAccount?.id;
+
+      // 4. Ghi nhan vao bank_transactions (ON CONFLICT DO NOTHING qua handle loi 23505)
+      const { error: insertBankErr } = await supabase
+        .from('bank_transactions')
+        .insert({
+          id: tx.id,
+          owner_id: ownerId,
+          bank_account_id: bankAccountId || null,
+          bank_code: tx.bankCode,
+          account_number: tx.accountNumber,
+          transaction_date: tx.transactionDate,
+          amount: Number(tx.amount || 0),
+          transaction_type: tx.transactionType,
+          balance: Number(tx.balance || 0),
+          description: tx.description,
+          gmail_message_id: tx.gmailMessageId,
+          email_uid: tx.emailUid ? Number(tx.emailUid) : null
+        });
+
+      if (insertBankErr && insertBankErr.code !== '23505') {
+        console.error("[BANK TRANSACTION] Loi insert bank_transactions:", insertBankErr.message);
+      }
+
+      // 5. Ghi nhan vao tb_transactions de hien thi tren dashboard dong thoi kich hoat doi soat
+      const amountIn = tx.transactionType === 'CREDIT' ? Number(tx.amount || 0) : 0;
+      const amountOut = tx.transactionType === 'DEBIT' ? Number(tx.amount || 0) : 0;
+
+      const { data: newTbTx, error: insertTbErr } = await supabase
+        .from('tb_transactions')
+        .insert({
+          id: tx.id,
+          owner_id: ownerId,
+          gateway: tx.bankCode,
+          transaction_date: tx.transactionDate,
+          account_number: tx.accountNumber,
+          sub_account: null,
+          amount_in: amountIn,
+          amount_out: amountOut,
+          accumulated: Number(tx.balance || 0),
+          code: null,
+          content: tx.description,
+          reference_number: tx.id,
+          body: tx.description,
+          match_status: 'unmatched'
+        })
+        .select()
+        .maybeSingle();
+
+      if (insertTbErr) {
+        if (insertTbErr.code === '23505') {
+          console.log(`[BANK TRANSACTION] Trung lap giao dich tb_transactions ${tx.id}, bo qua.`);
+          return res.status(200).json({ success: true, message: 'Duplicate transaction skipped' });
+        }
+        console.error("[BANK TRANSACTION] Loi insert tb_transactions:", insertTbErr.message);
+        return res.status(500).json({ error: 'Failed to insert transaction', details: insertTbErr.message });
+      }
+
+      // 6. Kich hoat doi soat tu dong neu co giao dich tien vao
+      if (newTbTx && amountIn > 0) {
+        await doiSoatHoaDonSepay(supabase, {
+          id: tx.id,
+          owner_id: ownerId,
+          amount_in: amountIn,
+          code: null,
+          content: tx.description
+        });
+      }
+
+      console.log(`[BANK TRANSACTION] Da dong bo thanh cong giao dich: ${tx.amount} VND cho tai khoan ${tx.accountNumber}`);
+      return res.status(200).json({ success: true, data: newTbTx });
+    } catch (error: any) {
+      console.error("[BANK TRANSACTION] Loi he thong:", error.message);
+      return res.status(500).json({ error: 'Internal server error', details: error.message });
+    }
+  });
+
   // ---- HEARTBEAT ----
   app.post('/api/status/heartbeat', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
+
+  // ---- SUPABASE CREDENTIALS FOR GAS ----
+  app.get('/api/agenthub/credentials', async (req, res) => {
+    try {
+      const isLocal = req.hostname === 'localhost' || req.hostname === '127.0.0.1';
+      if (!isLocal && process.env.NODE_ENV === 'production') {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+
+      const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      res.json({
+        supabaseUrl: url,
+        supabaseServiceRoleKey: key
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to retrieve credentials', details: error.message });
+    }
+  });
+
+  // ---- BACKGROUND TRANSACTION MATCHER FOR GAS/REST INSERTS ----
+  function startBackgroundMatcher() {
+    console.log("[BACKGROUND MATCHER] Khoi chay tien trinh doi soat giao dich tu dong...");
+    setTimeout(runMatcherCycle, 5000);
+    setInterval(runMatcherCycle, 30000);
+  }
+
+  async function runMatcherCycle() {
+    try {
+      const supabase = await getSupabaseClient();
+      
+      const { data: unmatchedTxs, error } = await supabase
+        .from('tb_transactions')
+        .select('id, owner_id, amount_in, code, content')
+        .eq('match_status', 'unmatched')
+        .gt('amount_in', 0)
+        .limit(10);
+
+      if (error) {
+        console.error("[BACKGROUND MATCHER] Loi khi truy van giao dich chua doi soat:", error.message);
+        return;
+      }
+
+      if (unmatchedTxs && unmatchedTxs.length > 0) {
+        console.log(`[BACKGROUND MATCHER] Tim thay ${unmatchedTxs.length} giao dich chua doi soat. Tien hanh xu ly...`);
+        for (const tx of unmatchedTxs) {
+          try {
+            await doiSoatHoaDonSepay(supabase, tx, { quiet: true });
+          } catch (txErr: any) {
+            console.error(`[BACKGROUND MATCHER] Loi doi soat giao dich ${tx.id}:`, txErr.message);
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error("[BACKGROUND MATCHER] Loi vong lap: ", err.message);
+    }
+  }
+
+  startBackgroundMatcher();
 
   // ==========================================
   // END DOCUMENT MANAGEMENT API

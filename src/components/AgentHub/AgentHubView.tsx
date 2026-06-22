@@ -89,6 +89,573 @@ export const AgentHubView: React.FC = () => {
   // THEME STATE DE DEBUG PAYLOAD TRUC TIEP TREN GIAO DIEN
   const [debugPayload, setDebugPayload] = useState<any>(null);
 
+  // States cho Google Apps Script (GAS)
+  const [activeTab, setActiveTab] = useState<'gas' | 'desktop'>('gas');
+  const [supabaseCredentials, setSupabaseCredentials] = useState<{ supabaseUrl: string, supabaseServiceRoleKey: string } | null>(null);
+  const [isLoadingCredentials, setIsLoadingCredentials] = useState(false);
+
+  useEffect(() => {
+    const fetchCredentials = async () => {
+      setIsLoadingCredentials(true);
+      try {
+        const res = await fetch('/api/agenthub/credentials');
+        if (res.ok) {
+          const data = await res.json();
+          setSupabaseCredentials(data);
+        }
+      } catch (e) {
+        console.error('Failed to fetch Supabase credentials for GAS:', e);
+      } finally {
+        setIsLoadingCredentials(false);
+      }
+    };
+    fetchCredentials();
+  }, []);
+
+  const getGasScriptCode = () => {
+    const url = supabaseCredentials?.supabaseUrl || "LẤY_TỪ_ENV_HOẶC_BACKEND";
+    const key = supabaseCredentials?.supabaseServiceRoleKey || "LẤY_TỪ_ENV_HOẶC_BACKEND";
+    return `// Cấu hình kết nối Supabase (Đã tự động điền sẵn)
+const SUPABASE_URL = "${url}";
+const SUPABASE_SERVICE_ROLE_KEY = "${key}";
+
+const BANK_CODE = "ACB";
+const PROCESSED_LABEL = "agenthub-processed";
+
+function setupTrigger() {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    ScriptApp.deleteTrigger(triggers[i]);
+  }
+  ScriptApp.newTrigger('syncBankEmails')
+           .timeBased()
+           .everyMinutes(5)
+           .create();
+  
+  Logger.log("Đã cài đặt Trigger thành công! Script sẽ tự động chạy mỗi 5 phút.");
+  syncBankEmails();
+}
+
+function syncBankEmails() {
+  var label = GmailApp.getUserLabelByName(PROCESSED_LABEL) || GmailApp.createLabel(PROCESSED_LABEL);
+  // Tìm kiếm email gửi từ địa chỉ thông báo chính thức của ACB để tránh lọc sai từ khoá
+  var searchQuery = 'from:mailalert@acb.com.vn -label:' + PROCESSED_LABEL;
+  
+  var batchSize = 100;
+  var totalProcessed = 0;
+  var maxThreadsToProcess = 1000; // Giới hạn tối đa 1000 luồng mỗi lượt chạy trigger nhờ đã tối ưu batching
+  var offset = 0;
+  
+  // Cache để giảm thiểu các cuộc gọi GET/POST thừa thãi
+  var ownerCache = {};
+  var bankAccountCache = {};
+  
+  Logger.log("Bắt đầu quét email giao dịch với từ khóa: " + searchQuery);
+  
+  while (totalProcessed < maxThreadsToProcess) {
+    var threads = GmailApp.search(searchQuery, offset, batchSize);
+    if (threads.length === 0) {
+      Logger.log("Không còn email giao dịch mới nào cần xử lý.");
+      break;
+    }
+    
+    Logger.log("Đang xử lý lô " + threads.length + " luồng email (offset: " + offset + ")...");
+    
+    var bankTxsToInsert = [];
+    var tbTxsToInsert = [];
+    var threadList = [];
+    var failedThreadIds = {};
+    
+    for (var i = 0; i < threads.length; i++) {
+      var thread = threads[i];
+      var threadId = thread.getId();
+      threadList.push(thread);
+      
+      var messages = thread.getMessages();
+      var threadParseFailed = false;
+      var threadBankTxs = [];
+      var threadTbTxs = [];
+      
+      for (var j = 0; j < messages.length; j++) {
+        var msg = messages[j];
+        var htmlBody = msg.getBody();
+        var body = htmlBody ? cleanHtmlToText(htmlBody) : msg.getPlainBody();
+        var subject = msg.getSubject();
+        var msgId = msg.getId();
+        var msgDate = msg.getDate();
+        
+        try {
+          var tx = parseAcbEmail(subject, body, msgId, msgDate);
+          if (tx) {
+            // Lấy owner_id (có cache)
+            var ownerId = ownerCache[tx.accountNumber];
+            if (!ownerId) {
+              ownerId = getOwnerId(tx.accountNumber) || getFallbackOwnerId();
+              if (ownerId) {
+                ownerCache[tx.accountNumber] = ownerId;
+              }
+            }
+            
+            if (!ownerId) {
+              Logger.log("Lỗi: Không tìm thấy owner_id cho tài khoản " + tx.accountNumber);
+              threadParseFailed = true;
+              break;
+            }
+            
+            // Lấy bank_account_id (có cache)
+            var cacheKey = ownerId + "_" + tx.bankCode + "_" + tx.accountNumber;
+            var bankAccountId = bankAccountCache[cacheKey];
+            if (!bankAccountId) {
+              bankAccountId = upsertBankAccount(ownerId, tx.bankCode, tx.accountNumber);
+              if (bankAccountId) {
+                bankAccountCache[cacheKey] = bankAccountId;
+              }
+            }
+            
+            if (!bankAccountId) {
+              Logger.log("Lỗi: Không thể khởi tạo/truy vấn bank_account_id cho tài khoản " + tx.accountNumber);
+              threadParseFailed = true;
+              break;
+            }
+            
+            // Tạo payload tương thích database cho bank_transactions
+            var bankTxPayload = {
+              "id": tx.id,
+              "owner_id": ownerId,
+              "bank_account_id": bankAccountId,
+              "bank_code": tx.bankCode,
+              "account_number": tx.accountNumber,
+              "transaction_date": tx.transactionDate,
+              "amount": tx.amount,
+              "transaction_type": tx.transactionType,
+              "balance": tx.balance,
+              "description": tx.description,
+              "gmail_message_id": tx.gmailMessageId
+            };
+            
+            // Tạo payload tương thích database cho tb_transactions
+            var amountIn = tx.transactionType === "CREDIT" ? tx.amount : 0;
+            var amountOut = tx.transactionType === "DEBIT" ? tx.amount : 0;
+            var tbTxPayload = {
+              "id": tx.id,
+              "owner_id": ownerId,
+              "gateway": tx.bankCode,
+              "transaction_date": tx.transactionDate,
+              "account_number": tx.accountNumber,
+              "sub_account": null,
+              "amount_in": amountIn,
+              "amount_out": amountOut,
+              "accumulated": tx.balance,
+              "code": null,
+              "content": tx.description,
+              "reference_number": tx.id,
+              "body": tx.description,
+              "match_status": "unmatched"
+            };
+            
+            threadBankTxs.push(bankTxPayload);
+            threadTbTxs.push(tbTxPayload);
+          }
+        } catch (e) {
+          Logger.log("Lỗi xử lý email " + msgId + ": " + e.message);
+          threadParseFailed = true;
+          break;
+        }
+      }
+      
+      if (threadParseFailed) {
+        failedThreadIds[threadId] = true;
+      } else {
+        // Gom các giao dịch của luồng này vào danh sách batch insert chung
+        for (var t = 0; t < threadBankTxs.length; t++) {
+          bankTxsToInsert.push(threadBankTxs[t]);
+          tbTxsToInsert.push(threadTbTxs[t]);
+        }
+      }
+    }
+    
+    // Tiến hành ghi nhận dữ liệu
+    var batchSuccess = true;
+    if (bankTxsToInsert.length > 0) {
+      batchSuccess = insertTransactionsBatch(bankTxsToInsert, tbTxsToInsert);
+    }
+    
+    // Hậu xử lý gán nhãn hoặc fallback
+    if (batchSuccess) {
+      for (var k = 0; k < threadList.length; k++) {
+        var th = threadList[k];
+        var thId = th.getId();
+        if (!failedThreadIds[thId]) {
+          th.addLabel(label);
+          Logger.log("Đã đồng bộ thành công và gán nhãn cho luồng: " + thId);
+        } else {
+          Logger.log("Luồng email lỗi " + thId + " sẽ được bỏ qua và thử lại sau.");
+          offset++; // Bỏ qua luồng lỗi trong lượt chạy tiếp theo
+        }
+      }
+    } else {
+      Logger.log("Cảnh báo: Lỗi ghi nhận hàng loạt. Đang chuyển sang chế độ fallback ghi nhận từng dòng...");
+      for (var k = 0; k < threadList.length; k++) {
+        var th = threadList[k];
+        var thId = th.getId();
+        if (failedThreadIds[thId]) {
+          Logger.log("Luồng email lỗi phân tích " + thId + " bị bỏ qua.");
+          offset++;
+          continue;
+        }
+        
+        // Tìm các giao dịch thuộc luồng này bằng cách so khớp gmail_message_id với tin nhắn trong luồng
+        var msgs = th.getMessages();
+        var singleThreadSuccess = true;
+        
+        for (var m = 0; m < msgs.length; m++) {
+          var msg = msgs[m];
+          var msgId = msg.getId();
+          
+          var matchedTx = null;
+          for (var txIdx = 0; txIdx < bankTxsToInsert.length; txIdx++) {
+            if (bankTxsToInsert[txIdx].gmail_message_id === msgId) {
+              matchedTx = bankTxsToInsert[txIdx];
+              break;
+            }
+          }
+          
+          if (matchedTx) {
+            var ok = insertSingleTransaction(matchedTx);
+            if (!ok) {
+              singleThreadSuccess = false;
+            }
+          }
+        }
+        
+        if (singleThreadSuccess) {
+          th.addLabel(label);
+          Logger.log("Đã đồng bộ đơn lẻ thành công và gán nhãn cho luồng: " + thId);
+        } else {
+          Logger.log("Thất bại khi đồng bộ luồng " + thId + ". Sẽ thử lại sau.");
+          offset++; // Bỏ qua luồng lỗi trong lượt chạy tiếp theo
+        }
+      }
+    }
+    
+    totalProcessed += threads.length;
+  }
+  
+  Logger.log("Hoàn thành đợt đồng bộ email. Tổng số luồng đã xử lý: " + totalProcessed);
+}
+
+function parseAcbEmail(subject, body, messageId, messageDate) {
+  Logger.log("--- Bắt đầu phân tích cú pháp email ID: " + messageId + " ---");
+  try {
+    // Chuẩn hóa Unicode sang dạng NFC để tránh lỗi ký tự tiếng Việt phân rã (NFD) từ Gmail
+    if (body) body = body.normalize("NFC");
+    if (subject) subject = subject.normalize("NFC");
+
+    // 1. Tìm số tài khoản bằng từ khóa (tài khoản/tai khoan/account/tk)
+    var accMatch = body.match(/(?:tài khoản|tai khoan|account|tk)\\s*:?\\s*(\\d+)/i);
+    if (!accMatch) {
+      Logger.log("Phân tích thất bại: Không tìm thấy Số tài khoản trong nội dung.");
+      return null;
+    }
+    var accountNumber = accMatch[1];
+    Logger.log("Số tài khoản nhận diện: " + accountNumber);
+
+    // 2. Tìm số tiền và loại giao dịch (Ghi nợ/Ghi no/Ghi có/Ghi co/Debit/Credit)
+    var amountMatch = body.match(/(Ghi nợ|Ghi no|Ghi có|Ghi co|Debit|Credit)\\s*:?\\s*([+-]?[\\d,.]+)\\s*(?:VND|đ)?/i);
+    if (!amountMatch) {
+      Logger.log("Phân tích thất bại: Không tìm thấy Số tiền / Loại giao dịch trong nội dung.");
+      return null;
+    }
+    var typeText = amountMatch[1].toLowerCase();
+    var transactionType = (typeText.indexOf("có") !== -1 || typeText.indexOf("co") !== -1 || typeText.indexOf("credit") !== -1) ? "CREDIT" : "DEBIT";
+    var rawAmount = amountMatch[2].replace(/,/g, "");
+    var amount = Math.abs(parseFloat(rawAmount));
+    Logger.log("Loại giao dịch: " + transactionType + ", Số tiền: " + amount);
+
+    if (isNaN(amount) || amount === 0) {
+      Logger.log("Phân tích thất bại: Số tiền trích xuất không hợp lệ.");
+      return null;
+    }
+
+    // 3. Tìm số dư bằng từ khóa (Số dư/So du/balance)
+    var balanceMatch = body.match(/(?:Số dư|So du|balance)\\s*.*?\\s*([\\d,.]+)\\s*(?:VND|đ)?/i);
+    var balance = 0;
+    if (balanceMatch) {
+      var rawBalance = balanceMatch[1].replace(/,/g, "");
+      balance = parseFloat(rawBalance);
+      Logger.log("Số dư tài khoản: " + balance);
+    } else {
+      Logger.log("Thông tin: Không tìm thấy thông tin Số dư (mặc định = 0).");
+    }
+
+    // 4. Tìm nội dung giao dịch bằng từ khóa (Nội dung/Nội dung giao dịch/Content)
+    var descMatch = body.match(/(?:Nội dung|Nội dung giao dịch|Content)\\s*:\\s*([\\s\\S]*?)(?:\\r?\\n\\r?\\n|Cảm ơn|Thank|$)/i);
+    var description = descMatch ? descMatch[1].trim() : "";
+    Logger.log("Nội dung giao dịch trích xuất: " + description);
+    
+    var transactionDate = messageDate ? messageDate.toISOString() : new Date().toISOString();
+
+    return {
+      id: "msg_id_" + messageId,
+      bankCode: BANK_CODE,
+      accountNumber: accountNumber,
+      transactionDate: transactionDate,
+      amount: amount,
+      transactionType: transactionType,
+      balance: balance,
+      description: description,
+      gmailMessageId: messageId
+    };
+  } catch (err) {
+    Logger.log("Lỗi phân tích cú pháp email: " + err.message);
+    return null;
+  }
+}
+
+function getOwnerId(accountNumber) {
+  var url = SUPABASE_URL + "/rest/v1/sepay_accounts?account_number=eq." + accountNumber + "&select=owner_id";
+  var response = UrlFetchApp.fetch(url, {
+    method: "GET",
+    headers: {
+      "apikey": SUPABASE_SERVICE_ROLE_KEY,
+      "Authorization": "Bearer " + SUPABASE_SERVICE_ROLE_KEY
+    },
+    muteHttpExceptions: true
+  });
+  if (response.getResponseCode() === 200) {
+    var data = JSON.parse(response.getContentText());
+    if (data.length > 0) {
+      return data[0].owner_id;
+    }
+  } else {
+    Logger.log("Lỗi getOwnerId (HTTP " + response.getResponseCode() + "): " + response.getContentText());
+  }
+  return null;
+}
+
+function getFallbackOwnerId() {
+  var url = SUPABASE_URL + "/rest/v1/invoices?select=owner_id&limit=1";
+  var response = UrlFetchApp.fetch(url, {
+    method: "GET",
+    headers: {
+      "apikey": SUPABASE_SERVICE_ROLE_KEY,
+      "Authorization": "Bearer " + SUPABASE_SERVICE_ROLE_KEY
+    },
+    muteHttpExceptions: true
+  });
+  if (response.getResponseCode() === 200) {
+    var data = JSON.parse(response.getContentText());
+    if (data.length > 0) {
+      return data[0].owner_id;
+    }
+  } else {
+    Logger.log("Lỗi getFallbackOwnerId (HTTP " + response.getResponseCode() + "): " + response.getContentText());
+  }
+  return null;
+}
+
+function upsertBankAccount(ownerId, bankCode, accountNumber) {
+  var url = SUPABASE_URL + "/rest/v1/bank_accounts";
+  var payload = {
+    "owner_id": ownerId,
+    "bank_code": bankCode,
+    "account_number": accountNumber,
+    "account_name": bankCode + " Account",
+    "email_account": "gmail-api@apps-script.local",
+    "is_active": true
+  };
+  
+  var response = UrlFetchApp.fetch(url, {
+    method: "POST",
+    headers: {
+      "apikey": SUPABASE_SERVICE_ROLE_KEY,
+      "Authorization": "Bearer " + SUPABASE_SERVICE_ROLE_KEY,
+      "Content-Type": "application/json",
+      "Prefer": "resolution=merge-duplicates,return=representation"
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  });
+  
+  if (response.getResponseCode() === 201 || response.getResponseCode() === 200) {
+    var data = JSON.parse(response.getContentText());
+    if (data.length > 0) {
+      return data[0].id;
+    }
+  } else {
+    Logger.log("Thông tin: POST bank_accounts không thành công (HTTP " + response.getResponseCode() + "), đang thử GET lại...");
+  }
+  
+  var queryUrl = SUPABASE_URL + "/rest/v1/bank_accounts?owner_id=eq." + ownerId + "&account_number=eq." + accountNumber + "&select=id";
+  var qRes = UrlFetchApp.fetch(queryUrl, {
+    method: "GET",
+    headers: {
+      "apikey": SUPABASE_SERVICE_ROLE_KEY,
+      "Authorization": "Bearer " + SUPABASE_SERVICE_ROLE_KEY
+    },
+    muteHttpExceptions: true
+  });
+  if (qRes.getResponseCode() === 200) {
+    var qData = JSON.parse(qRes.getContentText());
+    if (qData.length > 0) {
+      return qData[0].id;
+    }
+  } else {
+    Logger.log("Lỗi truy vấn bank_accounts (HTTP " + qRes.getResponseCode() + "): " + qRes.getContentText());
+  }
+  return null;
+}
+
+function insertTransactionsBatch(bankTxs, tbTxs) {
+  var headers = {
+    "apikey": SUPABASE_SERVICE_ROLE_KEY,
+    "Authorization": "Bearer " + SUPABASE_SERVICE_ROLE_KEY,
+    "Content-Type": "application/json",
+    "Prefer": "resolution=merge-duplicates"
+  };
+  
+  var success = true;
+  
+  var bankTxUrl = SUPABASE_URL + "/rest/v1/bank_transactions";
+  var response = UrlFetchApp.fetch(bankTxUrl, {
+    method: "POST",
+    headers: headers,
+    payload: JSON.stringify(bankTxs),
+    muteHttpExceptions: true
+  });
+  
+  if (response.getResponseCode() !== 201 && response.getResponseCode() !== 200) {
+    Logger.log("Lỗi ghi nhận batch bank_transactions (HTTP " + response.getResponseCode() + "): " + response.getContentText());
+    success = false;
+  }
+  
+  var tbTxUrl = SUPABASE_URL + "/rest/v1/tb_transactions";
+  var response2 = UrlFetchApp.fetch(tbTxUrl, {
+    method: "POST",
+    headers: headers,
+    payload: JSON.stringify(tbTxs),
+    muteHttpExceptions: true
+  });
+  
+  if (response2.getResponseCode() !== 201 && response2.getResponseCode() !== 200) {
+    Logger.log("Lỗi ghi nhận batch tb_transactions (HTTP " + response2.getResponseCode() + "): " + response2.getContentText());
+    success = false;
+  }
+  
+  return success;
+}
+
+function insertSingleTransaction(tx) {
+  var headers = {
+    "apikey": SUPABASE_SERVICE_ROLE_KEY,
+    "Authorization": "Bearer " + SUPABASE_SERVICE_ROLE_KEY,
+    "Content-Type": "application/json",
+    "Prefer": "resolution=merge-duplicates"
+  };
+  
+  var success = true;
+  
+  var bankTxUrl = SUPABASE_URL + "/rest/v1/bank_transactions";
+  var response = UrlFetchApp.fetch(bankTxUrl, {
+    method: "POST",
+    headers: headers,
+    payload: JSON.stringify(tx),
+    muteHttpExceptions: true
+  });
+  
+  if (response.getResponseCode() !== 201 && response.getResponseCode() !== 200) {
+    Logger.log("Lỗi ghi nhận đơn lẻ bank_transactions (HTTP " + response.getResponseCode() + "): " + response.getContentText());
+    success = false;
+  }
+  
+  var tbTxUrl = SUPABASE_URL + "/rest/v1/tb_transactions";
+  var amountIn = tx.transaction_type === "CREDIT" ? tx.amount : 0;
+  var amountOut = tx.transaction_type === "DEBIT" ? tx.amount : 0;
+  var tbTxPayload = {
+    "id": tx.id,
+    "owner_id": tx.owner_id,
+    "gateway": tx.bank_code,
+    "transaction_date": tx.transaction_date,
+    "account_number": tx.account_number,
+    "sub_account": null,
+    "amount_in": amountIn,
+    "amount_out": amountOut,
+    "accumulated": tx.balance,
+    "code": null,
+    "content": tx.description,
+    "reference_number": tx.id,
+    "body": tx.description,
+    "match_status": "unmatched"
+  };
+  var response2 = UrlFetchApp.fetch(tbTxUrl, {
+    method: "POST",
+    headers: headers,
+    payload: JSON.stringify(tbTxPayload),
+    muteHttpExceptions: true
+  });
+  
+  if (response2.getResponseCode() !== 201 && response2.getResponseCode() !== 200) {
+    Logger.log("Lỗi ghi nhận đơn lẻ tb_transactions (HTTP " + response2.getResponseCode() + "): " + response2.getContentText());
+    success = false;
+  }
+  
+  return success;
+}
+
+function cleanHtmlToText(html) {
+  if (!html) return "";
+  
+  // 1. Giải mã các thực thể HTML phổ biến (HTML Entities)
+  var decoded = html
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;/gi, "'")
+    .replace(/&middot;/gi, "·")
+    .replace(/&iacute;/gi, "í")
+    .replace(/&aacute;/gi, "á")
+    .replace(/&agrave;/gi, "à")
+    .replace(/&atilde;/gi, "ã")
+    .replace(/&acirc;/gi, "â")
+    .replace(/&ecirc;/gi, "ê")
+    .replace(/&ocirc;/gi, "ô")
+    .replace(/&oacute;/gi, "ó")
+    .replace(/&ograve;/gi, "ò")
+    .replace(/&otilde;/gi, "õ")
+    .replace(/&ugrave;/gi, "ù")
+    .replace(/&uacute;/gi, "ú")
+    .replace(/&yacute;/gi, "ý");
+
+  // 2. Giải mã thực thể dạng số thập phân (ví dụ: &#7917; -> ử)
+  decoded = decoded.replace(/&#([0-9]+);/g, function(match, dec) {
+    return String.fromCharCode(parseInt(dec, 10));
+  });
+
+  // 3. Giải mã thực thể dạng thập lục phân (hex)
+  decoded = decoded.replace(/&#x([0-9A-Fa-f]+);/g, function(match, hex) {
+    return String.fromCharCode(parseInt(hex, 16));
+  });
+
+  // 4. Thay thế các thẻ xuống dòng HTML bằng ký tự xuống dòng thực tế
+  var text = decoded
+    .replace(/<br\\s*\\/?>/gi, "\\n")
+    .replace(/<\\/p>/gi, "\\n")
+    .replace(/<\\/tr>/gi, "\\n")
+    .replace(/<\\/div>/gi, "\\n");
+
+  // 5. Loại bỏ tất cả các thẻ HTML còn lại
+  text = text.replace(/<[^>]+>/g, "");
+
+  // 6. Loại bỏ ký tự về đầu dòng thừa
+  text = text.replace(/\\r/g, "");
+  
+  return text;
+}
+`;
+  };
+
   // CAU HINH THAM SO CHO CAC HANH DONG CUA PLUGIN
   const [echoMessage, setEchoMessage] = useState('Hello Agent Hub!');
   const [printDocName, setPrintDocName] = useState('TestDocument.pdf');
@@ -103,6 +670,52 @@ export const AgentHubView: React.FC = () => {
     return `${dd}${mm}${yyyy}`;
   });
   const [scanSimulate, setScanSimulate] = useState(true);
+
+  // Cấu hình cho Bank Email Agent
+  const [bankConfig, setBankConfig] = useState<any>(null);
+  const [isSavingBankConfig, setIsSavingBankConfig] = useState(false);
+  const [bankConfigError, setBankConfigError] = useState<string | null>(null);
+  const [bankConfigSuccess, setBankConfigSuccess] = useState<string | null>(null);
+
+  // Ẩn/hiện mật khẩu và các trường nhập
+  const [showBankPassword, setShowBankPassword] = useState<{[key: number]: boolean}>({});
+  const [showBankConfirmPassword, setShowBankConfirmPassword] = useState<{[key: number]: boolean}>({});
+  const [bankPasswords, setBankPasswords] = useState<{[key: number]: string}>({});
+  const [bankConfirmPasswords, setBankConfirmPasswords] = useState<{[key: number]: string}>({});
+
+  const fetchBankConfig = useCallback(async () => {
+    try {
+      const execUrl = `${config.hubUrl.replace(/\/$/, '')}/api/execute`;
+      const response = await fetch(execUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Agent-Token': config.securityToken
+        },
+        body: JSON.stringify({
+          pluginId: 'bank-email-agent',
+          action: 'get-config',
+          data: {}
+        }),
+        signal: AbortSignal.timeout(5000)
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.result) {
+          setBankConfig(data.result);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch Bank Email Agent config:', e);
+    }
+  }, [config]);
+
+  useEffect(() => {
+    const activePlugin = plugins.find(p => p.pluginId === 'bank-email-agent');
+    if (activePlugin && expandedPlugin === activePlugin.name) {
+      fetchBankConfig();
+    }
+  }, [expandedPlugin, plugins, fetchBankConfig]);
 
   const syncLastEchoMessage = useCallback(async (hubUrl: string, token: string) => {
     console.log("syncLastEchoMessage: Start syncing with hubUrl =", hubUrl, "token =", token);
@@ -432,18 +1045,168 @@ export const AgentHubView: React.FC = () => {
             Agent Hub Settings
           </h1>
           <p className="text-text-dim text-sm mt-1">
-            Configure and connect to your local Agent Hub server
+            Cấu hình các tác nhân kết nối và tự động hóa đồng bộ giao dịch ngân hàng
           </p>
         </div>
-        {getStatusBadge()}
+        {activeTab === 'desktop' && getStatusBadge()}
       </div>
 
-      {/* Configuration Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-card-dark border border-border-dark rounded-2xl overflow-hidden"
-      >
+      {/* Tab Switcher */}
+      <div className="flex bg-sidebar-dark/45 border border-border-dark p-1 rounded-xl w-fit">
+        <button
+          onClick={() => setActiveTab('gas')}
+          className={cn(
+            "px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2",
+            activeTab === 'gas'
+              ? "bg-primary text-white shadow-md shadow-primary/10"
+              : "text-text-dim hover:text-white"
+          )}
+        >
+          <Zap className="size-3.5" />
+          Gmail API qua Google Apps Script (Khuyên dùng)
+        </button>
+        <button
+          onClick={() => setActiveTab('desktop')}
+          className={cn(
+            "px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2",
+            activeTab === 'desktop'
+              ? "bg-primary text-white shadow-md shadow-primary/10"
+              : "text-text-dim hover:text-white"
+          )}
+        >
+          <Plug className="size-3.5" />
+          Agent Hub Desktop (Local Client)
+        </button>
+      </div>
+
+      {activeTab === 'gas' ? (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-card-dark border border-border-dark rounded-2xl p-6 space-y-6"
+        >
+          {/* Intro Banner */}
+          <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border border-indigo-500/20 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h2 className="text-white font-bold text-base flex items-center gap-2">
+                <Zap className="size-5 text-indigo-400 animate-pulse" />
+                Đồng bộ Gmail API qua Google Apps Script
+              </h2>
+              <p className="text-text-dim text-xs max-w-2xl leading-relaxed">
+                Giải pháp chạy trực tiếp trên đám mây của Google giúp đồng bộ email giao dịch ngân hàng (ACB) về hệ thống 24/7 hoàn toàn miễn phí, không cần cài đặt Google Cloud Console và hoạt động độc lập không phụ thuộc máy tính cá nhân.
+              </p>
+            </div>
+            <a
+              href="https://script.google.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow-lg shadow-indigo-600/10 flex items-center gap-2 self-start md:self-auto shrink-0 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              Mở Google Apps Script
+              <ExternalLink className="size-3.5" />
+            </a>
+          </div>
+
+          {/* Steps */}
+          <div className="space-y-6">
+            {/* Step 1 */}
+            <div className="space-y-2">
+              <h3 className="text-white font-bold text-sm flex items-center gap-2">
+                <span className="size-6 rounded-full bg-sidebar-dark border border-border-dark flex items-center justify-center text-xs font-extrabold text-indigo-400">1</span>
+                Tạo Dự án Apps Script mới
+              </h3>
+              <p className="text-text-dim text-xs pl-8">
+                Click vào nút <strong>Mở Google Apps Script</strong> phía trên, đăng nhập bằng tài khoản Gmail của bạn (nơi nhận thông báo biến động số dư ACB), sau đó chọn <strong>New Project (Dự án mới)</strong>.
+              </p>
+            </div>
+
+            {/* Step 2 */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-white font-bold text-sm flex items-center gap-2">
+                  <span className="size-6 rounded-full bg-sidebar-dark border border-border-dark flex items-center justify-center text-xs font-extrabold text-indigo-400">2</span>
+                  Sao chép mã nguồn bên dưới
+                </h3>
+                <button
+                  onClick={() => copyToClipboard(getGasScriptCode(), 'gas-code')}
+                  className="px-3 py-1.5 bg-sidebar-dark hover:bg-border-dark border border-border-dark rounded-xl text-xs text-text-dim hover:text-white transition-colors flex items-center gap-1.5 font-bold"
+                >
+                  {copiedId === 'gas-code' ? (
+                    <>
+                      <Check className="size-3.5 text-green-400" />
+                      Đã copy thành công!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="size-3.5" />
+                      Sao chép toàn bộ code
+                    </>
+                  )}
+                </button>
+              </div>
+              <p className="text-text-dim text-xs pl-8">
+                Xóa hết code mặc định trong file <code className="bg-sidebar-dark px-1.5 py-0.5 rounded text-white font-mono">Code.gs</code> của Apps Script, sau đó dán toàn bộ đoạn mã này vào. Thông tin Supabase URL và Service Role Key đã được tự động điền cấu hình chính xác cho bạn:
+              </p>
+              
+              <div className="pl-8">
+                {isLoadingCredentials ? (
+                  <div className="h-64 bg-sidebar-dark/40 border border-border-dark rounded-2xl flex flex-col items-center justify-center text-text-dim text-xs space-y-2">
+                    <Loader2 className="size-6 animate-spin text-primary" />
+                    <span>Đang tải thông tin kết nối Supabase bảo mật...</span>
+                  </div>
+                ) : (
+                  <div className="relative rounded-2xl border border-border-dark bg-sidebar-dark/45 overflow-hidden">
+                    <pre className="p-4 text-xs font-mono text-text-dim overflow-x-auto max-h-96 leading-relaxed select-all">
+                      {getGasScriptCode()}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div className="space-y-2">
+              <h3 className="text-white font-bold text-sm flex items-center gap-2">
+                <span className="size-6 rounded-full bg-sidebar-dark border border-border-dark flex items-center justify-center text-xs font-extrabold text-indigo-400">3</span>
+                Lưu và Kích hoạt Trigger tự động
+              </h3>
+              <div className="text-text-dim text-xs pl-8 space-y-2 leading-relaxed">
+                <p>
+                  1. Click biểu tượng <strong>Save (Lưu project - hình đĩa mềm)</strong> hoặc ấn <kbd className="bg-sidebar-dark px-1 py-0.5 rounded text-white font-mono">Ctrl + S</kbd>.
+                </p>
+                <p>
+                  2. Tại thanh công cụ phía trên, chọn hàm <strong><code className="bg-sidebar-dark px-1.5 py-0.5 rounded text-white font-mono font-bold">setupTrigger</code></strong> từ danh sách dropdown và click <strong>Run (Chạy)</strong>.
+                </p>
+                <p>
+                  3. Một cửa sổ uỷ quyền sẽ hiện ra. Chọn tài khoản Gmail của bạn, click <strong>Advanced (Nâng cao)</strong> &rarr; click <strong>Go to Untitled project (Unsafe)</strong> &rarr; Click <strong>Allow (Cho phép)</strong> để cấp quyền cho Script đọc email ngân hàng và thực hiện kết nối mạng đến Supabase.
+                </p>
+                <div className="p-3 bg-green-500/5 border border-green-500/20 rounded-xl text-green-400/90 text-xs">
+                  <strong>💡 Lưu ý:</strong> Hàm <code className="font-bold">setupTrigger</code> chỉ cần chạy <strong>duy nhất 1 lần</strong>. Hàm này sẽ tự động lên lịch chạy định kỳ mỗi 5 phút một lần để tự động quét email và đồng bộ vào hệ thống.
+                </div>
+              </div>
+            </div>
+
+            {/* Step 4 */}
+            <div className="space-y-2 border-t border-border-dark pt-5">
+              <h3 className="text-white font-bold text-sm flex items-center gap-2">
+                <Zap className="size-4 text-indigo-400 animate-pulse" />
+                Cơ chế chống trùng lặp & Bảo mật
+              </h3>
+              <div className="text-text-dim text-xs pl-8 space-y-1 leading-relaxed">
+                <p>- Mỗi luồng email giao dịch sau khi quét và import thành công sẽ được gán nhãn <strong><code className="bg-sidebar-dark px-1.5 py-0.5 rounded text-white font-mono">agenthub-processed</code></strong> trong Gmail của bạn. Những lần quét sau script sẽ tự động bỏ qua.</p>
+                <p>- Khóa chính của giao dịch được liên kết trực tiếp với ID email gốc. Nếu có trùng lặp xảy ra, database sẽ tự động chặn hoặc ghi đè an toàn (UPSERT), loại bỏ hoàn toàn khả năng bị lệch số dư.</p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      ) : (
+        <>
+          {/* Configuration Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-card-dark border border-border-dark rounded-2xl overflow-hidden"
+          >
         <div
           className="flex items-center justify-between p-4 border-b border-border-dark cursor-pointer"
           onClick={() => !isConfigEditing && setIsConfigEditing(!isConfigEditing)}
@@ -767,6 +1530,288 @@ export const AgentHubView: React.FC = () => {
                               })}
                             </div>
                           </div>
+
+                          {plugin.pluginId === 'bank-email-agent' && (
+                            <div className="mt-4 p-4 bg-sidebar-dark/45 border border-border-dark rounded-xl space-y-6">
+                              {!bankConfig ? (
+                                <div className="flex flex-col items-center justify-center py-6 space-y-3">
+                                  <p className="text-text-dim text-xs">Cấu hình chưa được tải tự động từ Agent Hub hoặc Agent Hub đang ngoại tuyến.</p>
+                                  <button
+                                    type="button"
+                                    onClick={fetchBankConfig}
+                                    className="px-4 py-2 text-xs font-bold bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors flex items-center gap-2"
+                                  >
+                                    <RefreshCw className="size-3.5" />
+                                    Tải Cấu Hình
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="flex items-center justify-between border-b border-border-dark pb-3">
+                                <div>
+                                  <h4 className="text-white font-bold text-sm">Cấu hình Bank Email Agent</h4>
+                                  <p className="text-text-dim text-xs mt-1">Quản lý tài khoản IMAP và các cài đặt đồng bộ</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={fetchBankConfig}
+                                  className="p-1.5 bg-sidebar-dark hover:bg-border-dark border border-border-dark rounded-lg text-text-dim hover:text-white transition-colors"
+                                  title="Làm mới cấu hình"
+                                >
+                                  <RefreshCw className="size-4" />
+                                </button>
+                              </div>
+
+                              {/* Banners thông báo */}
+                              {bankConfigError && (
+                                <div className="p-3 bg-red-500/10 border border-red-500/25 rounded-lg text-xs text-red-400 flex items-center gap-2">
+                                  <AlertTriangle className="size-4 shrink-0" />
+                                  <span>{bankConfigError}</span>
+                                </div>
+                              )}
+                              {bankConfigSuccess && (
+                                <div className="p-3 bg-green-500/10 border border-green-500/25 rounded-lg text-xs text-green-400 flex items-center gap-2">
+                                  <CheckCircle2 className="size-4 shrink-0" />
+                                  <span>{bankConfigSuccess}</span>
+                                </div>
+                              )}
+
+                              {/* Form cấu hình */}
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                  <div className="space-y-1">
+                                    <label className="text-xs font-bold text-text-dim uppercase">Chu kỳ quét email (Giây)</label>
+                                    <input
+                                      type="number"
+                                      value={bankConfig.checkIntervalSeconds}
+                                      onChange={(e) => setBankConfig((prev: any) => ({ ...prev, checkIntervalSeconds: parseInt(e.target.value) || 60 }))}
+                                      className="w-full px-3 py-2 bg-sidebar-dark border border-border-dark rounded-lg text-white text-xs focus:outline-none focus:border-primary font-semibold"
+                                      min="10"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-xs font-bold text-text-dim uppercase">Endpoint đồng bộ Web App</label>
+                                    <input
+                                      type="text"
+                                      value={bankConfig.webAppEndpoint}
+                                      onChange={(e) => setBankConfig((prev: any) => ({ ...prev, webAppEndpoint: e.target.value }))}
+                                      className="w-full px-3 py-2 bg-sidebar-dark border border-border-dark rounded-lg text-white text-xs focus:outline-none focus:border-primary font-semibold"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="space-y-3 pt-2">
+                                  <h5 className="text-xs font-bold text-text-dim uppercase border-b border-border-dark pb-1.5 flex justify-between items-center">
+                                    Danh sách tài khoản IMAP
+                                  </h5>
+                                  
+                                  {bankConfig.accounts.map((account: any, idx: number) => (
+                                    <div key={idx} className="p-4 bg-sidebar-dark/60 border border-border-dark rounded-xl space-y-4 relative">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const updatedAccounts = bankConfig.accounts.filter((_: any, i: number) => i !== idx);
+                                          setBankConfig((prev: any) => ({ ...prev, accounts: updatedAccounts }));
+                                        }}
+                                        className="absolute top-3 right-4 text-red-400 hover:text-red-300 text-xs font-bold transition-colors"
+                                      >
+                                        Xóa tài khoản
+                                      </button>
+
+                                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] font-bold text-text-dim uppercase">Email address</label>
+                                          <input
+                                            type="email"
+                                            value={account.email}
+                                            onChange={(e) => {
+                                              const updated = [...bankConfig.accounts];
+                                              updated[idx].email = e.target.value;
+                                              setBankConfig((prev: any) => ({ ...prev, accounts: updated }));
+                                            }}
+                                            className="w-full px-3 py-2 bg-sidebar-dark border border-border-dark rounded-lg text-white text-xs focus:outline-none focus:border-primary font-semibold"
+                                            placeholder="user@example.com"
+                                          />
+                                        </div>
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] font-bold text-text-dim uppercase">IMAP Host</label>
+                                          <input
+                                            type="text"
+                                            value={account.imapHost}
+                                            onChange={(e) => {
+                                              const updated = [...bankConfig.accounts];
+                                              updated[idx].imapHost = e.target.value;
+                                              setBankConfig((prev: any) => ({ ...prev, accounts: updated }));
+                                            }}
+                                            className="w-full px-3 py-2 bg-sidebar-dark border border-border-dark rounded-lg text-white text-xs focus:outline-none focus:border-primary font-semibold"
+                                            placeholder="imap.gmail.com"
+                                          />
+                                        </div>
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] font-bold text-text-dim uppercase">IMAP Port</label>
+                                          <input
+                                            type="number"
+                                            value={account.imapPort}
+                                            onChange={(e) => {
+                                              const updated = [...bankConfig.accounts];
+                                              updated[idx].imapPort = parseInt(e.target.value) || 993;
+                                              setBankConfig((prev: any) => ({ ...prev, accounts: updated }));
+                                            }}
+                                            className="w-full px-3 py-2 bg-sidebar-dark border border-border-dark rounded-lg text-white text-xs focus:outline-none focus:border-primary font-semibold"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] font-bold text-text-dim uppercase">Mật khẩu mới (App Password)</label>
+                                          <div className="relative">
+                                            <input
+                                              type={showBankPassword[idx] ? "text" : "password"}
+                                              value={bankPasswords[idx] !== undefined ? bankPasswords[idx] : (account.password === '********' ? '********' : '')}
+                                              onChange={(e) => {
+                                                setBankPasswords(prev => ({ ...prev, [idx]: e.target.value }));
+                                              }}
+                                              className="w-full px-3 py-2 pr-10 bg-sidebar-dark border border-border-dark rounded-lg text-white text-xs focus:outline-none focus:border-primary font-semibold"
+                                              placeholder="Để trống nếu không đổi..."
+                                            />
+                                            <button
+                                              type="button"
+                                              onClick={() => setShowBankPassword(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                                              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-dim hover:text-white transition-colors"
+                                            >
+                                              {showBankPassword[idx] ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                                            </button>
+                                          </div>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] font-bold text-text-dim uppercase">Nhập lại mật khẩu mới</label>
+                                          <div className="relative">
+                                            <input
+                                              type={showBankConfirmPassword[idx] ? "text" : "password"}
+                                              value={bankConfirmPasswords[idx] !== undefined ? bankConfirmPasswords[idx] : (account.password === '********' ? '********' : '')}
+                                              onChange={(e) => {
+                                                setBankConfirmPasswords(prev => ({ ...prev, [idx]: e.target.value }));
+                                              }}
+                                              className="w-full px-3 py-2 pr-10 bg-sidebar-dark border border-border-dark rounded-lg text-white text-xs focus:outline-none focus:border-primary font-semibold"
+                                              placeholder="Nhập lại mật khẩu để đổi..."
+                                            />
+                                            <button
+                                              type="button"
+                                              onClick={() => setShowBankConfirmPassword(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                                              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-dim hover:text-white transition-colors"
+                                            >
+                                              {showBankConfirmPassword[idx] ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex items-center gap-2 pt-1">
+                                        <input
+                                          type="checkbox"
+                                          id={`chk_acc_enabled_${idx}`}
+                                          checked={account.enabled}
+                                          onChange={(e) => {
+                                            const updated = [...bankConfig.accounts];
+                                            updated[idx].enabled = e.target.checked;
+                                            setBankConfig((prev: any) => ({ ...prev, accounts: updated }));
+                                          }}
+                                          className="size-4 accent-primary rounded"
+                                        />
+                                        <label htmlFor={`chk_acc_enabled_${idx}`} className="text-[10px] font-bold text-text-dim uppercase cursor-pointer">
+                                          Kích hoạt đồng bộ tài khoản này
+                                        </label>
+                                      </div>
+                                    </div>
+                                  ))}
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newAcc = { email: '', imapHost: 'imap.gmail.com', imapPort: 993, password: '', enabled: true };
+                                      setBankConfig((prev: any) => ({ ...prev, accounts: [...prev.accounts, newAcc] }));
+                                    }}
+                                    className="w-full py-2.5 bg-sidebar-dark hover:bg-border-dark border border-dashed border-border-dark rounded-xl text-xs font-bold text-text-dim hover:text-white transition-colors flex items-center justify-center gap-2"
+                                  >
+                                    <span>+ Thêm tài khoản IMAP mới</span>
+                                  </button>
+                                </div>
+
+                                <div className="flex items-center justify-end gap-3 pt-4 border-t border-border-dark">
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      setIsSavingBankConfig(true);
+                                      setBankConfigError(null);
+                                      setBankConfigSuccess(null);
+
+                                      // Validation
+                                      for (let i = 0; i < bankConfig.accounts.length; i++) {
+                                        const acc = bankConfig.accounts[i];
+                                        if (!acc.email) {
+                                          setBankConfigError(`Tài khoản #${i + 1} chưa điền Email.`);
+                                          setIsSavingBankConfig(false);
+                                          return;
+                                        }
+                                        
+                                        const typedPass = bankPasswords[i];
+                                        const confirmPass = bankConfirmPasswords[i];
+
+                                        if (typedPass !== undefined && typedPass !== '') {
+                                          if (typedPass !== confirmPass) {
+                                            setBankConfigError(`Mật khẩu xác nhận tài khoản ${acc.email} không khớp.`);
+                                            setIsSavingBankConfig(false);
+                                            return;
+                                          }
+                                          acc.password = typedPass;
+                                        }
+                                      }
+
+                                      try {
+                                        const execUrl = `${config.hubUrl.replace(/\/$/, '')}/api/execute`;
+                                        const response = await fetch(execUrl, {
+                                          method: 'POST',
+                                          headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-Agent-Token': config.securityToken
+                                          },
+                                          body: JSON.stringify({
+                                            pluginId: 'bank-email-agent',
+                                            action: 'update-config',
+                                            data: bankConfig
+                                          }),
+                                          signal: AbortSignal.timeout(10000)
+                                        });
+
+                                        const data = await response.json();
+                                        if (response.ok && data.success) {
+                                          setBankConfigSuccess("Cấu hình tài khoản ngân hàng đã lưu thành công!");
+                                          setBankPasswords({});
+                                          setBankConfirmPasswords({});
+                                          fetchBankConfig();
+                                        } else {
+                                          setBankConfigError(data.error || "Gửi cấu hình thất bại.");
+                                        }
+                                      } catch (e: any) {
+                                        setBankConfigError(e.message || "Lỗi kết nối khi gửi cấu hình.");
+                                      } finally {
+                                        setIsSavingBankConfig(false);
+                                      }
+                                    }}
+                                    disabled={isSavingBankConfig}
+                                    className="px-4 py-2 text-sm font-bold bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors flex items-center gap-2"
+                                  >
+                                    {isSavingBankConfig && <Loader2 className="size-4 animate-spin" />}
+                                    Lưu Cấu Hình
+                                  </button>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                          </div>
+                        )}
                         </div>
                       </motion.div>
                     )}
@@ -893,6 +1938,8 @@ export const AgentHubView: React.FC = () => {
             </div>
           </div>
         </motion.div>
+      )}
+        </>
       )}
     </div>
   );
