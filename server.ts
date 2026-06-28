@@ -18,7 +18,8 @@ import {
   listMinioFiles, 
   deleteFromMinio, 
   getMinioPresignedUrl, 
-  getMinioObjectStream 
+  getMinioObjectStream,
+  checkMinioConnection
 } from './minio';
 
 dotenv.config();
@@ -2220,10 +2221,15 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
   // List files in MinIO storage
   app.get('/api/storage/files', async (req, res) => {
     try {
+      const connected = await checkMinioConnection();
       const search = req.query.search as string | undefined;
       const files = await listMinioFiles(search);
-      res.json({ success: true, data: files });
+      res.json({ success: true, data: files, connected });
     } catch (error: any) {
+      const msg = error.message || '';
+      if (msg.includes('ECONNREFUSED') || msg.includes('ENOTFOUND') || msg.includes('timeout')) {
+        return res.json({ success: true, data: [], connected: false });
+      }
       console.error("[MINIO_API] Loi lay danh sach file:", error);
       res.status(500).json({ error: "Không thể lấy danh sách tệp tin.", details: error.message });
     }

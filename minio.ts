@@ -78,12 +78,55 @@ if (accessKey && secretKey) {
   console.warn('[MINIO] Credentials missing. MinIO storage will run in degraded mode.');
 }
 
+let isConnected = false;
+let lastCheckTime = 0;
+const CHECK_INTERVAL = 15000; // Check connection status at most once every 15 seconds
+
+/**
+ * Actively checks the MinIO connection with a 2-second timeout.
+ */
+export async function checkMinioConnection(): Promise<boolean> {
+  if (!isConfigured || !s3Client) {
+    isConnected = false;
+    return false;
+  }
+
+  const now = Date.now();
+  if (now - lastCheckTime < CHECK_INTERVAL) {
+    return isConnected;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      try {
+        controller.abort();
+      } catch (err) {}
+    }, 2000);
+
+    await s3Client.send(new HeadBucketCommand({ Bucket: bucketName }), {
+      abortSignal: controller.signal as any
+    });
+    clearTimeout(timeoutId);
+    isConnected = true;
+  } catch (error: any) {
+    if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
+      isConnected = true;
+    } else {
+      isConnected = false;
+    }
+  }
+  lastCheckTime = now;
+  return isConnected;
+}
+
 /**
  * Check if MinIO client is configured and bucket is initialized
  */
 export async function initializeMinio(): Promise<boolean> {
   if (!isConfigured || !s3Client) {
     console.warn('[MINIO] Client is not configured. Skipping initialization.');
+    isConnected = false;
     return false;
   }
 
@@ -92,6 +135,8 @@ export async function initializeMinio(): Promise<boolean> {
     try {
       await s3Client.send(new HeadBucketCommand({ Bucket: bucketName }));
       console.log(`[MINIO] Bucket "${bucketName}" exists and is ready.`);
+      isConnected = true;
+      lastCheckTime = Date.now();
       return true;
     } catch (headError: any) {
       // Bucket does not exist, try to create it
@@ -99,12 +144,16 @@ export async function initializeMinio(): Promise<boolean> {
         console.log(`[MINIO] Bucket "${bucketName}" does not exist. Creating it...`);
         await s3Client.send(new CreateBucketCommand({ Bucket: bucketName }));
         console.log(`[MINIO] Bucket "${bucketName}" created successfully.`);
+        isConnected = true;
+        lastCheckTime = Date.now();
         return true;
       }
       throw headError;
     }
   } catch (error: any) {
-    console.error('[MINIO] Error during initialization:', error.message || error);
+    console.warn('[MINIO] Warning: Could not connect to MinIO instance. Running in degraded/offline mode.', error.message || error);
+    isConnected = false;
+    lastCheckTime = Date.now();
     return false;
   }
 }
@@ -165,7 +214,8 @@ export async function uploadToMinio(file: any): Promise<{ key: string; originalN
  * List files in the MinIO bucket
  */
 export async function listMinioFiles(search?: string): Promise<any[]> {
-  if (!isConfigured || !s3Client) {
+  const connected = await checkMinioConnection();
+  if (!connected || !s3Client) {
     return [];
   }
 

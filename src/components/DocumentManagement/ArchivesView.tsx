@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit2, Trash2, Eye, FolderArchive, ChevronRight, Download, Upload, X, FileText, FolderOpen, Search, Loader2, File, AlertCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, Eye, FolderArchive, ChevronRight, Download, Upload, X, FileText, FolderOpen, Search, Loader2, File, AlertCircle, CloudOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
 import { cn } from '../../lib/utils';
@@ -784,6 +784,7 @@ function MinioFileManager() {
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<MinioFile | null>(null);
+  const [isConnected, setIsConnected] = useState(true);
 
   const fetchFiles = useCallback(async () => {
     setLoading(true);
@@ -793,16 +794,17 @@ function MinioFileManager() {
       const result = await response.json();
       if (result.success) {
         setFiles(result.data);
+        setIsConnected(result.connected !== false);
       } else {
         throw new Error(result.error || 'Unknown error');
       }
     } catch (error) {
       console.error('Error fetching MinIO files:', error);
-      toast('Không thể kết nối đến hệ thống lưu trữ MinIO. Vui lòng kiểm tra cấu hình.', 'error');
+      setIsConnected(false);
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     fetchFiles();
@@ -882,6 +884,14 @@ function MinioFileManager() {
 
   return (
     <div className="space-y-6">
+      {/* Status Warning Banner when not connected */}
+      {!isConnected && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-xl text-sm font-medium">
+          <div className="size-2 rounded-full bg-amber-400 animate-pulse" />
+          <span>Hệ thống lưu trữ MinIO: Chưa kết nối (Hoạt động ở chế độ ngoại tuyến)</span>
+        </div>
+      )}
+
       {/* Drag and Drop Zone */}
       <div 
         {...getRootProps()} 
@@ -890,7 +900,7 @@ function MinioFileManager() {
           isDragActive 
             ? "border-primary bg-primary/5 text-primary scale-[1.01]" 
             : "border-white/10 text-text-dim hover:border-primary/50 hover:bg-white/5",
-          uploading && "opacity-50 cursor-wait pointer-events-none"
+          (uploading || !isConnected) && "opacity-50 cursor-not-allowed pointer-events-none"
         )}
       >
         <input {...getInputProps()} />
@@ -902,10 +912,16 @@ function MinioFileManager() {
           )}
           <div>
             <p className="font-bold text-white text-base">
-              {uploading ? "Đang tải tệp tin lên MinIO..." : "Kéo & Thả tệp vào đây, hoặc click để chọn tệp"}
+              {!isConnected 
+                ? "Chưa kết nối đến hệ thống lưu trữ MinIO" 
+                : uploading 
+                  ? "Đang tải tệp tin lên MinIO..." 
+                  : "Kéo & Thả tệp vào đây, hoặc click để chọn tệp"}
             </p>
             <p className="text-xs text-text-dim mt-1">
-              Hỗ trợ tải lên tất cả các loại tài liệu (.pdf, .docx, .xlsx, .png, .jpg...)
+              {!isConnected 
+                ? "Vui lòng cấu hình MinIO hoặc kiểm tra lại kết nối mạng để sử dụng tính năng tải lên" 
+                : "Hỗ trợ tải lên tất cả các loại tài liệu (.pdf, .docx, .xlsx, .png, .jpg...)"}
             </p>
           </div>
         </div>
@@ -933,6 +949,16 @@ function MinioFileManager() {
           <div className="card p-4 space-y-4 animate-pulse">
             <div className="h-6 bg-white/5 rounded w-1/3" />
             <div className="h-20 bg-white/5 rounded" />
+          </div>
+        ) : !isConnected ? (
+          <div className="card flex flex-col items-center justify-center py-16 text-center">
+            <div className="size-16 bg-white/5 rounded-2xl flex items-center justify-center mb-4">
+              <CloudOff className="size-8 text-amber-400" />
+            </div>
+            <h4 className="font-bold text-white mb-1">Chưa kết nối</h4>
+            <p className="text-sm text-text-dim max-w-xs leading-relaxed">
+              Không thể kết nối đến máy chủ lưu trữ MinIO. Vui lòng kiểm tra cấu hình hoặc liên hệ quản trị viên.
+            </p>
           </div>
         ) : filteredFiles.length === 0 ? (
           <div className="card flex flex-col items-center justify-center py-16 text-center">
