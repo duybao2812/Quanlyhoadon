@@ -87,9 +87,10 @@ import {
 import type { User } from 'firebase/auth';
 import imageCompression from 'browser-image-compression';
 import * as XLSX from 'xlsx';
-import { handleFirestoreError, OperationType, auth } from './lib/firebase';
+import { handleFirestoreError, OperationType, auth, db } from './lib/firebase';
 import { supabase, setCustomUserId } from './services/supabaseClient';
-import { extractFromInvoice } from './services/mistral';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { extractFromInvoice, classifyInvoice } from './services/mistral';
 import { parseInvoiceXml } from './lib/xmlParser';
 import { generateDocxBlob, extractTags } from './lib/docxGenerator';
 import PizZip from 'pizzip';
@@ -2872,9 +2873,6 @@ export default function App() {
 
   const runFirebaseToSupabaseMigration = async (uid: string) => {
     try {
-      const { collection, getDocs, query, where } = await import('firebase/firestore');
-      const { db } = await import('./lib/firebase');
-
       console.log('🔄 Checking if Firebase Firestore data needs to be migrated to Supabase...');
 
       // Query Firestore invoices
@@ -3554,7 +3552,6 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
 
             if (extractedData.items) {
               try {
-                const { classifyInvoice } = await import('./services/mistral');
                 extractedData.classification = await classifyInvoice(extractedData.items);
               } catch (e) {
                 console.error("Classification failed:", e);
@@ -3594,7 +3591,6 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
 
             if (extractedData && (extractedData.items || extractedData.items_list)) {
               try {
-                const { classifyInvoice } = await import('./services/mistral');
                 const items = extractedData.items || extractedData.items_list || [];
                 extractedData.classification = await classifyInvoice(items);
               } catch (e) {

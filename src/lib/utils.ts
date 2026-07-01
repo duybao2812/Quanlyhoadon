@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { saveAs } from "file-saver";
 
 export const isElectron = (): boolean => {
   // Kiểm tra thông qua contextBridge đã cung cấp
@@ -47,7 +48,6 @@ export async function executeSecureExport(suggestedFileName: string, blobData: B
     }
   }
 
-  const { saveAs } = await import('file-saver');
   saveAs(blobData, suggestedFileName);
   return true;
 }

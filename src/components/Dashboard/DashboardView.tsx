@@ -25,6 +25,7 @@ import { supabase } from '../../services/supabaseClient';
 import { parseInvoiceXml } from '../../lib/xmlParser';
 import { generateDocxBlob } from '../../lib/docxGenerator';
 import { cn, formatVNNumber, executeSecureExport, getTemplateBuffer, mapInvoiceToSupabase } from '../../lib/utils';
+import { classifyInvoice } from '../../services/mistral';
 import { useToast } from '../Notifications';
 import { Skeleton, getEnrichedInvoice, parseInvoiceDate } from '../Invoice/ReviewModal';
 import { GeneratedDoc, SmartContract, Invoice, Partner, Tab } from '../../types/appTypes';
@@ -570,7 +571,6 @@ import { ExtendedInvoiceItem } from './demoData';
 
             // Run local keyword-based classification
             if (parsedData.items) {
-              const { classifyInvoice } = await import('../../services/mistral');
               parsedData.classification = await classifyInvoice(parsedData.items);
             }
 
