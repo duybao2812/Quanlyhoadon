@@ -4002,7 +4002,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
           </div>
         </header>
 
-        <div className={cn("flex-1 p-4 md:p-6 min-h-0", activeTab === 'transactions' ? "overflow-hidden flex flex-col" : "overflow-y-auto pb-24 md:pb-6")}>
+        <div className={cn("flex-1 min-h-0", activeTab === 'transactions' ? "p-0 overflow-hidden flex flex-col" : "p-4 md:p-6 overflow-y-auto pb-24 md:pb-6")}>
           <div className={cn("h-full", activeTab === 'transactions' && "flex flex-col min-h-0")}>
             {activeTab === 'dashboard' && !selectedInvoice && (
               <DashboardView

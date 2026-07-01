@@ -74,6 +74,15 @@ function formatDisplayDate(dateStr: string | null): string {
   });
 }
 
+function formatDisplayDateOnly(dateStr: string): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('vi-VN', {
+    day: '2-digit', month: '2-digit', year: 'numeric'
+  });
+}
+
 // Định dạng badge màu sắc khác biệt cho từng tài khoản ngân hàng nhận tiền
 function getAccountBadgeStyle(gateway: string, accountNumber: string): string {
   const gLower = (gateway || '').toLowerCase();
@@ -128,7 +137,26 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
   const [filterAccount, setFilterAccount] = useState<string>('all');
   const [filterType, setFilterType] = useState<'all' | 'credit' | 'debit'>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'matched' | 'unmatched'>('all');
+  const [filterYear, setFilterYear] = useState<string>('all');
+  const [filterQuarter, setFilterQuarter] = useState<string>('all');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Lấy danh sách các năm xuất hiện trong các giao dịch
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    transactions.forEach(tx => {
+      if (tx.transaction_date) {
+        const year = new Date(tx.transaction_date).getFullYear();
+        if (!isNaN(year)) {
+          years.add(year);
+        }
+      }
+    });
+    return Array.from(years).sort((a, b) => b - a);
+  }, [transactions]);
 
   // Danh sách ngân hàng phổ biến
   const popularBanks = [
@@ -357,7 +385,40 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
       return false;
     }
     
-    // 4. Lọc theo nội dung tìm kiếm
+    // 4. Lọc theo Năm
+    if (filterYear !== 'all') {
+      const txYear = new Date(tx.transaction_date).getFullYear();
+      if (txYear !== Number(filterYear)) {
+        return false;
+      }
+    }
+
+    // 5. Lọc theo Quý
+    if (filterQuarter !== 'all') {
+      const txMonth = new Date(tx.transaction_date).getMonth();
+      const txQuarter = Math.floor(txMonth / 3) + 1;
+      if (txQuarter !== Number(filterQuarter)) {
+        return false;
+      }
+    }
+
+    // 6. Lọc theo Khoảng ngày (Từ ngày -> Đến ngày)
+    if (startDate) {
+      const txTime = new Date(tx.transaction_date).getTime();
+      const startTime = new Date(startDate).setHours(0, 0, 0, 0);
+      if (txTime < startTime) {
+        return false;
+      }
+    }
+    if (endDate) {
+      const txTime = new Date(tx.transaction_date).getTime();
+      const endTime = new Date(endDate).setHours(23, 59, 59, 999);
+      if (txTime > endTime) {
+        return false;
+      }
+    }
+
+    // 7. Lọc theo nội dung tìm kiếm
     if (searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase().trim();
       const contentMatch = (tx.content || '').toLowerCase().includes(q);
@@ -574,7 +635,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
   };
 
   return (
-    <div className="flex flex-col h-full w-full p-2 space-y-4 max-w-[1600px] mx-auto overflow-hidden">
+    <div className="flex flex-col h-full w-full p-4 space-y-4 max-w-none overflow-hidden">
       
       {/* HEADER SECTION */}
       <div className="flex shrink-0 flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-border-dark pb-3">
@@ -684,6 +745,113 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
                 <option value="matched" className="bg-[#1E1E1E]">ĐÃ KHỚP</option>
                 <option value="unmatched" className="bg-[#1E1E1E]">CHƯA KHỚP</option>
               </select>
+
+              {/* Lọc theo Năm */}
+              <select
+                value={filterYear}
+                onChange={(e) => {
+                  setFilterYear(e.target.value);
+                  setStartDate('');
+                  setEndDate('');
+                }}
+                className="px-2.5 py-1.5 bg-black/40 border border-border-dark rounded-xl text-[10px] font-bold text-white focus:outline-none focus:border-primary/40 cursor-pointer"
+              >
+                <option value="all" className="bg-[#1E1E1E]">TẤT CẢ NĂM</option>
+                {availableYears.map(year => (
+                  <option key={year} value={year} className="bg-[#1E1E1E]">NĂM {year}</option>
+                ))}
+              </select>
+
+              {/* Lọc theo Quý */}
+              <select
+                value={filterQuarter}
+                onChange={(e) => {
+                  setFilterQuarter(e.target.value);
+                  setStartDate('');
+                  setEndDate('');
+                }}
+                className="px-2.5 py-1.5 bg-black/40 border border-border-dark rounded-xl text-[10px] font-bold text-white focus:outline-none focus:border-primary/40 cursor-pointer"
+              >
+                <option value="all" className="bg-[#1E1E1E]">TẤT CẢ QUÝ</option>
+                <option value="1" className="bg-[#1E1E1E]">QUÝ 1</option>
+                <option value="2" className="bg-[#1E1E1E]">QUÝ 2</option>
+                <option value="3" className="bg-[#1E1E1E]">QUÝ 3</option>
+                <option value="4" className="bg-[#1E1E1E]">QUÝ 4</option>
+              </select>
+
+              {/* Lọc theo Khoảng ngày */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowDatePicker(!showDatePicker)}
+                  className={`px-2.5 py-1.5 border rounded-xl text-[10px] font-bold cursor-pointer transition-all flex items-center gap-1.5 ${
+                    startDate || endDate
+                      ? 'bg-primary/20 border-primary text-primary'
+                      : 'bg-black/40 border-border-dark text-white hover:border-white/20'
+                  }`}
+                >
+                  <span>📅</span>
+                  <span>
+                    {startDate || endDate
+                      ? `${startDate ? formatDisplayDateOnly(startDate) : '...'} - ${endDate ? formatDisplayDateOnly(endDate) : '...'}`
+                      : 'KHOẢNG NGÀY'}
+                  </span>
+                </button>
+                
+                {showDatePicker && (
+                  <div className="absolute right-0 mt-2 p-4 bg-stone-900 border border-border-dark rounded-2xl shadow-2xl z-50 w-64 space-y-3">
+                    <h4 className="text-[10px] font-black uppercase text-white tracking-wider">Chọn khoảng ngày</h4>
+                    <div className="space-y-2">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-text-dim uppercase">Từ ngày</label>
+                        <input
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => {
+                            setStartDate(e.target.value);
+                            setFilterYear('all');
+                            setFilterQuarter('all');
+                          }}
+                          className="w-full px-3 py-1.5 bg-black/40 border border-border-dark rounded-xl text-xs text-white focus:outline-none focus:border-primary/45"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-text-dim uppercase">Đến ngày</label>
+                        <input
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => {
+                            setEndDate(e.target.value);
+                            setFilterYear('all');
+                            setFilterQuarter('all');
+                          }}
+                          className="w-full px-3 py-1.5 bg-black/40 border border-border-dark rounded-xl text-xs text-white focus:outline-none focus:border-primary/45"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 justify-end pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStartDate('');
+                          setEndDate('');
+                          setShowDatePicker(false);
+                        }}
+                        className="px-2.5 py-1.5 bg-white/5 border border-border-dark text-white rounded-lg text-[9px] font-bold hover:bg-white/10"
+                      >
+                        Đặt lại
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowDatePicker(false)}
+                        className="px-2.5 py-1.5 bg-primary text-white rounded-lg text-[9px] font-bold hover:bg-primary-hover"
+                      >
+                        Áp dụng
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
