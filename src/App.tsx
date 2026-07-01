@@ -67,7 +67,9 @@ import {
   Save,
   BarChart3,
   FolderArchive,
-  Landmark
+  Landmark,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
@@ -133,6 +135,7 @@ import { ReviewModal, getEnrichedInvoice, parseInvoiceDate, formatDisplayDate } 
 import { UploadView } from './components/Invoice/UploadView';
 import { ContractManagementView } from './components/Contract/ContractManagementView';
 import { ContractView, fetchTemplateBuffer, generateDocxBlobForContract, blobToBase64, getFriendlyLabel } from './components/Contract/ContractView';
+import { QuickContractView } from './components/Contract/QuickContractView';
 import { PartnersView } from './components/Partners/PartnersView';
 import { DocsView } from './components/Docs/DocsView';
 import { BulkExportModal } from './components/Docs/BulkExportModal';
@@ -158,7 +161,8 @@ const TAB_CONFIG: Record<Tab, { path: string, label: string }> = {
   'agent-hub': { path: 'agent-hub', label: 'Cấu hình Agent Hub' },
   dossier: { path: 'ho-so', label: 'Hồ sơ' },
   'tax-lookup': { path: 'tra-cuu-thue', label: 'Tra cứu thuế' },
-  'transactions': { path: 'giao-dich', label: 'Giao dịch ngân hàng' }
+  'transactions': { path: 'giao-dich', label: 'Giao dịch ngân hàng' },
+  'quick-contract': { path: 'ky-hop-dong-nhanh', label: 'Tạo hợp đồng nhanh' }
 };
 
 // Helper to remove Vietnamese diacritics while preserving case
@@ -195,6 +199,21 @@ const fixNgocTham = (str: any) => {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('theme');
+    return (saved === 'light' || saved === 'dark') ? saved : 'dark';
+  });
+
+  useEffect(() => {
+    if (theme === 'light') {
+      document.documentElement.classList.add('light');
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   // ─── AGENT HUB HEARTBEAT EFFECT ───
   useEffect(() => {
@@ -3933,7 +3952,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
 
   return (
     <div className={cn(
-      "flex h-screen w-full font-sans select-none overflow-hidden bg-bg-dark",
+      "flex h-full w-full font-sans select-none overflow-hidden bg-bg-dark",
       isIframeMode() && "wallpaper-glass-theme"
     )}>
       {/* Review Modal */}
@@ -3996,6 +4015,13 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                 <span>Bắt đầu lượt mới</span>
               </button>
             </div>
+            <button
+              onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
+              className="size-10 md:size-12 rounded-xl md:rounded-2xl border border-border-dark bg-white/5 hover:bg-white/10 text-text-dim hover:text-white transition-all duration-200 active:scale-95 flex items-center justify-center cursor-pointer shadow-inner shrink-0"
+              title={theme === 'light' ? 'Chuyển sang Giao diện tối' : 'Chuyển sang Giao diện sáng'}
+            >
+              {theme === 'light' ? <Moon className="size-5 md:size-6" /> : <Sun className="size-5 md:size-6" />}
+            </button>
             <div className="size-10 md:size-12 rounded-xl md:rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-black text-primary shadow-inner shrink-0">
               {user?.displayName ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : "GA"}
             </div>
@@ -4341,6 +4367,13 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                 handleFieldChange={handleContractFieldChange}
                 vatConfig={vatConfig}
                 openVatConfig={() => setIsVatConfigOpen(true)}
+              />
+            )}
+            {activeTab === 'quick-contract' && (
+              <QuickContractView
+                partners={partners}
+                user={user}
+                onBack={() => handleTabChange('contract')}
               />
             )}
             {activeTab === 'contract_upload' && (

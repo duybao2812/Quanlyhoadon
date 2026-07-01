@@ -1,6 +1,6 @@
 import type { User } from 'firebase/auth';
 
-export type Tab = 'dashboard' | 'upload' | 'partners' | 'docs' | 'contract' | 'contract_upload' | 'system' | 'agent-hub' | 'dossier' | 'tax-lookup' | 'transactions';
+export type Tab = 'dashboard' | 'upload' | 'partners' | 'docs' | 'contract' | 'contract_upload' | 'system' | 'agent-hub' | 'dossier' | 'tax-lookup' | 'transactions' | 'quick-contract';
 
 export interface Partner {
   id: string;

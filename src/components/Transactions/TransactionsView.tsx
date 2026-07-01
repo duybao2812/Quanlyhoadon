@@ -49,6 +49,9 @@ interface BankTransaction {
   matched_invoice_id: string | null;
   match_status: 'matched' | 'unmatched';
   created_at: string;
+  computedTimestamp?: number;
+  computedYear?: number;
+  computedQuarter?: number;
 }
 
 interface TransactionsViewProps {
@@ -143,6 +146,18 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
   const [endDate, setEndDate] = useState<string>('');
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchInputValue, setSearchInputValue] = useState<string>('');
+
+  // Cơ chế Debounce cho ô tìm kiếm
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearchQuery(searchInputValue);
+    }, 250);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchInputValue]);
 
   // Lấy danh sách các năm xuất hiện trong các giao dịch
   const availableYears = useMemo(() => {
@@ -180,8 +195,19 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
         throw new Error(errMsg);
       }
       const data = await res.json();
+      const rawTxs = data.transactions || [];
+      const parsedTxs = rawTxs.map((tx: BankTransaction) => {
+        const d = new Date(tx.transaction_date);
+        const hasValidDate = !isNaN(d.getTime());
+        return {
+          ...tx,
+          computedTimestamp: hasValidDate ? d.getTime() : 0,
+          computedYear: hasValidDate ? d.getFullYear() : 0,
+          computedQuarter: hasValidDate ? Math.floor(d.getMonth() / 3) + 1 : 0
+        };
+      });
       setAccounts(data.accounts || []);
-      setTransactions(data.transactions || []);
+      setTransactions(parsedTxs);
     } catch (err: any) {
       console.error('[TRANSACTIONS] Lỗi tải dữ liệu:', err);
       toast('Lỗi khi tải lịch sử giao dịch: ' + err.message, 'error');
@@ -366,79 +392,96 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
     );
   }, [transactions]);
 
-  const filteredTransactions = transactionsWithBalance.filter(tx => {
-    // 1. Lọc theo tài khoản đã chọn
-    if (filterAccount !== 'all' && tx.account_number !== filterAccount) {
-      return false;
-    }
-    
-    // 2. Lọc theo loại giao dịch
-    if (filterType === 'credit' && Number(tx.amount_in) === 0) {
-      return false;
-    }
-    if (filterType === 'debit' && Number(tx.amount_out) === 0) {
-      return false;
-    }
-    
-    // 3. Lọc theo trạng thái đối soát
-    if (filterStatus !== 'all' && tx.match_status !== filterStatus) {
-      return false;
-    }
-    
-    // 4. Lọc theo Năm
-    if (filterYear !== 'all') {
-      const txYear = new Date(tx.transaction_date).getFullYear();
-      if (txYear !== Number(filterYear)) {
+  const filteredTransactions = useMemo(() => {
+    return transactionsWithBalance.filter(tx => {
+      // 1. Lọc theo tài khoản đã chọn
+      if (filterAccount !== 'all' && tx.account_number !== filterAccount) {
         return false;
       }
-    }
-
-    // 5. Lọc theo Quý
-    if (filterQuarter !== 'all') {
-      const txMonth = new Date(tx.transaction_date).getMonth();
-      const txQuarter = Math.floor(txMonth / 3) + 1;
-      if (txQuarter !== Number(filterQuarter)) {
-        return false;
-      }
-    }
-
-    // 6. Lọc theo Khoảng ngày (Từ ngày -> Đến ngày)
-    if (startDate) {
-      const txTime = new Date(tx.transaction_date).getTime();
-      const startTime = new Date(startDate).setHours(0, 0, 0, 0);
-      if (txTime < startTime) {
-        return false;
-      }
-    }
-    if (endDate) {
-      const txTime = new Date(tx.transaction_date).getTime();
-      const endTime = new Date(endDate).setHours(23, 59, 59, 999);
-      if (txTime > endTime) {
-        return false;
-      }
-    }
-
-    // 7. Lọc theo nội dung tìm kiếm
-    if (searchQuery.trim() !== '') {
-      const q = searchQuery.toLowerCase().trim();
-      const contentMatch = (tx.content || '').toLowerCase().includes(q);
-      const amountInMatch = String(tx.amount_in || '').includes(q);
-      const amountOutMatch = String(tx.amount_out || '').includes(q);
-      const refMatch = (tx.reference_number || '').toLowerCase().includes(q);
-      const gatewayMatch = (tx.gateway || '').toLowerCase().includes(q);
-      const codeMatch = (tx.code || '').toLowerCase().includes(q);
       
-      return contentMatch || amountInMatch || amountOutMatch || refMatch || gatewayMatch || codeMatch;
-    }
-    
-    return true;
-  });
+      // 2. Lọc theo loại giao dịch
+      if (filterType === 'credit' && Number(tx.amount_in) === 0) {
+        return false;
+      }
+      if (filterType === 'debit' && Number(tx.amount_out) === 0) {
+        return false;
+      }
+      
+      // 3. Lọc theo trạng thái đối soát
+      if (filterStatus !== 'all' && tx.match_status !== filterStatus) {
+        return false;
+      }
+      
+      // 4. Lọc theo Năm (Dùng giá trị tính toán trước)
+      if (filterYear !== 'all') {
+        const txYear = tx.computedYear || 0;
+        if (txYear !== Number(filterYear)) {
+          return false;
+        }
+      }
+
+      // 5. Lọc theo Quý (Dùng giá trị tính toán trước)
+      if (filterQuarter !== 'all') {
+        const txQuarter = tx.computedQuarter || 0;
+        if (txQuarter !== Number(filterQuarter)) {
+          return false;
+        }
+      }
+
+      // 6. Lọc theo Khoảng ngày (Dùng giá trị tính toán trước)
+      if (startDate) {
+        const txTime = tx.computedTimestamp || 0;
+        const startTime = new Date(startDate).setHours(0, 0, 0, 0);
+        if (txTime < startTime) {
+          return false;
+        }
+      }
+      if (endDate) {
+        const txTime = tx.computedTimestamp || 0;
+        const endTime = new Date(endDate).setHours(23, 59, 59, 999);
+        if (txTime > endTime) {
+          return false;
+        }
+      }
+
+      // 7. Lọc theo nội dung tìm kiếm
+      if (searchQuery.trim() !== '') {
+        const q = searchQuery.toLowerCase().trim();
+        const contentMatch = (tx.content || '').toLowerCase().includes(q);
+        const amountInMatch = String(tx.amount_in || '').includes(q);
+        const amountOutMatch = String(tx.amount_out || '').includes(q);
+        const refMatch = (tx.reference_number || '').toLowerCase().includes(q);
+        const gatewayMatch = (tx.gateway || '').toLowerCase().includes(q);
+        const codeMatch = (tx.code || '').toLowerCase().includes(q);
+        
+        return contentMatch || amountInMatch || amountOutMatch || refMatch || gatewayMatch || codeMatch;
+      }
+      
+      return true;
+    });
+  }, [transactionsWithBalance, filterAccount, filterType, filterStatus, filterYear, filterQuarter, startDate, endDate, searchQuery]);
 
   // Thống kê dựa trên dữ liệu lọc
-  const totalIn = filteredTransactions.reduce((sum, tx) => sum + Number(tx.amount_in), 0);
-  const totalOut = filteredTransactions.reduce((sum, tx) => sum + Number(tx.amount_out), 0);
-  const matchedCount = filteredTransactions.filter(tx => tx.match_status === 'matched').length;
-  const diffAmount = totalIn - totalOut;
+  const stats = useMemo(() => {
+    const totalIn = filteredTransactions.reduce((sum, tx) => sum + Number(tx.amount_in), 0);
+    const totalOut = filteredTransactions.reduce((sum, tx) => sum + Number(tx.amount_out), 0);
+    const matchedCount = filteredTransactions.filter(tx => tx.match_status === 'matched').length;
+    const diffAmount = totalIn - totalOut;
+    return { totalIn, totalOut, matchedCount, diffAmount };
+  }, [filteredTransactions]);
+
+  const { totalIn, totalOut, matchedCount, diffAmount } = stats;
+
+  const [visibleCount, setVisibleCount] = useState<number>(50);
+
+  // Reset visibleCount khi bộ lọc thay đổi
+  useEffect(() => {
+    setVisibleCount(50);
+  }, [filterAccount, filterType, filterStatus, filterYear, filterQuarter, startDate, endDate, searchQuery]);
+
+  const paginatedTransactions = useMemo(() => {
+    return filteredTransactions.slice(0, visibleCount);
+  }, [filteredTransactions, visibleCount]);
 
   // Xuất file Excel lịch sử giao dịch chuyên nghiệp bằng ExcelJS
   const handleExportExcel = async () => {
@@ -658,8 +701,8 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
             <input
               type="text"
               placeholder="Tìm kiếm nội dung chuyển khoản, số tiền, ref..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={searchInputValue}
+              onChange={(e) => setSearchInputValue(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-black/40 border border-border-dark rounded-xl text-xs focus:outline-none focus:border-primary/45 focus:ring-4 focus:ring-primary/5 text-white placeholder:text-text-dim"
             />
           </div>
@@ -866,79 +909,94 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
                 {searchQuery.trim() !== '' ? 'Không tìm thấy giao dịch nào phù hợp.' : 'Chưa phát sinh giao dịch nào được ghi nhận.'}
               </div>
             ) : (
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-black/20 text-text-dim font-black uppercase text-[9px] tracking-wider border-b border-border-dark/60 sticky top-0 backdrop-blur z-10">
-                    <th className="px-5 py-3">Thời gian</th>
-                    <th className="px-5 py-3">Tài khoản nhận</th>
-                    <th className="px-5 py-3">Nội dung chuyển khoản</th>
-                    <th className="px-5 py-3 text-right">Số tiền</th>
-                    <th className="px-5 py-3 text-center">Đối soát</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-dark/30 font-medium">
-                  {filteredTransactions.map((tx) => {
-                    const isCredit = Number(tx.amount_in) > 0;
-                    const displayAmount = isCredit ? tx.amount_in : tx.amount_out;
-                    const badgeStyle = getAccountBadgeStyle(tx.gateway, tx.account_number);
-                    
-                    return (
-                      <tr key={tx.id} className="hover:bg-white/[0.02] transition-colors group">
-                        {/* THỜI GIAN */}
-                        <td className="px-5 py-3.5 whitespace-nowrap">
-                          <p className="text-xs text-white font-bold">{formatDisplayDate(tx.transaction_date)}</p>
-                          <p className="text-[9px] text-text-dim font-mono mt-0.5">Ref: {tx.reference_number || '---'}</p>
-                        </td>
-                        
-                        {/* NGÂN HÀNG & SỐ TÀI KHOẢN */}
-                        <td className="px-5 py-3.5">
-                          <div className="inline-flex flex-col items-start gap-1">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-black uppercase border leading-none ${badgeStyle}`}>
-                              {tx.gateway}
-                            </span>
-                            <span className="text-[10px] text-text-dim font-mono tracking-wider">{tx.account_number}</span>
-                          </div>
-                        </td>
-                        
-                        {/* NỘI DUNG CHUYỂN KHOẢN */}
-                        <td className="px-5 py-3.5 max-w-xs xl:max-w-sm break-words">
-                          <p className="text-xs text-white leading-relaxed whitespace-pre-wrap break-words">
-                            {tx.content}
-                          </p>
-                          {tx.code && (
-                            <span className="inline-flex mt-1.5 px-2 py-0.5 bg-primary/10 border border-primary/20 text-primary text-[8px] font-black uppercase tracking-wider rounded">
-                              Mã: {tx.code}
-                            </span>
-                          )}
-                        </td>
-                        
-                        {/* SỐ TIỀN */}
-                        <td className="px-5 py-3.5 text-right whitespace-nowrap">
-                          <span className={`text-xs font-extrabold ${isCredit ? 'text-emerald-400' : 'text-rose-400'}`}>
-                            {isCredit ? '+' : '-'}{formatCurrency(displayAmount)}
-                          </span>
-                          <p className="text-[9px] text-text-dim font-mono mt-0.5">Dư: {formatCurrency(tx.computedAccumulated)}</p>
-                        </td>
-                        
-                        {/* TRẠNG THÁI ĐỐI SOÁT */}
-                        <td className="px-5 py-3.5 text-center whitespace-nowrap">
-                          {tx.match_status === 'matched' ? (
-                            <div className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-full text-[10px] font-bold">
-                              <CheckCircle2 size={11} />
-                              Đã khớp
+              <div className="flex flex-col">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-black/20 text-text-dim font-black uppercase text-[9px] tracking-wider border-b border-border-dark/60 sticky top-0 backdrop-blur z-10">
+                      <th className="px-5 py-3">Thời gian</th>
+                      <th className="px-5 py-3">Tài khoản nhận</th>
+                      <th className="px-5 py-3">Nội dung chuyển khoản</th>
+                      <th className="px-5 py-3 text-right">Số tiền</th>
+                      <th className="px-5 py-3 text-center">Đối soát</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-dark/30 font-medium">
+                    {paginatedTransactions.map((tx) => {
+                      const isCredit = Number(tx.amount_in) > 0;
+                      const displayAmount = isCredit ? tx.amount_in : tx.amount_out;
+                      const badgeStyle = getAccountBadgeStyle(tx.gateway, tx.account_number);
+                      
+                      return (
+                        <tr key={tx.id} className="hover:bg-white/[0.02] transition-colors group">
+                          {/* THỜI GIAN */}
+                          <td className="px-5 py-3.5 whitespace-nowrap">
+                            <p className="text-xs text-white font-bold">{formatDisplayDate(tx.transaction_date)}</p>
+                            <p className="text-[9px] text-text-dim font-mono mt-0.5">Ref: {tx.reference_number || '---'}</p>
+                          </td>
+                          
+                          {/* NGÂN HÀNG & SỐ TÀI KHOẢN */}
+                          <td className="px-5 py-3.5">
+                            <div className="inline-flex flex-col items-start gap-1">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-black uppercase border leading-none ${badgeStyle}`}>
+                                {tx.gateway}
+                              </span>
+                              <span className="text-[10px] text-text-dim font-mono tracking-wider">{tx.account_number}</span>
                             </div>
-                          ) : (
-                            <div className="inline-flex items-center gap-1 px-2.5 py-1 bg-white/5 border border-border-dark text-text-dim rounded-full text-[10px] font-bold">
-                              <Clock size={11} />
-                              Chưa khớp
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          </td>
+                          
+                          {/* NỘI DUNG CHUYỂN KHOẢN */}
+                          <td className="px-5 py-3.5 max-w-xs xl:max-w-sm break-words">
+                            <p className="text-xs text-white leading-relaxed whitespace-pre-wrap break-words">
+                              {tx.content}
+                            </p>
+                            {tx.code && (
+                              <span className="inline-flex mt-1.5 px-2 py-0.5 bg-primary/10 border border-primary/20 text-primary text-[8px] font-black uppercase tracking-wider rounded">
+                                Mã: {tx.code}
+                              </span>
+                            )}
+                          </td>
+                          
+                          {/* SỐ TIỀN */}
+                          <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                            <span className={`text-xs font-extrabold ${isCredit ? 'text-emerald-400' : 'text-rose-400'}`}>
+                              {isCredit ? '+' : '-'}{formatCurrency(displayAmount)}
+                            </span>
+                            <p className="text-[9px] text-text-dim font-mono mt-0.5">Dư: {formatCurrency(tx.computedAccumulated)}</p>
+                          </td>
+                          
+                          {/* TRẠNG THÁI ĐỐI SOÁT */}
+                          <td className="px-5 py-3.5 text-center whitespace-nowrap">
+                            {tx.match_status === 'matched' ? (
+                              <div className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-full text-[10px] font-bold">
+                                <CheckCircle2 size={11} />
+                                Đã khớp
+                              </div>
+                            ) : (
+                              <div className="inline-flex items-center gap-1 px-2.5 py-1 bg-white/5 border border-border-dark text-text-dim rounded-full text-[10px] font-bold">
+                                <Clock size={11} />
+                                Chưa khớp
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+
+                {filteredTransactions.length > visibleCount && (
+                  <div className="p-4 flex justify-center border-t border-border-dark/20 bg-black/10">
+                    <button
+                      type="button"
+                      onClick={() => setVisibleCount(prev => prev + 50)}
+                      className="px-6 py-2.5 bg-white/5 border border-border-dark text-white rounded-xl text-xs font-bold hover:bg-white/10 hover:border-primary/50 transition-all flex items-center gap-2 active:scale-95 cursor-pointer shadow-md"
+                    >
+                      <RefreshCw size={12} className="text-primary animate-pulse" />
+                      Xem thêm giao dịch (Còn {filteredTransactions.length - visibleCount} giao dịch ẩn)
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

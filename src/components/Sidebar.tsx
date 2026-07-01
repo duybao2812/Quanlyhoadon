@@ -12,7 +12,8 @@ import {
   X,
   PlusSquare,
   Landmark,
-  FolderArchive
+  FolderArchive,
+  Zap
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
@@ -172,10 +173,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className={cn(
                 "sidebar-link w-full flex items-center transition-all duration-200 relative",
                 !isExpanded ? "justify-center p-3" : "justify-start p-3",
-                activeTab === item.id && "sidebar-link-active"
+                (activeTab === item.id || (item.id === 'contract' && activeTab === 'quick-contract')) && "sidebar-link-active"
               )}
             >
-              <item.icon className={cn("size-5 shrink-0 transition-transform", activeTab === item.id && "scale-110")} />
+              <item.icon className={cn("size-5 shrink-0 transition-transform", (activeTab === item.id || (item.id === 'contract' && activeTab === 'quick-contract')) && "scale-110")} />
               {isExpanded && (
                 <motion.span
                   initial={{ opacity: 0, x: -5 }}
@@ -187,12 +188,58 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )}
             </button>
 
-            {/* Tooltip when collapsed */}
-            {!isExpanded && (
-              <div className="absolute left-full ml-4 px-3 py-2 bg-card-dark text-white text-xs font-black rounded-xl shadow-2xl opacity-0 group-hover/item:opacity-100 pointer-events-none transition-all duration-200 translate-x-2 group-hover/item:translate-x-0 z-[100] whitespace-nowrap border border-border-dark uppercase tracking-widest">
-                {item.label}
-                <div className="absolute top-1/2 -left-1 -translate-y-1/2 size-2 bg-card-dark rotate-45 border-l border-b border-border-dark" />
+            {item.id === 'contract' && isExpanded && (
+              <div className="pl-8 pr-2 mt-1 space-y-1">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveTab('quick-contract');
+                  }}
+                  className={cn(
+                    "w-full text-left py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border",
+                    activeTab === 'quick-contract'
+                      ? "bg-blue-600/10 border-blue-500/20 text-blue-400"
+                      : "bg-transparent text-text-dim hover:text-white hover:bg-white/5 border-transparent"
+                  )}
+                >
+                  <Zap size={10} className="text-blue-400" />
+                  Tạo hợp đồng nhanh
+                </button>
               </div>
+            )}
+
+            {/* Tooltip or Popover when collapsed */}
+            {!isExpanded && (
+              item.id === 'contract' ? (
+                <div className="absolute left-full top-0 ml-4 p-2 bg-card-dark text-white rounded-xl shadow-2xl opacity-0 group-hover/item:opacity-100 pointer-events-none group-hover/item:pointer-events-auto transition-all duration-200 translate-x-2 group-hover/item:translate-x-0 z-[100] border border-border-dark flex flex-col gap-1 min-w-[160px]">
+                  <div className="px-2 py-1 text-[9px] font-black text-text-dim border-b border-border-dark/40 uppercase tracking-widest">Tạo hợp đồng</div>
+                  <button
+                    onClick={() => setActiveTab('contract')}
+                    className={cn(
+                      "w-full text-left py-1.5 px-2 rounded-lg text-xs font-bold transition-all",
+                      activeTab === 'contract' ? "bg-primary/20 text-primary" : "hover:bg-white/5 text-text-dim hover:text-white"
+                    )}
+                  >
+                    Soạn thảo chi tiết
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('quick-contract')}
+                    className={cn(
+                      "w-full text-left py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5",
+                      activeTab === 'quick-contract' ? "bg-blue-600/10 text-blue-400" : "hover:bg-white/5 text-text-dim hover:text-white"
+                    )}
+                  >
+                    <Zap size={11} className="text-blue-400" />
+                    Tạo hợp đồng nhanh
+                  </button>
+                  <div className="absolute top-4 -left-1 size-2 bg-card-dark rotate-45 border-l border-b border-border-dark" />
+                </div>
+              ) : (
+                <div className="absolute left-full ml-4 px-3 py-2 bg-card-dark text-white text-xs font-black rounded-xl shadow-2xl opacity-0 group-hover/item:opacity-100 pointer-events-none transition-all duration-200 translate-x-2 group-hover/item:translate-x-0 z-[100] whitespace-nowrap border border-border-dark uppercase tracking-widest">
+                  {item.label}
+                  <div className="absolute top-1/2 -left-1 -translate-y-1/2 size-2 bg-card-dark rotate-45 border-l border-b border-border-dark" />
+                </div>
+              )
             )}
           </div>
         ))}

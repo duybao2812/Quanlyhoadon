@@ -16,6 +16,20 @@
   --color-badge-xml-text: #60A5FA;
 }
 
+.light {
+  --color-bg-dark: #f8fafc;
+  --color-card-dark: #ffffff;
+  --color-accent-orange: #f97316;
+  --color-accent-orange-hover: #ea580c;
+  --color-text-bright: #0f172a;
+  --color-text-muted: #64748b;
+  --color-border-dark: #e2e8f0;
+  --color-badge-pdf-bg: #fef2f2;
+  --color-badge-pdf-text: #dc2626;
+  --color-badge-xml-bg: #eff6ff;
+  --color-badge-xml-text: #2563eb;
+}
+
 /* Base card styling */
 .invoice-card {
   background-color: var(--color-card-dark);
@@ -341,3 +355,52 @@
 .material-detail-table tr:hover td {
   background-color: rgba(255, 255, 255, 0.01);
 }
+
+/* =========================================================================
+   LIGHT MODE SPECIFIC OVERRIDES FOR DASHBOARD INVOICE COMPONENT
+   ========================================================================= */
+.light .invoice-card {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+}
+
+.light .invoice-table-header {
+  background-color: var(--color-bg-dark) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.02) !important;
+}
+
+.light .dashboard-details-panel-inner {
+  background: rgba(255, 255, 255, 0.6) !important;
+}
+
+.light .detail-info-box {
+  background: #ffffff !important;
+}
+
+.light .editable-input-field,
+.light .editable-textarea-field {
+  background: #ffffff !important;
+  color: var(--color-text-bright) !important;
+}
+
+.light .editable-input-field:focus,
+.light .editable-textarea-field:focus {
+  background: #ffffff !important;
+}
+
+.light .material-detail-table {
+  background-color: #ffffff !important;
+}
+
+.light .material-detail-table th {
+  background-color: #f8fafc !important;
+}
+
+.light .material-detail-table td {
+  border-bottom: 1px solid #f1f5f9 !important;
+  color: var(--color-text-bright) !important;
+}
+
+.light .row-expanded-highlight {
+  background: linear-gradient(180deg, rgba(249, 115, 22, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%) !important;
+}
+

@@ -1,19 +1,87 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap');
 @import "tailwindcss";
 
+:root {
+  /* Default Dark Mode Values */
+  --background: #0f0f0f;
+  --foreground: #ffffff;
+  --card: #1a1a1a;
+  --sidebar: #141414;
+  --border: rgba(255, 255, 255, 0.08);
+  --primary: #f97316;
+  --primary-hover: #ea580c;
+  --secondary: rgba(255, 255, 255, 0.05);
+  --secondary-hover: rgba(255, 255, 255, 0.1);
+  --text-dim: #a1a1aa;
+  
+  --muted: #27272a;
+  --success: #22c55e;
+  --success-bg: rgba(34, 197, 94, 0.1);
+  --warning: #eab308;
+  --warning-bg: rgba(234, 179, 8, 0.1);
+  --danger: #ef4444;
+  --danger-bg: rgba(239, 68, 68, 0.1);
+  --info: #3b82f6;
+  --info-bg: rgba(59, 130, 246, 0.1);
+
+  --table-header-bg: rgba(255, 255, 255, 0.02);
+  --table-row-hover: rgba(255, 255, 255, 0.02);
+}
+
+.light {
+  /* Light Mode Values */
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --sidebar: #ffffff;
+  --border: #e2e8f0;
+  --primary: #f97316;
+  --primary-hover: #ea580c;
+  --secondary: #f1f5f9;
+  --secondary-hover: #e2e8f0;
+  --text-dim: #64748b;
+  
+  --muted: #f1f5f9;
+  --success: #16a34a;
+  --success-bg: #f0fdf4;
+  --warning: #d97706;
+  --warning-bg: #fefce8;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+  --info: #2563eb;
+  --info-bg: #eff6ff;
+
+  --table-header-bg: #f8fafc;
+  --table-row-hover: #f1f5f9;
+}
+
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Times New Roman", Times, serif;
 
   /* Color Palette - Spark Pixel Theme */
-  --color-primary: #f97316; /* Orange */
-  --color-primary-hover: #ea580c;
-  --color-bg-dark: #0f0f0f;
-  --color-card-dark: #1a1a1a;
-  --color-sidebar-dark: #141414;
-  --color-border-dark: rgba(255, 255, 255, 0.08);
-  --color-text-dim: #a1a1aa;
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-bg-dark: var(--background);
+  --color-card-dark: var(--card);
+  --color-sidebar-dark: var(--sidebar);
+  --color-border-dark: var(--border);
+  --color-text-dim: var(--text-dim);
+
+  /* Adaptive Colors */
+  --color-foreground: var(--foreground);
+  --color-secondary-bg: var(--secondary);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-muted: var(--muted);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
 
   /* Custom Font Sizes and Line Heights from User Guidelines */
   --font-size-xs: 12px;
@@ -39,8 +107,25 @@
 }
 
 @layer base {
+  html {
+    zoom: 0.8;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
   body {
-    @apply bg-bg-dark text-white antialiased font-sans text-sm font-normal;
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    @apply bg-bg-dark text-foreground antialiased font-sans text-sm font-normal transition-colors duration-200;
+  }
+  
+  #root {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
   }
 }
 
@@ -50,35 +135,35 @@
   }
   
   .btn-secondary {
-    @apply px-4 py-2 bg-white/5 border border-border-dark hover:bg-white/10 text-white rounded-lg font-medium text-sm transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2;
+    @apply px-4 py-2 bg-secondary-bg border border-border-dark hover:bg-secondary-hover text-foreground rounded-lg font-medium text-sm transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2;
   }
 
   .card {
-     @apply bg-card-dark border border-border-dark rounded-xl shadow-sm overflow-hidden;
+     @apply bg-card-dark border border-border-dark rounded-xl shadow-sm overflow-hidden transition-all duration-200;
   }
 
   .card-title {
-    @apply text-base font-semibold text-white;
+    @apply text-base font-semibold text-foreground;
   }
 
   .section-title {
-    @apply text-xl font-semibold text-white;
+    @apply text-xl font-semibold text-foreground;
   }
 
   .page-title {
-    @apply text-3xl font-bold text-white;
+    @apply text-3xl font-bold text-foreground;
   }
 
   .modal-title {
-    @apply text-lg font-semibold text-white;
+    @apply text-lg font-semibold text-foreground;
   }
 
   .input-field {
-    @apply w-full px-3 py-2 bg-white/5 border border-border-dark text-white rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-sm font-normal;
+    @apply w-full px-3 py-2 bg-secondary-bg border border-border-dark text-foreground rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-sm font-normal placeholder:text-text-dim/50;
   }
   
   .sidebar-link {
-    @apply flex items-center gap-3 px-3 py-2 text-text-dim hover:bg-white/10 hover:text-white rounded-lg transition-all text-sm font-medium;
+    @apply flex items-center gap-3 px-3 py-2 text-text-dim hover:bg-secondary-hover hover:text-foreground rounded-lg transition-all text-sm font-medium;
   }
   
   .sidebar-link-active {
@@ -94,7 +179,7 @@
   }
 
   .table-cell {
-    @apply text-[13px] leading-[20px] font-normal text-white;
+    @apply text-[13px] leading-[20px] font-normal text-foreground;
   }
 
   .table-head {
@@ -203,4 +288,126 @@
 .wallpaper-glass-theme ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 242, 254, 0.6) !important;
 }
+
+/* ==========================================================================
+   LIGHT MODE OVERRIDES & COMPATIBILITY LAYER
+   ========================================================================== */
+
+/* Override static dark utility colors in light mode */
+.light .text-white {
+  color: var(--foreground) !important;
+}
+
+/* Exclude solid-colored container text from text-white override */
+.light .bg-primary .text-white,
+.light .bg-primary-hover .text-white,
+.light .btn-primary .text-white,
+.light .btn-primary,
+.light [class*="bg-red-"] .text-white,
+.light [class*="bg-emerald-"] .text-white,
+.light [class*="bg-rose-"] .text-white,
+.light [class*="bg-blue-"] .text-white,
+.light [class*="bg-green-"] .text-white,
+.light [class*="bg-indigo-"] .text-white,
+.light [class*="bg-amber-"] .text-white,
+.light [class*="bg-orange-"] .text-white,
+.light [class*="bg-teal-"] .text-white,
+.light [class*="bg-purple-"] .text-white,
+.light [class*="bg-pink-"] .text-white,
+.light [class*="bg-sky-"] .text-white,
+.light [class*="bg-cyan-"] .text-white,
+.light [class*="bg-stone-900"] .text-white,
+.light [class*="bg-stone-950"] .text-white,
+.light .badge-file-type .text-white,
+.light .text-white.keep-white {
+  color: #ffffff !important;
+}
+
+/* Scale low-contrast dark-mode colored text variables to high-contrast light mode */
+.light .text-emerald-400 { color: #16a34a !important; }
+.light .text-red-400, .light .text-rose-400 { color: #dc2626 !important; }
+.light .text-blue-400 { color: #2563eb !important; }
+.light .text-amber-400 { color: #d97706 !important; }
+.light .text-purple-400 { color: #9333ea !important; }
+.light .text-indigo-400 { color: #4f46e5 !important; }
+.light .text-cyan-400 { color: #0891b2 !important; }
+.light .text-sky-400 { color: #0284c7 !important; }
+.light .text-teal-400 { color: #0d9488 !important; }
+
+/* Translucent backgrounds replacement for light mode */
+.light .bg-white\/5 { background-color: rgba(15, 23, 42, 0.04) !important; }
+.light .bg-white\/10 { background-color: rgba(15, 23, 42, 0.08) !important; }
+.light .bg-white\/20 { background-color: rgba(15, 23, 42, 0.12) !important; }
+.light .bg-white\/30 { background-color: rgba(15, 23, 42, 0.18) !important; }
+
+.light .bg-black\/40 { background-color: rgba(15, 23, 42, 0.04) !important; }
+.light .bg-black\/35 { background-color: rgba(15, 23, 42, 0.04) !important; }
+.light .bg-black\/20 { background-color: rgba(15, 23, 42, 0.02) !important; }
+.light .bg-black\/65 { background-color: rgba(15, 23, 42, 0.12) !important; }
+.light .bg-black\/80 { background-color: rgba(15, 23, 42, 0.25) !important; }
+
+.light .bg-bg-dark\/80 { background-color: rgba(15, 23, 42, 0.4) !important; }
+
+/* Translucent border replacement for light mode */
+.light .border-white\/5 { border-color: rgba(15, 23, 42, 0.04) !important; }
+.light .border-white\/10 { border-color: rgba(15, 23, 42, 0.08) !important; }
+.light .border-white\/20 { border-color: rgba(15, 23, 42, 0.12) !important; }
+
+/* Solid background overrides */
+.light .bg-stone-900 { background-color: var(--card) !important; color: var(--foreground) !important; }
+.light .bg-sidebar-dark\/95 { background-color: rgba(255, 255, 255, 0.95) !important; color: var(--foreground) !important; }
+
+/* Table overrides */
+.light table {
+  background-color: var(--card) !important;
+  border-color: var(--border) !important;
+}
+.light thead {
+  background-color: var(--table-header-bg) !important;
+  border-bottom: 2px solid var(--border) !important;
+}
+.light th {
+  background-color: var(--table-header-bg) !important;
+  color: var(--text-dim) !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-top: none !important;
+}
+.light tr {
+  border-bottom: 1px solid var(--border) !important;
+  background-color: transparent !important;
+}
+.light tr:nth-child(even) {
+  background-color: rgba(15, 23, 42, 0.01) !important;
+}
+.light tr:hover {
+  background-color: var(--table-row-hover) !important;
+}
+.light td {
+  color: var(--foreground) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+/* Select dropdown options override */
+.light select option {
+  background-color: var(--card) !important;
+  color: var(--foreground) !important;
+}
+
+/* Status Badges high contrast styling */
+.light .badge-status.status-thi-cong {
+  background-color: #fef3c7 !important;
+  color: #d97706 !important;
+  border-color: #fde68a !important;
+}
+.light .badge-status.status-vat-tu {
+  background-color: #dcfce7 !important;
+  color: #16a34a !important;
+  border-color: #bbf7d0 !important;
+}
+.light .badge-status.status-ca-may {
+  background-color: #ecfeff !important;
+  color: #0891b2 !important;
+  border-color: #cffafe !important;
+}
+
 
