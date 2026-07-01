@@ -136,6 +136,7 @@ import { UploadView } from './components/Invoice/UploadView';
 import { ContractManagementView } from './components/Contract/ContractManagementView';
 import { ContractView, fetchTemplateBuffer, generateDocxBlobForContract, blobToBase64, getFriendlyLabel } from './components/Contract/ContractView';
 import { QuickContractView } from './components/Contract/QuickContractView';
+import { QuotationCreator } from './components/Contract/QuotationCreator';
 import { PartnersView } from './components/Partners/PartnersView';
 import { DocsView } from './components/Docs/DocsView';
 import { BulkExportModal } from './components/Docs/BulkExportModal';
@@ -162,7 +163,8 @@ const TAB_CONFIG: Record<Tab, { path: string, label: string }> = {
   dossier: { path: 'ho-so', label: 'Hồ sơ' },
   'tax-lookup': { path: 'tra-cuu-thue', label: 'Tra cứu thuế' },
   'transactions': { path: 'giao-dich', label: 'Giao dịch ngân hàng' },
-  'quick-contract': { path: 'ky-hop-dong-nhanh', label: 'Tạo hợp đồng nhanh' }
+  'quick-contract': { path: 'ky-hop-dong-nhanh', label: 'Tạo hợp đồng nhanh' },
+  'quotation': { path: 'tao-bao-gia', label: 'Tạo báo giá' }
 };
 
 // Helper to remove Vietnamese diacritics while preserving case
@@ -652,16 +654,17 @@ export default function App() {
 
     setIsSearchingTaxCode(true);
     try {
-      const res = await fetch(`https://api.vietqr.io/v2/business/${query}`, {
+      const res = await fetch(`/api/tax-lookup/${query}`, {
         headers: { Accept: 'application/json' }
       });
 
       if (!res.ok) {
-        throw new Error(`Lỗi kết nối: HTTP ${res.status}`);
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || `Lỗi kết nối: HTTP ${res.status}`);
       }
 
       const json = await res.json();
-      if (json.code === '00' && json.data) {
+      if (json.success && json.data) {
         const busData = json.data;
         const convertResult = smartConvertAddress(busData.address);
         
@@ -3970,6 +3973,8 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
         user={user}
         isPinned={isSidebarPinned}
         setIsPinned={setIsSidebarPinned}
+        onOpenQuotation={() => handleTabChange('quotation')}
+        isQuotationOpen={activeTab === 'quotation'}
       />
 
       <main className="flex-1 flex flex-col h-full overflow-hidden">
@@ -3985,6 +3990,8 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                   case 'partners': return 'Đối tác';
                   case 'docs': return 'Tài liệu đã tạo';
                   case 'system': return 'Theo dõi hệ thống';
+                  case 'quick-contract': return 'Tạo hợp đồng nhanh';
+                  case 'quotation': return 'Tạo báo giá';
                   default: return activeTab;
                 }
               })()}
@@ -4367,12 +4374,19 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
                 handleFieldChange={handleContractFieldChange}
                 vatConfig={vatConfig}
                 openVatConfig={() => setIsVatConfigOpen(true)}
+                onOpenQuotation={() => handleTabChange('quotation')}
               />
             )}
             {activeTab === 'quick-contract' && (
               <QuickContractView
                 partners={partners}
                 user={user}
+                onBack={() => handleTabChange('contract')}
+              />
+            )}
+            {activeTab === 'quotation' && (
+              <QuotationCreator
+                partners={partners}
                 onBack={() => handleTabChange('contract')}
               />
             )}
@@ -4404,7 +4418,10 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
               <SystemMonitorView />
             )}
             {activeTab === 'tax-lookup' && (
-              <TaxLookupView />
+              <TaxLookupView
+                partners={partners}
+                onRefreshPartners={async () => { if (user) await fetchPartners(user.uid); }}
+              />
             )}
             {activeTab === 'transactions' && user && (
               <TransactionsView ownerId={user.uid} />
@@ -5919,6 +5936,8 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
           </div>
         </div>
       )}
+
+
 
       <AIChatBox stats={{ invoices, contracts, partners }} />
     </div>

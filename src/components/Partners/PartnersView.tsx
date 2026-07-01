@@ -13,13 +13,15 @@ import {
   User as UserIcon,
   Edit3,
   Trash2,
-  CheckCircle2
+  CheckCircle2,
+  RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { smartConvertAddress } from '../../lib/addressConverter';
 import { cn } from '../../lib/utils';
 import { useToast } from '../Notifications';
 import { Partner } from '../../types/appTypes';
+import { supabase } from '../../services/supabaseClient';
 
 interface PartnersViewProps {
   partners: Partner[];

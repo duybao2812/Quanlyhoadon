@@ -12,4 +12,5 @@ scratch/
 uploads/
 *.pdf
 *.docx
-credentials.json
+credentials.json
+eng.traineddata

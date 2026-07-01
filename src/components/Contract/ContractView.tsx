@@ -14,7 +14,8 @@ import {
   X,
   ChevronDown,
   ChevronUp,
-  Trash2
+  Trash2,
+  Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import JSZip from 'jszip';
@@ -2207,7 +2208,8 @@ export const ContractView = ({
   setActiveInvoiceTag,
   handleFieldChange,
   vatConfig,
-  openVatConfig
+  openVatConfig,
+  onOpenQuotation
 }: {
   partners: Partner[],
   user: User | null,
@@ -2226,7 +2228,8 @@ export const ContractView = ({
   setActiveInvoiceTag?: (tag: string | null) => void,
   handleFieldChange: (tagOrUpdates: string | Record<string, string>, val?: string) => void,
   vatConfig: { keyword: string; rate: number }[],
-  openVatConfig: () => void
+  openVatConfig: () => void,
+  onOpenQuotation?: () => void
 }) => {
   const { toast } = useToast();
   const dayRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -3797,6 +3800,13 @@ export const ContractView = ({
               className="px-3 py-1.5 text-xs font-medium text-text-dim hover:bg-white/5 hover:text-white rounded-lg transition-colors border border-border-dark"
             >
               Làm mới
+            </button>
+            <button
+              onClick={onOpenQuotation}
+              className="px-3 py-1.5 text-xs font-bold text-blue-400 bg-blue-600/10 border border-blue-500/20 hover:bg-blue-600/20 rounded-lg transition-colors flex items-center gap-1.5 active:scale-95 cursor-pointer"
+            >
+              <Zap className="size-3.5 text-blue-400" />
+              Tạo báo giá
             </button>
             {selectedTemplate && (
               <>

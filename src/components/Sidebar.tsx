@@ -13,7 +13,8 @@ import {
   PlusSquare,
   Landmark,
   FolderArchive,
-  Zap
+  Zap,
+  FileText
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
@@ -49,6 +50,8 @@ interface SidebarProps {
   user: User | null;
   isPinned: boolean;
   setIsPinned: (v: boolean) => void;
+  onOpenQuotation?: () => void;
+  isQuotationOpen?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -56,7 +59,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setActiveTab,
   user,
   isPinned,
-  setIsPinned
+  setIsPinned,
+  onOpenQuotation,
+  isQuotationOpen
 }) => {
   const [isHovered, setIsHovered] = React.useState(false);
   const sidebarRef = React.useRef<HTMLDivElement>(null);
@@ -205,6 +210,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <Zap size={10} className="text-blue-400" />
                   Tạo hợp đồng nhanh
                 </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenQuotation?.();
+                  }}
+                  className={cn(
+                    "w-full text-left py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border",
+                    isQuotationOpen
+                      ? "bg-blue-600/10 border-blue-500/20 text-blue-400"
+                      : "bg-transparent text-text-dim hover:text-white hover:bg-white/5 border-transparent"
+                  )}
+                >
+                  <FileText size={10} className={isQuotationOpen ? "text-blue-400" : "text-text-dim"} />
+                  Tạo báo giá
+                </button>
               </div>
             )}
 
@@ -231,6 +251,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   >
                     <Zap size={11} className="text-blue-400" />
                     Tạo hợp đồng nhanh
+                  </button>
+                  <button
+                    onClick={() => {
+                      onOpenQuotation?.();
+                    }}
+                    className={cn(
+                      "w-full text-left py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5",
+                      isQuotationOpen ? "bg-blue-600/10 text-blue-400" : "hover:bg-white/5 text-text-dim hover:text-white"
+                    )}
+                  >
+                    <FileText size={11} className={isQuotationOpen ? "text-blue-400" : "text-text-dim"} />
+                    Tạo báo giá
                   </button>
                   <div className="absolute top-4 -left-1 size-2 bg-card-dark rotate-45 border-l border-b border-border-dark" />
                 </div>

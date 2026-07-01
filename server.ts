@@ -3174,6 +3174,294 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
+  // ---- GDT CRAWLER & TAX LOOKUP API ----
+  // ---- GDT CRAWLER & TAX LOOKUP API ----
+  async function crawlGdtTaxCode(taxCode: string): Promise<any> {
+    const playwright = await import('playwright');
+    const chromium = playwright.chromium || (playwright as any).default?.chromium;
+    if (!chromium) {
+      throw new Error('Playwright Chromium is not available.');
+    }
+
+    const tesseractModule = await import('tesseract.js');
+    const Tesseract = (tesseractModule as any).default || tesseractModule;
+    if (!Tesseract || typeof Tesseract.recognize !== 'function') {
+      throw new Error('Tesseract recognize function is not available.');
+    }
+    
+    const browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage();
+    
+    let resultData = null;
+    let ocrAttempts: string[] = [];
+    let errorMsg = '';
+    const startTime = Date.now();
+    
+    try {
+      for (let attempt = 1; attempt <= 5; attempt++) {
+        console.log(`[TAX CRAWLER] Attempt ${attempt}/5 for MST ${taxCode}...`);
+        
+        if (attempt === 1) {
+          await page.goto('https://tracuunnt.gdt.gov.vn/tcnnt/mstdn.jsp', { timeout: 30000 });
+        } else {
+          await page.reload({ timeout: 20000 });
+        }
+        
+        await page.waitForSelector('img[src*="captcha"]', { timeout: 10000 });
+        await page.waitForTimeout(1000);
+        
+        // Vary parameters on each attempt to break captcha complexity
+        const threshold = [130, 120, 140, 130, 125][attempt - 1];
+        const scale = [3, 3, 3, 4, 4][attempt - 1];
+        
+        const processedBase64 = await page.evaluate(({ threshold, scale }) => {
+          const img = document.querySelector('img[src*="captcha"]') as HTMLImageElement;
+          if (!img) return null;
+          
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth * scale;
+          canvas.height = img.naturalHeight * scale;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return null;
+          
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imgData.data;
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i+1];
+            const b = data[i+2];
+            const brightness = (r + g + b) / 3;
+            const val = brightness < threshold ? 0 : 255;
+            data[i] = val;
+            data[i+1] = val;
+            data[i+2] = val;
+          }
+          ctx.putImageData(imgData, 0, 0);
+          return canvas.toDataURL('image/png');
+        }, { threshold, scale });
+        
+        if (!processedBase64) {
+          console.warn(`[TAX CRAWLER] Failed to process captcha image on attempt ${attempt}`);
+          continue;
+        }
+        
+        const base64Data = processedBase64.replace(/^data:image\/png;base64,/, '');
+        const buffer = Buffer.from(base64Data, 'base64');
+        
+        const ocrResult = await Tesseract.recognize(buffer, 'eng');
+        const solved = ocrResult.data.text.trim().replace(/[^a-zA-Z0-9]/g, '');
+        console.log(`[TAX CRAWLER] Attempt ${attempt} (thr:${threshold}, scl:${scale}) - Solved captcha: "${solved}"`);
+        ocrAttempts.push(solved);
+        
+        await page.fill('input[name="mst"]', taxCode);
+        await page.fill('input[name="captcha"]', solved);
+        
+        await page.click('input.subBtn');
+        await page.waitForTimeout(4000);
+        
+        const bodyText = await page.innerText('body');
+        if (bodyText.includes('Vui lòng nhập đúng mã xác nhận')) {
+          console.log(`[TAX CRAWLER] Incorrect captcha on attempt ${attempt}. Retrying...`);
+        } else {
+          // Check if no results found message
+          if (bodyText.includes('BẢNG THÔNG TIN TRA CỨU')) {
+            const parsed = await page.evaluate(() => {
+              const tables = Array.from(document.querySelectorAll('table'));
+              const resultTable = tables.find(t => {
+                const text = t.innerText;
+                return text.includes('Tên người nộp thuế') && text.includes('Địa chỉ trụ sở');
+              });
+              
+              if (!resultTable) return null;
+              
+              const rows = Array.from(resultTable.querySelectorAll('tr'));
+              const dataRows = rows.filter(r => {
+                const cells = Array.from(r.querySelectorAll('td'));
+                return cells.length >= 5 && /^\d+$/.test(cells[0].innerText.trim());
+              });
+              
+              if (dataRows.length === 0) return null;
+              
+              const cells = Array.from(dataRows[0].querySelectorAll('td')).map(td => td.innerText.trim());
+              return {
+                taxCode: cells[1],
+                name: cells[2],
+                address: cells[3],
+                taxDepartment: cells[4],
+                status: cells[5]
+              };
+            });
+            
+            if (parsed) {
+              resultData = parsed;
+              break;
+            } else {
+              resultData = { notFound: true };
+              break;
+            }
+          } else {
+            console.log(`[TAX CRAWLER] Unexpected page content. Captcha solved but no result table. Retrying...`);
+          }
+        }
+      }
+    } catch (err: any) {
+      errorMsg = err.message || 'Crawl error';
+      console.error('[TAX CRAWLER] Error occurred:', err);
+    } finally {
+      await browser.close();
+    }
+    
+    const duration = Date.now() - startTime;
+    console.log(`[TAX CRAWLER] Finished in ${duration}ms. Success: ${!!resultData}, Errors: ${errorMsg}`);
+    
+    return {
+      data: resultData,
+      ocrAttempts,
+      duration,
+      error: errorMsg
+    };
+  }
+
+  app.get('/api/tax-lookup/:taxCode', async (req, res) => {
+    const taxCode = req.params.taxCode.trim().replace(/[^0-9\-]/g, '');
+    const refresh = req.query.refresh === 'true';
+    
+    if (!taxCode) {
+      return res.status(400).json({ error: 'Mã số thuế không hợp lệ.' });
+    }
+    
+    console.log(`[TAX LOOKUP ROUTE] Request received for MST: ${taxCode} (refresh: ${refresh})`);
+    
+    try {
+      const supabase = await getSupabaseClient();
+      
+      // 1. Kiểm tra cache trong Database (luôn tải sẵn để phòng trường hợp crawl lỗi thì fallback)
+      const { data: cachedItem } = await supabase
+        .from('tax_enterprise_cache')
+        .select('*')
+        .eq('tax_code', taxCode)
+        .maybeSingle();
+      
+      if (cachedItem && !refresh) {
+        const lastSync = new Date(cachedItem.last_sync_at).getTime();
+        const now = Date.now();
+        const diffDays = (now - lastSync) / (1000 * 60 * 60 * 24);
+        
+        if (diffDays <= 7) {
+          console.log(`[TAX LOOKUP ROUTE] Returning cached data for MST: ${taxCode}`);
+          // Ghi vào tax_lookup_log (fire-and-forget)
+          void (async () => {
+            try {
+              await supabase.from('tax_lookup_log').insert({
+                tax_code: taxCode,
+                business_name: cachedItem.name,
+                address: cachedItem.address,
+                status: cachedItem.status,
+                source: 'cache',
+                looked_up_at: new Date().toISOString()
+              });
+            } catch (e: any) {
+              console.warn('[TAX LOOKUP LOG] Failed to insert log:', e.message);
+            }
+          })();
+          return res.json({
+            success: true,
+            fromCache: true,
+            source: 'cache',
+            data: {
+              taxCode: cachedItem.tax_code,
+              name: cachedItem.name,
+              address: cachedItem.address,
+              taxDepartment: cachedItem.tax_department,
+              status: cachedItem.status
+            }
+          });
+        } else {
+          console.log(`[TAX LOOKUP ROUTE] Cache expired (${diffDays.toFixed(1)} days old) for MST: ${taxCode}`);
+        }
+      }
+      
+      // 2. Không có cache hoặc cache hết hạn hoặc yêu cầu refresh -> Crawl mới
+      const crawlResult = await crawlGdtTaxCode(taxCode);
+      
+      if (crawlResult.data) {
+        if (crawlResult.data.notFound) {
+          return res.status(404).json({ error: 'Mã số thuế không tồn tại trên hệ thống Tổng cục Thuế.' });
+        }
+        
+        // Cập nhật/Thêm mới vào cache
+        const { error: upsertErr } = await supabase
+          .from('tax_enterprise_cache')
+          .upsert({
+            tax_code: crawlResult.data.taxCode,
+            name: crawlResult.data.name,
+            address: crawlResult.data.address,
+            tax_department: crawlResult.data.taxDepartment,
+            status: crawlResult.data.status,
+            last_sync_at: new Date().toISOString()
+          });
+          
+        if (upsertErr) {
+          console.error('[TAX LOOKUP ROUTE] Failed to write cache to Supabase:', upsertErr.message);
+        }
+        
+        // Ghi vào tax_lookup_log (fire-and-forget)
+        void (async () => {
+          try {
+            await supabase.from('tax_lookup_log').insert({
+              tax_code: crawlResult.data.taxCode || taxCode,
+              business_name: crawlResult.data.name,
+              address: crawlResult.data.address,
+              status: crawlResult.data.status,
+              source: 'crawler',
+              looked_up_at: new Date().toISOString()
+            });
+          } catch (e: any) {
+            console.warn('[TAX LOOKUP LOG] Failed to insert log:', e.message);
+          }
+        })();
+        
+        return res.json({
+          success: true,
+          fromCache: false,
+          source: 'crawler',
+          data: crawlResult.data
+        });
+      }
+      
+      // 3. Crawl thất bại -> Rollback / Fallback về cache cũ (kể cả khi yêu cầu refresh hoặc cache quá hạn)
+      if (cachedItem) {
+        console.warn(`[TAX LOOKUP ROUTE] Crawl failed, falling back to expired cache for MST: ${taxCode}`);
+        return res.json({
+          success: true,
+          fromCache: true,
+          isStale: true,
+          warning: 'Không thể cập nhật dữ liệu mới từ Tổng cục Thuế. Đang hiển thị dữ liệu lưu trữ cũ.',
+          data: {
+            taxCode: cachedItem.tax_code,
+            name: cachedItem.name,
+            address: cachedItem.address,
+            taxDepartment: cachedItem.tax_department,
+            status: cachedItem.status
+          }
+        });
+      }
+      
+      // Thất bại hoàn toàn
+      return res.status(500).json({
+        error: 'Hệ thống tra cứu của Tổng cục Thuế đang bận hoặc lỗi xác thực mã captcha. Vui lòng thử lại sau ít phút.',
+        details: crawlResult.error
+      });
+      
+    } catch (err: any) {
+      console.error('[TAX LOOKUP ROUTE] Server error:', err);
+      return res.status(500).json({ error: 'Lỗi hệ thống trong quá trình tra cứu.', details: err.message });
+    }
+  });
+
   // ---- SUPABASE CREDENTIALS FOR GAS ----
   app.get('/api/agenthub/credentials', async (req, res) => {
     try {
@@ -3198,7 +3486,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
   function startBackgroundMatcher() {
     console.log("[BACKGROUND MATCHER] Khoi chay tien trinh doi soat giao dich tu dong...");
     setTimeout(runMatcherCycle, 5000);
-    setInterval(runMatcherCycle, 30000);
+    setInterval(runMatcherCycle, 300000);
   }
 
   async function runMatcherCycle() {
