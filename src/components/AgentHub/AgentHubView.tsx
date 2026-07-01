@@ -413,7 +413,7 @@ function parseAcbEmail(subject, body, messageId, messageDate) {
 }
 
 function getOwnerId(accountNumber) {
-  var url = SUPABASE_URL + "/rest/v1/sepay_accounts?account_number=eq." + accountNumber + "&select=owner_id";
+  var url = SUPABASE_URL + "/rest/v1/bank_accounts?account_number=eq." + accountNumber + "&select=owner_id";
   var response = UrlFetchApp.fetch(url, {
     method: "GET",
     headers: {

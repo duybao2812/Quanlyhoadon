@@ -24,7 +24,7 @@ import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { useToast } from '../Notifications';
 
-interface SepayAccount {
+interface BankAccount {
   id: string;
   owner_id: string;
   bank_name: string;
@@ -32,7 +32,7 @@ interface SepayAccount {
   created_at: string;
 }
 
-interface SepayTransaction {
+interface BankTransaction {
   id: string;
   owner_id: string | null;
   gateway: string;
@@ -115,8 +115,8 @@ function getAccountBadgeStyle(gateway: string, accountNumber: string): string {
 
 export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) => {
   const { toast } = useToast();
-  const [accounts, setAccounts] = useState<SepayAccount[]>([]);
-  const [transactions, setTransactions] = useState<SepayTransaction[]>([]);
+  const [accounts, setAccounts] = useState<BankAccount[]>([]);
+  const [transactions, setTransactions] = useState<BankTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   
@@ -140,7 +140,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await fetch(`/api/sepay/status?ownerId=${ownerId}`);
+      const res = await fetch(`/api/transactions/status?ownerId=${ownerId}`);
       if (!res.ok) {
         let errMsg = 'Không thể kết nối đến máy chủ.';
         try {
@@ -155,7 +155,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
       setAccounts(data.accounts || []);
       setTransactions(data.transactions || []);
     } catch (err: any) {
-      console.error('[SEPAY] Lỗi tải dữ liệu:', err);
+      console.error('[TRANSACTIONS] Lỗi tải dữ liệu:', err);
       toast('Lỗi khi tải lịch sử giao dịch: ' + err.message, 'error');
     } finally {
       setIsLoading(false);
@@ -184,7 +184,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
 
     try {
       setIsSubmittingAccount(true);
-      const res = await fetch('/api/sepay/register-account', {
+      const res = await fetch('/api/bank-accounts/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -216,7 +216,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
     }
 
     try {
-      const res = await fetch('/api/sepay/unregister-account', {
+      const res = await fetch('/api/bank-accounts/unregister', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -242,7 +242,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
     if (transactions.length === 0) return [];
     
     // Phan nhom giao dich theo so tai khoan nhan
-    const groups: Record<string, SepayTransaction[]> = {};
+    const groups: Record<string, BankTransaction[]> = {};
     transactions.forEach(tx => {
       const acc = tx.account_number || 'unknown';
       if (!groups[acc]) {
@@ -251,7 +251,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
       groups[acc].push(tx);
     });
 
-    const processedTxs: (SepayTransaction & { computedAccumulated: number })[] = [];
+    const processedTxs: (BankTransaction & { computedAccumulated: number })[] = [];
 
     // Tinh toan doc lap cho tung nhom tai khoan
     Object.keys(groups).forEach(acc => {
@@ -585,7 +585,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
             </div>
             <div>
               <h1 className="text-base font-extrabold text-white uppercase tracking-wider">Giao dịch ngân hàng</h1>
-              <p className="text-xs text-text-dim">Nhận biến động số dư tự động qua Webhook SePay</p>
+              <p className="text-xs text-text-dim">Nhận biến động số dư tự động từ Gmail</p>
             </div>
           </div>
           
@@ -916,7 +916,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
           <div className="flex items-start gap-3 p-4 bg-blue-900/10 border border-blue-800/20 text-blue-400 rounded-2xl text-xs font-semibold shrink-0">
             <Info size={14} className="shrink-0 mt-0.5" />
             <span className="leading-relaxed text-[11px]">
-              Hệ thống sẽ tự động bắt webhook khi ngân hàng nhận tiền và thực hiện đối soát tự động theo hai bước: (1) tìm theo Mã thanh toán trùng khớp + Số tiền tương ứng, (2) tìm kiếm mã Hóa đơn/Mã Hợp đồng chứa trong nội dung chuyển khoản + Số tiền tương ứng.
+              Hệ thống sẽ tự động đối soát giao dịch nhận được từ Gmail theo hai bước: (1) tìm theo Mã thanh toán trùng khớp + Số tiền tương ứng, (2) tìm kiếm mã Hóa đơn/Mã Hợp đồng chứa trong nội dung chuyển khoản + Số tiền tương ứng.
             </span>
           </div>
           

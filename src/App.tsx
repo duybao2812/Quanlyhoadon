@@ -108,7 +108,7 @@ import { extractFromContract, convertContractDataToFormData } from './services/c
 import { AgentHubView } from './components/AgentHub/AgentHubView';
 import { DossierView } from './components/DocumentManagement';
 import { TaxLookupView } from './components/TaxLookup/TaxLookupView';
-import TransactionsView from './components/Sepay/TransactionsView';
+import TransactionsView from './components/Transactions/TransactionsView';
 
 
 // Safe check for iframe/wallpaper environment that won't throw cross-origin errors

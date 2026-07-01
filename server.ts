@@ -2721,7 +2721,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
   // ==========================================
 
   // Ham noi bo: doi soat hoa don thong minh theo code va so tien (co tuy chon tat log)
-  async function doiSoatHoaDonSepay(
+  async function doiSoatHoaDon(
     supabaseClient: any,
     transaction: { id: string; owner_id: string; amount_in: number; code: string | null; content: string },
     options: { quiet?: boolean } = {}
@@ -2730,7 +2730,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
     if (!transaction.owner_id || transaction.amount_in <= 0) return;
 
     if (!options.quiet) {
-      console.log(`[SEPAY] Dang doi soat giao dich ${transaction.id} cho owner ${transaction.owner_id} (So tien: ${transaction.amount_in})...`);
+      console.log(`[RECONCILE] Dang doi soat giao dich ${transaction.id} cho owner ${transaction.owner_id} (So tien: ${transaction.amount_in})...`);
     }
 
     // Lay danh sach hoa don chua thanh toan cua owner
@@ -2742,7 +2742,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
 
     if (dbError || !dsHoaDon || dsHoaDon.length === 0) {
       if (!options.quiet) {
-        console.log(`[SEPAY] Khong co hoa don nao chua thanh toan de doi soat.`);
+        console.log(`[RECONCILE] Khong co hoa don nao chua thanh toan de doi soat.`);
       }
       return;
     }
@@ -2795,12 +2795,12 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
 
     if (!hoaDonKhop) {
       if (!options.quiet) {
-        console.log(`[SEPAY] Giao dich ${transaction.id} khong tuong thich code/content + so tien voi bat ky hoa don nao.`);
+        console.log(`[RECONCILE] Giao dich ${transaction.id} khong tuong thich code/content + so tien voi bat ky hoa don nao.`);
       }
       return;
     }
 
-    console.log(`[SEPAY] Phat hien hoa don trung khop: ${hoaDonKhop.id}. Dang tien hanh thanh toan...`);
+    console.log(`[RECONCILE] Phat hien hoa don trung khop: ${hoaDonKhop.id}. Dang tien hanh thanh toan...`);
 
     // 1. Cap nhat trang thai hoa don sang 'paid'
     const { error: updateInvoiceErr } = await supabaseClient
@@ -2809,7 +2809,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
       .eq('id', hoaDonKhop.id);
 
     if (updateInvoiceErr) {
-      console.error(`[SEPAY] Loi cap nhat trang thai hoa don:`, updateInvoiceErr.message);
+      console.error(`[RECONCILE] Loi cap nhat trang thai hoa don:`, updateInvoiceErr.message);
       return;
     }
 
@@ -2820,222 +2820,12 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
       .eq('id', transaction.id);
 
     if (updateTxErr) {
-      console.error(`[SEPAY] Loi lien ket giao dich voi hoa don:`, updateTxErr.message);
+      console.error(`[RECONCILE] Loi lien ket giao dich voi hoa don:`, updateTxErr.message);
       return;
     }
 
-    console.log(`[SEPAY] Doi soat thanh cong: Giao dich ${transaction.id} da khop voi hoa don ${hoaDonKhop.id}`);
+    console.log(`[RECONCILE] Doi soat thanh cong: Giao dich ${transaction.id} da khop voi hoa don ${hoaDonKhop.id}`);
   }
-
-  // POST /api/sepay-webhook (Nhan webhook tu SePay)
-  app.post('/api/sepay-webhook', async (req, res) => {
-    try {
-      console.log("[SePay Webhook Payload]:", JSON.stringify(req.body, null, 2));
-      console.log('[SEPAY WEBHOOK] Incoming request headers:', JSON.stringify(req.headers, null, 2));
-      console.log('[SEPAY WEBHOOK] Incoming request body:', JSON.stringify(req.body, null, 2));
-
-      // 1. Kiem tra dinh dang Content-Type
-      if (req.headers['content-type'] !== 'application/json' && !req.headers['content-type']?.includes('application/json')) {
-        console.warn('[SEPAY WEBHOOK] Rejecting non-JSON content type');
-        return res.status(400).json({ error: 'Content-Type must be application/json' });
-      }
-
-      // 2. Kiem tra bao mat Webhook (Ho tro ca HMAC-SHA256 va API Key de linh hoat)
-      let expectedKey = (process.env.SEPAY_WEBHOOK_KEY || '').trim();
-      if (expectedKey.startsWith('"') && expectedKey.endsWith('"')) expectedKey = expectedKey.slice(1, -1);
-      if (expectedKey.startsWith("'") && expectedKey.endsWith("'")) expectedKey = expectedKey.slice(1, -1);
-      const signatureHeader = req.headers['x-sepay-signature'] || req.headers['X-SePay-Signature'];
-      const timestampHeader = req.headers['x-sepay-timestamp'] || req.headers['X-SePay-Timestamp'];
-
-      if (signatureHeader && timestampHeader) {
-        // A. Xac thuc bang HMAC-SHA256
-        if (!expectedKey) {
-          console.warn('[SEPAY WEBHOOK] Loi: Chua cau hinh SEPAY_WEBHOOK_KEY de xac thuc HMAC');
-          return res.status(500).json({ error: 'Webhook key not configured on server' });
-        }
-
-        // 1. Chong Replay Attack (neu chenh lech > 5 phut = 300s)
-        const timestamp = Number(timestampHeader);
-        const now = Math.floor(Date.now() / 1000);
-        if (isNaN(timestamp) || Math.abs(now - timestamp) > 300) {
-          console.warn(`[SEPAY WEBHOOK] Rejecting expired timestamp: ${timestampHeader} (Server: ${now})`);
-          return res.status(401).json({ error: 'Timestamp expired' });
-        }
-
-        // 2. Tinh toan chu ky tu raw body
-        const rawBodyStr = (req as any).rawBody ? (req as any).rawBody.toString('utf-8') : '';
-        const dataToVerify = `${timestampHeader}.${rawBodyStr}`;
-        const calculatedSignature = crypto
-          .createHmac('sha256', expectedKey)
-          .update(dataToVerify)
-          .digest('hex');
-
-        // 3. So sanh chu ky
-        let incomingSignature = String(signatureHeader);
-        if (incomingSignature.startsWith('sha256=')) {
-          incomingSignature = incomingSignature.substring(7);
-        }
-
-        if (incomingSignature !== calculatedSignature) {
-          console.warn('[SEPAY WEBHOOK] Canh bao: Chu ky HMAC-SHA256 khong khop!');
-          return res.status(401).json({ error: 'Invalid signature' });
-        }
-
-        console.log('[SEPAY WEBHOOK] Xac thuc HMAC-SHA256 thanh cong.');
-      } else {
-        // B. Fallback sang xac thuc API Key
-        const authHeader = req.headers['authorization'] || req.headers['Authorization'];
-        if (expectedKey && authHeader !== `Apikey ${expectedKey}`) {
-          console.warn('[SEPAY WEBHOOK] Canh bao: Authorization API Key khong hop le hoac thieu');
-          return res.status(401).json({ error: 'Unauthorized key' });
-        }
-      }
-
-      const payload = req.body;
-      if (!payload || payload.id === undefined || payload.id === null || payload.id === '') {
-        console.warn('[SEPAY WEBHOOK] Payload thieu thong tin id giao dich');
-        return res.status(400).json({ error: 'Missing transaction id' });
-      }
-
-      const txId = String(payload.id);
-      console.log(`[SEPAY WEBHOOK] Nhan duoc thong bao giao dich ID: ${txId}`);
-
-      const supabase = await getSupabaseClient();
-
-      // 3. Logic chong trung lap (Idempotency)
-      const { data: existingTx } = await supabase
-        .from('tb_transactions')
-        .select('id')
-        .eq('id', txId)
-        .maybeSingle();
-
-      if (existingTx) {
-        console.log(`[SEPAY WEBHOOK] Giao dich ID ${txId} da duoc xu ly truoc do, bo qua.`);
-        return res.status(200).json({ success: true });
-      }
-
-      // 4. Phan tich cac truong thong tin tu payload SePay
-      const gateway = payload.gateway || 'Unknown';
-      
-      let transactionDate = payload.transactionDate || new Date().toISOString();
-      if (typeof transactionDate === 'string' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(transactionDate)) {
-        transactionDate = transactionDate.replace(' ', 'T') + '+07:00';
-      }
-
-      const accountNumber = payload.accountNumber || '';
-      const subAccount = payload.subAccount || '';
-      const transferType = payload.transferType || 'in';
-      const transferAmount = Number(payload.transferAmount || 0);
-
-      const amountIn = transferType === 'in' ? transferAmount : 0;
-      const amountOut = transferType === 'out' ? transferAmount : 0;
-
-      let accumulated = Number(payload.accumulated || 0);
-      
-      // Neu accumulated tu SePay bang 0 (hoac khong co), hay tinh toan dua tren giao dich truoc do cua tai khoan nay
-      if (!accumulated || accumulated === 0) {
-        console.log(`[SEPAY WEBHOOK] accumulated bang 0. Dang truy van giao dich truoc do cua tai khoan ${accountNumber} de tinh toan...`);
-        const { data: lastTx } = await supabase
-          .from('tb_transactions')
-          .select('accumulated')
-          .eq('account_number', accountNumber)
-          .order('transaction_date', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (lastTx) {
-          const prevAcc = Number(lastTx.accumulated || 0);
-          accumulated = prevAcc + amountIn - amountOut;
-          console.log(`[SEPAY WEBHOOK] Tinh toan accumulated thanh cong. So du cu: ${prevAcc}, So du moi: ${accumulated}`);
-        } else {
-          console.log(`[SEPAY WEBHOOK] Khong tim thay giao dich truoc do, giu nguyen accumulated = 0`);
-        }
-      }
-
-      const code = payload.code || null;
-      const content = payload.content || '';
-      const referenceNumber = payload.referenceCode || '';
-      const body = payload.description || '';
-
-      // 5. Tim owner_id lien ket voi account_number tu sepay_accounts
-      let ownerId = null;
-      const { data: accountConn } = await supabase
-        .from('sepay_accounts')
-        .select('owner_id')
-        .eq('account_number', accountNumber)
-        .maybeSingle();
-
-      if (accountConn) {
-        ownerId = accountConn.owner_id;
-      }
-
-      // 6. Test Local Fallback (chi kich hoat trong moi truong development hoac co flag SEPAY_TEST_FALLBACK)
-      const isDev = process.env.NODE_ENV === 'development';
-      const isTestFallback = process.env.SEPAY_TEST_FALLBACK === 'true';
-
-      if (!ownerId && (isDev || isTestFallback)) {
-        console.log(`[SEPAY WEBHOOK] Khong tim thay so tai khoan dang ky. Dang ap dung fallback test local...`);
-        // Tim bat ky hoa don hoac hop dong nao de lay owner_id test
-        const { data: sampleInvoice } = await supabase
-          .from('invoices')
-          .select('owner_id')
-          .limit(1)
-          .maybeSingle();
-
-        if (sampleInvoice) {
-          ownerId = sampleInvoice.owner_id;
-          console.log(`[SEPAY WEBHOOK] Fallback test local thanh cong. Su dung owner_id: ${ownerId}`);
-        }
-      }
-
-      if (!ownerId) {
-        console.warn(`[SEPAY WEBHOOK] Bo qua giao dich ID ${txId}: Khong xac dinh duoc nguoi dung so huu tai khoan ${accountNumber}.`);
-        // Khong tra ve loi 400 ma van tra ve 200 de tranh SePay retry gui lai giao dich khong lien quan
-        return res.status(200).json({ success: true, message: 'Owner not resolved' });
-      }
-
-      // 7. Ghi nhan giao dich vao tb_transactions
-      const { data: newTx, error: insertErr } = await supabase
-        .from('tb_transactions')
-        .insert({
-          id: txId,
-          owner_id: ownerId,
-          gateway,
-          transaction_date: transactionDate,
-          account_number: accountNumber,
-          sub_account: subAccount || null,
-          amount_in: amountIn,
-          amount_out: amountOut,
-          accumulated,
-          code,
-          content,
-          reference_number: referenceNumber,
-          body,
-          match_status: 'unmatched'
-        })
-        .select()
-        .single();
-
-      if (insertErr || !newTx) {
-        console.error('[SEPAY WEBHOOK] Loi insert giao dich vao database:', insertErr?.message);
-        return res.status(500).json({ error: 'Database insert failed' });
-      }
-
-      // 8. Kich hoat doi soat hoa don tu dong
-      await doiSoatHoaDonSepay(supabase, {
-        id: txId,
-        owner_id: ownerId,
-        amount_in: amountIn,
-        code,
-        content
-      });
-
-      res.status(200).json({ success: true });
-    } catch (error) {
-      console.error('[SEPAY WEBHOOK] Loi nghiem trong khi nhan webhook:', error.message);
-      res.status(500).json({ error: 'Internal server error', details: error.message });
-    }
-  });
 
   // GET /api/debug/test-supabase (DEBUG API to check Supabase connection and settings)
   app.get('/api/debug/test-supabase', async (req, res) => {
@@ -3085,7 +2875,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
       try {
         const supabase = await getSupabaseClient();
         const start = Date.now();
-        const { data, error } = await supabase.from('sepay_accounts').select('count', { count: 'exact', head: true });
+        const { data, error } = await supabase.from('bank_accounts').select('count', { count: 'exact', head: true });
         testResults.supabaseClient = {
           data,
           error,
@@ -3104,22 +2894,22 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
     }
   });
 
-  // GET /api/sepay/status (Lay thong tin ket noi va lich su giao dich cho nguoi dung)
-  app.get('/api/sepay/status', async (req, res) => {
+  // GET /api/transactions/status (Lay danh sach tai khoan ngan hang va lich su giao dich)
+  app.get('/api/transactions/status', async (req, res) => {
     try {
       const ownerId = getOwnerId(req);
       if (!ownerId) return res.status(400).json({ error: 'Thieu ownerId hoặc userid' });
 
-      console.log(`[SEPAY API] Lay status cho ownerId: ${ownerId}`);
+      console.log(`[TRANSACTION API] Lay status cho ownerId: ${ownerId}`);
       const supabase = await getSupabaseClient();
 
       const [{ data: accounts, error: errAcc }, { data: transactions, error: errTx }] = await Promise.all([
-        supabase.from('sepay_accounts').select('*').eq('owner_id', ownerId),
+        supabase.from('bank_accounts').select('*').eq('owner_id', ownerId),
         supabase.from('tb_transactions').select('*').eq('owner_id', ownerId).order('transaction_date', { ascending: false })
       ]);
 
       if (errAcc || errTx) {
-        console.error('[SEPAY API] Loi lay status tu database:', { errAcc, errTx });
+        console.error('[TRANSACTION API] Loi lay status tu database:', { errAcc, errTx });
         return res.status(500).json({ 
           error: 'Loi truy van database', 
           details: errAcc?.message || errTx?.message,
@@ -3129,50 +2919,69 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
 
       res.json({
         connected: Array.isArray(accounts) && accounts.length > 0,
-        accounts: accounts || [],
+        accounts: (accounts || []).map(acc => ({
+          id: acc.id,
+          owner_id: acc.owner_id,
+          bank_name: acc.bank_code,
+          account_number: acc.account_number,
+          created_at: acc.created_at
+        })),
         transactions: transactions || []
       });
     } catch (error: any) {
-      console.error('[SEPAY API] Loi lay status (catch):', error);
-      res.status(500).json({ error: 'Loi he thong', details: error.message, stack: error.stack, cause: error.cause });
+      console.error('[TRANSACTION API] Loi lay status (catch):', error);
+      res.status(500).json({ error: 'Loi he thong', details: error.message });
     }
   });
 
-  // POST /api/sepay/register-account (Dang ky so tai khoan nhan tien de nhan webhook)
-  app.post('/api/sepay/register-account', async (req, res) => {
+  // POST /api/bank-accounts/register (Dang ky so tai khoan ngan hang de theo doi)
+  app.post('/api/bank-accounts/register', async (req, res) => {
     try {
       const { ownerId, bankName, accountNumber } = req.body;
       if (!ownerId || !bankName || !accountNumber) {
         return res.status(400).json({ error: 'Thieu thong tin ownerId, bankName hoac accountNumber' });
       }
 
-      console.log(`[SEPAY API] Dang ky tai khoan: user=${ownerId}, bank=${bankName}, acc=${accountNumber}`);
+      console.log(`[BANK ACCOUNT API] Dang ky tai khoan: user=${ownerId}, bank=${bankName}, acc=${accountNumber}`);
       const supabase = await getSupabaseClient();
       const { data, error } = await supabase
-        .from('sepay_accounts')
+        .from('bank_accounts')
         .upsert({
           owner_id: ownerId,
-          bank_name: bankName,
-          account_number: accountNumber.trim()
-        }, { onConflict: 'account_number' })
+          bank_code: bankName,
+          account_number: accountNumber.trim(),
+          account_name: `${bankName} Account`,
+          email_account: 'system@agenthub.local',
+          is_active: true,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'owner_id,bank_code,account_number' })
         .select()
         .single();
 
       if (error) {
-        console.error('[SEPAY API] Loi insert account (database error):', error);
-        return res.status(500).json({ error: 'Database update failed', details: error.message, fullError: error });
+        console.error('[BANK ACCOUNT API] Loi insert account (database error):', error);
+        return res.status(500).json({ error: 'Database update failed', details: error.message });
       }
 
-      console.log(`[SEPAY API] Dang ky tai khoan thanh cong:`, data);
-      res.json({ success: true, account: data });
+      console.log(`[BANK ACCOUNT API] Dang ky tai khoan thanh cong:`, data);
+      res.json({ 
+        success: true, 
+        account: {
+          id: data.id,
+          owner_id: data.owner_id,
+          bank_name: data.bank_code,
+          account_number: data.account_number,
+          created_at: data.created_at
+        } 
+      });
     } catch (error: any) {
-      console.error('[SEPAY API] Loi dang ky tai khoan (catch):', error);
-      res.status(500).json({ error: 'Loi dang ky tai khoan', details: error.message, stack: error.stack, cause: error.cause });
+      console.error('[BANK ACCOUNT API] Loi dang ky tai khoan (catch):', error);
+      res.status(500).json({ error: 'Loi dang ky tai khoan', details: error.message });
     }
   });
 
-  // DELETE /api/sepay/unregister-account (Huy dang ky so tai khoan nhan tien)
-  app.post('/api/sepay/unregister-account', async (req, res) => {
+  // POST /api/bank-accounts/unregister (Huy lien ket tai khoan ngan hang)
+  app.post('/api/bank-accounts/unregister', async (req, res) => {
     try {
       const { ownerId, accountNumber } = req.body;
       if (!ownerId || !accountNumber) {
@@ -3181,7 +2990,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
 
       const supabase = await getSupabaseClient();
       const { error } = await supabase
-        .from('sepay_accounts')
+        .from('bank_accounts')
         .delete()
         .eq('owner_id', ownerId)
         .eq('account_number', accountNumber);
@@ -3191,7 +3000,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
       }
 
       res.json({ success: true });
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ error: 'Loi huy dang ky', details: error.message });
     }
   });
@@ -3223,11 +3032,11 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
 
       const supabase = await getSupabaseClient();
 
-      // 1. Tim owner_id lien ket voi account_number tu sepay_accounts
+      // 1. Tim owner_id lien ket voi account_number tu bank_accounts (thay vi sepay_accounts)
       let ownerId = null;
       const { data: accountConn } = await supabase
-        .from('sepay_accounts')
-        .select('owner_id, bank_name')
+        .from('bank_accounts')
+        .select('owner_id, bank_code')
         .eq('account_number', tx.accountNumber)
         .maybeSingle();
 
@@ -3272,7 +3081,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
             owner_id: ownerId,
             bank_code: tx.bankCode,
             account_number: tx.accountNumber,
-            account_name: accountConn?.bank_name || tx.bankCode,
+            account_name: accountConn?.bank_code || tx.bankCode,
             email_account: tx.emailAccount || 'system@agenthub.local',
             is_active: true
           })
@@ -3343,7 +3152,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
 
       // 6. Kich hoat doi soat tu dong neu co giao dich tien vao
       if (newTbTx && amountIn > 0) {
-        await doiSoatHoaDonSepay(supabase, {
+        await doiSoatHoaDon(supabase, {
           id: tx.id,
           owner_id: ownerId,
           amount_in: amountIn,
@@ -3412,7 +3221,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
         console.log(`[BACKGROUND MATCHER] Tim thay ${unmatchedTxs.length} giao dich chua doi soat. Tien hanh xu ly...`);
         for (const tx of unmatchedTxs) {
           try {
-            await doiSoatHoaDonSepay(supabase, tx, { quiet: true });
+            await doiSoatHoaDon(supabase, tx, { quiet: true });
           } catch (txErr: any) {
             console.error(`[BACKGROUND MATCHER] Loi doi soat giao dich ${tx.id}:`, txErr.message);
           }
