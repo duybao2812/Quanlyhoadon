@@ -1,7 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit2, Trash2, Eye, FolderArchive, ChevronRight, Download, Upload, X, FileText, FolderOpen, Search, Loader2, File, AlertCircle, CloudOff } from 'lucide-react';
+import { Plus, Edit2, Trash2, Eye, FolderArchive, ChevronRight, Download, Upload, X, FileText, FolderOpen, Search, File, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useDropzone } from 'react-dropzone';
 import { cn } from '../../lib/utils';
 import { useToast } from '../Notifications';
 import { DocumentTable, DocumentDrawer, ConfirmDialog, BadgeSecurity, BadgeUrgency } from './components';
@@ -16,6 +14,8 @@ import {
   OutgoingDocument
 } from '../../types/documentTypes';
 
+import { useState, useEffect, useCallback } from 'react';
+
 interface ArchivesViewProps {
   ownerId: string;
 }
@@ -27,7 +27,6 @@ export function ArchivesView({ ownerId }: ArchivesViewProps) {
   const [pagination, setPagination] = useState<PaginatedResponse<Archive> | null>(null);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<FilterParams>({});
-  const [activeTab, setActiveTab] = useState<'folders' | 'files'>('folders');
   
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedArchive, setSelectedArchive] = useState<Archive | null>(null);
@@ -135,42 +134,13 @@ export function ArchivesView({ ownerId }: ArchivesViewProps) {
             Quản lý hồ sơ lưu trữ văn bản và tệp tin
           </p>
         </div>
-        {activeTab === 'folders' && (
-          <button onClick={() => { setSelectedArchive(null); setDrawerOpen(true); }} className="btn-primary flex items-center gap-2">
-            <Plus className="size-5" />
-            Thêm mới
-          </button>
-        )}
-      </div>
-
-      {/* Internal Sub-Tabs */}
-      <div className="flex gap-6 border-b border-white/5 pb-px">
-        <button
-          onClick={() => setActiveTab('folders')}
-          className={cn(
-            "pb-3 text-sm font-semibold transition-all relative",
-            activeTab === 'folders' 
-              ? "text-primary border-b-2 border-primary" 
-              : "text-text-dim hover:text-white"
-          )}
-        >
-          Thư mục hồ sơ
-        </button>
-        <button
-          onClick={() => setActiveTab('files')}
-          className={cn(
-            "pb-3 text-sm font-semibold transition-all relative",
-            activeTab === 'files' 
-              ? "text-primary border-b-2 border-primary" 
-              : "text-text-dim hover:text-white"
-          )}
-        >
-          Kho tệp tin (MinIO)
+        <button onClick={() => { setSelectedArchive(null); setDrawerOpen(true); }} className="btn-primary flex items-center gap-2">
+          <Plus className="size-5" />
+          Thêm mới
         </button>
       </div>
 
-      {activeTab === 'folders' ? (
-        <>
+      <>
           {/* Simple Filters */}
           <div className="flex gap-4 flex-wrap">
             <div className="flex-1 min-w-[200px]">
@@ -300,9 +270,6 @@ export function ArchivesView({ ownerId }: ArchivesViewProps) {
             </div>
           )}
         </>
-      ) : (
-        <MinioFileManager />
-      )}
 
       {/* Create/Edit Drawer */}
       <ArchiveFormDrawer
@@ -765,281 +732,5 @@ function mapRowToArchive(row: ArchiveRow): Archive {
   };
 }
 
-// ==========================================
-// MinIO File Manager Component
-// ==========================================
 
-interface MinioFile {
-  key: string;
-  originalName: string;
-  size: number;
-  lastModified: string | Date;
-}
-
-function MinioFileManager() {
-  const { toast } = useToast();
-  const [files, setFiles] = useState<MinioFile[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [fileToDelete, setFileToDelete] = useState<MinioFile | null>(null);
-  const [isConnected, setIsConnected] = useState(true);
-
-  const fetchFiles = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await fetch('/api/storage/files');
-      if (!response.ok) throw new Error('Failed to fetch');
-      const result = await response.json();
-      if (result.success) {
-        setFiles(result.data);
-        setIsConnected(result.connected !== false);
-      } else {
-        throw new Error(result.error || 'Unknown error');
-      }
-    } catch (error) {
-      console.error('Error fetching MinIO files:', error);
-      setIsConnected(false);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchFiles();
-  }, [fetchFiles]);
-
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    if (acceptedFiles.length === 0) return;
-    setUploading(true);
-    let successCount = 0;
-    
-    for (const file of acceptedFiles) {
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      try {
-        const response = await fetch('/api/storage/upload', {
-          method: 'POST',
-          body: formData,
-        });
-        
-        if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.error || 'Upload failed');
-        }
-        successCount++;
-      } catch (err: any) {
-        console.error(err);
-        toast(`Lỗi tải lên tệp ${file.name}: ${err.message}`, 'error');
-      }
-    }
-    
-    if (successCount > 0) {
-      toast(`Đã tải lên thành công ${successCount} tệp tin`, 'success');
-      fetchFiles();
-    }
-    setUploading(false);
-  }, [toast, fetchFiles]);
-
-  const handleDeleteFile = async () => {
-    if (!fileToDelete) return;
-    setDeleting(true);
-    try {
-      const response = await fetch(`/api/storage/files/${encodeURIComponent(fileToDelete.key)}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || 'Delete failed');
-      }
-      toast('Xóa tệp tin khỏi MinIO thành công', 'success');
-      setFileToDelete(null);
-      fetchFiles();
-    } catch (error: any) {
-      toast(`Không thể xóa tệp: ${error.message}`, 'error');
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    disabled: uploading
-  });
-
-  const formatBytes = (bytes: number, decimals = 2) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-  };
-
-  const filteredFiles = files.filter(f => 
-    f.originalName.toLowerCase().includes(search.toLowerCase())
-  );
-
-  return (
-    <div className="space-y-6">
-      {/* Status Warning Banner when not connected */}
-      {!isConnected && (
-        <div className="flex items-center gap-3 px-4 py-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-xl text-sm font-medium">
-          <div className="size-2 rounded-full bg-amber-400 animate-pulse" />
-          <span>Hệ thống lưu trữ MinIO: Chưa kết nối (Hoạt động ở chế độ ngoại tuyến)</span>
-        </div>
-      )}
-
-      {/* Drag and Drop Zone */}
-      <div 
-        {...getRootProps()} 
-        className={cn(
-          "border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all duration-200",
-          isDragActive 
-            ? "border-primary bg-primary/5 text-primary scale-[1.01]" 
-            : "border-white/10 text-text-dim hover:border-primary/50 hover:bg-white/5",
-          (uploading || !isConnected) && "opacity-50 cursor-not-allowed pointer-events-none"
-        )}
-      >
-        <input {...getInputProps()} />
-        <div className="flex flex-col items-center justify-center gap-3">
-          {uploading ? (
-            <Loader2 className="size-10 text-primary animate-spin" />
-          ) : (
-            <Upload className={cn("size-10 transition-colors", isDragActive ? "text-primary" : "text-text-dim group-hover:text-primary")} />
-          )}
-          <div>
-            <p className="font-bold text-white text-base">
-              {!isConnected 
-                ? "Chưa kết nối đến hệ thống lưu trữ MinIO" 
-                : uploading 
-                  ? "Đang tải tệp tin lên MinIO..." 
-                  : "Kéo & Thả tệp vào đây, hoặc click để chọn tệp"}
-            </p>
-            <p className="text-xs text-text-dim mt-1">
-              {!isConnected 
-                ? "Vui lòng cấu hình MinIO hoặc kiểm tra lại kết nối mạng để sử dụng tính năng tải lên" 
-                : "Hỗ trợ tải lên tất cả các loại tài liệu (.pdf, .docx, .xlsx, .png, .jpg...)"}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Filter and File List */}
-      <div className="space-y-4">
-        <div className="flex justify-between items-center gap-4 flex-wrap">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-text-dim" />
-            <input
-              type="text"
-              placeholder="Tìm kiếm tệp lưu trữ..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input-field pl-10 w-full"
-            />
-          </div>
-          <div className="text-xs text-text-dim">
-            Hiển thị {filteredFiles.length} / {files.length} tệp
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="card p-4 space-y-4 animate-pulse">
-            <div className="h-6 bg-white/5 rounded w-1/3" />
-            <div className="h-20 bg-white/5 rounded" />
-          </div>
-        ) : !isConnected ? (
-          <div className="card flex flex-col items-center justify-center py-16 text-center">
-            <div className="size-16 bg-white/5 rounded-2xl flex items-center justify-center mb-4">
-              <CloudOff className="size-8 text-amber-400" />
-            </div>
-            <h4 className="font-bold text-white mb-1">Chưa kết nối</h4>
-            <p className="text-sm text-text-dim max-w-xs leading-relaxed">
-              Không thể kết nối đến máy chủ lưu trữ MinIO. Vui lòng kiểm tra cấu hình hoặc liên hệ quản trị viên.
-            </p>
-          </div>
-        ) : filteredFiles.length === 0 ? (
-          <div className="card flex flex-col items-center justify-center py-16 text-center">
-            <div className="size-16 bg-white/5 rounded-2xl flex items-center justify-center mb-4">
-              <File className="size-8 text-text-dim" />
-            </div>
-            <h4 className="font-bold text-white mb-1">Không tìm thấy tệp tin</h4>
-            <p className="text-sm text-text-dim max-w-xs leading-relaxed">
-              {search ? "Không tìm thấy tệp nào khớp với từ khóa tìm kiếm của bạn." : "Chưa có tệp tin nào được tải lên kho lưu trữ MinIO."}
-            </p>
-          </div>
-        ) : (
-          <div className="card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left text-sm">
-                <thead>
-                  <tr className="border-b border-white/5 text-text-dim font-bold">
-                    <th className="py-3 px-4">Tên tệp</th>
-                    <th className="py-3 px-4 w-28">Kích thước</th>
-                    <th className="py-3 px-4 w-44">Ngày tải lên</th>
-                    <th className="py-3 px-4 w-24 text-right">Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5 text-white">
-                  {filteredFiles.map((file) => (
-                    <tr key={file.key} className="hover:bg-white/5 transition-colors group">
-                      <td className="py-3 px-4 flex items-center gap-3">
-                        <FileText className="size-4.5 text-primary shrink-0" />
-                        <span 
-                          className="truncate font-medium max-w-xs sm:max-w-md md:max-w-xl" 
-                          title={file.originalName}
-                        >
-                          {file.originalName}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-text-dim whitespace-nowrap">
-                        {formatBytes(file.size)}
-                      </td>
-                      <td className="py-3 px-4 text-text-dim whitespace-nowrap">
-                        {new Date(file.lastModified).toLocaleString('vi-VN')}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex gap-1 justify-end opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
-                          <a 
-                            href={`/api/storage/download/${encodeURIComponent(file.key)}`}
-                            download={file.originalName}
-                            className="p-1.5 rounded-lg hover:bg-white/10 text-text-dim hover:text-white transition-colors"
-                            title="Tải tệp về"
-                          >
-                            <Download className="size-4" />
-                          </a>
-                          <button 
-                            onClick={() => setFileToDelete(file)}
-                            className="p-1.5 rounded-lg hover:bg-white/10 text-text-dim hover:text-red-400 transition-colors"
-                            title="Xóa tệp"
-                          >
-                            <Trash2 className="size-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Delete Confirmation Dialog */}
-      <ConfirmDialog
-        open={!!fileToDelete}
-        onClose={() => setFileToDelete(null)}
-        onConfirm={handleDeleteFile}
-        title="Xóa tệp tin"
-        message={`Bạn có chắc chắn muốn xóa tệp "${fileToDelete?.originalName}" khỏi kho lưu trữ MinIO? Hành động này không thể hoàn tác.`}
-        confirmText="Xóa tệp"
-        variant="danger"
-        loading={deleting}
-      />
-    </div>
-  );
-}
 

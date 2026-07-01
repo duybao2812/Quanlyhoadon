@@ -12,15 +12,7 @@ import OpenAI from 'openai';
 import os from 'os';
 import { exec } from 'child_process';
 import crypto from 'crypto';
-import { 
-  initializeMinio, 
-  uploadToMinio, 
-  listMinioFiles, 
-  deleteFromMinio, 
-  getMinioPresignedUrl, 
-  getMinioObjectStream,
-  checkMinioConnection
-} from './minio';
+
 
 dotenv.config();
 
@@ -292,8 +284,7 @@ async function startServer() {
   console.log("👉 Buoc 1: Bat dau khoi dong...");
   console.log('[SERVER] Bat dau khoi dong ung dung...');
 
-  // Initialize MinIO bucket
-  await initializeMinio();
+
 
   function sanitizeEnvValue(val: string | undefined): string {
     if (!val) return '';
@@ -2216,105 +2207,7 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
     }
   });
 
-  // ---- MINIO STORAGE ----
 
-  // List files in MinIO storage
-  app.get('/api/storage/files', async (req, res) => {
-    try {
-      const connected = await checkMinioConnection();
-      const search = req.query.search as string | undefined;
-      const files = await listMinioFiles(search);
-      res.json({ success: true, data: files, connected });
-    } catch (error: any) {
-      const msg = error.message || '';
-      if (msg.includes('ECONNREFUSED') || msg.includes('ENOTFOUND') || msg.includes('timeout')) {
-        return res.json({ success: true, data: [], connected: false });
-      }
-      console.error("[MINIO_API] Loi lay danh sach file:", error);
-      res.status(500).json({ error: "Không thể lấy danh sách tệp tin.", details: error.message });
-    }
-  });
-
-  // Upload file to MinIO storage
-  app.post('/api/storage/upload', upload.single('file'), async (req: any, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: 'Không tìm thấy tệp để tải lên.' });
-      }
-      
-      const fileInfo = await uploadToMinio(req.file);
-      res.json({ success: true, message: 'Tải tệp lên thành công.', data: fileInfo });
-    } catch (error: any) {
-      console.error("[MINIO_API] Loi upload file:", error);
-      res.status(500).json({ error: "Không thể tải tệp lên.", details: error.message });
-    }
-  });
-
-  // Delete file from MinIO storage
-  app.delete('/api/storage/files/:filename', async (req, res) => {
-    try {
-      const filename = req.params.filename;
-      if (!filename) {
-        return res.status(400).json({ error: 'Thiếu tên tệp cần xóa.' });
-      }
-      
-      await deleteFromMinio(filename);
-      res.json({ success: true, message: 'Xóa tệp thành công.' });
-    } catch (error: any) {
-      console.error("[MINIO_API] Loi xoa file:", error);
-      res.status(500).json({ error: "Không thể xóa tệp.", details: error.message });
-    }
-  });
-
-  // Proxy download file from MinIO (direct streaming)
-  app.get('/api/storage/download/:filename', async (req, res) => {
-    try {
-      const filename = req.params.filename;
-      if (!filename) {
-        return res.status(400).send('Thiếu tên tệp.');
-      }
-      
-      const { stream, contentType, size } = await getMinioObjectStream(filename);
-      
-      // Parse original name from key to present to user during download
-      let originalName = filename;
-      const underscoreIndex = filename.indexOf('_');
-      if (underscoreIndex !== -1) {
-        const prefix = filename.substring(0, underscoreIndex);
-        if (/^\d+$/.test(prefix)) {
-          originalName = filename.substring(underscoreIndex + 1);
-        }
-      }
-
-      res.setHeader('Content-Type', contentType);
-      res.setHeader('Content-Length', size);
-      
-      // Encode RFC 5987 for Vietnamese filename encoding
-      const encodedFilename = encodeURIComponent(originalName).replace(/['()]/g, escape).replace(/\*/g, '%2A');
-      res.setHeader('Content-Disposition', `attachment; filename="${originalName}"; filename*=UTF-8''${encodedFilename}`);
-      
-      // Stream directly to response
-      stream.pipe(res);
-    } catch (error: any) {
-      console.error("[MINIO_API] Loi tai file:", error);
-      res.status(500).send(`Không thể tải tệp: ${error.message}`);
-    }
-  });
-
-  // Get presigned URL for preview/download
-  app.get('/api/storage/url/:filename', async (req, res) => {
-    try {
-      const filename = req.params.filename;
-      if (!filename) {
-        return res.status(400).json({ error: 'Thiếu tên tệp.' });
-      }
-      const url = await getMinioPresignedUrl(filename);
-      res.json({ success: true, url });
-    } catch (error: any) {
-      console.error("[MINIO_API] Loi sinh link:", error);
-      res.status(500).json({ error: "Không thể tạo link tệp.", details: error.message });
-    }
-  });
 
   // ---- STATISTICS ----
 
@@ -3566,9 +3459,14 @@ Trich xuat du lieu cau truc tu tai lieu hop dong, tra ve JSON chinh xac theo cau
       });
     }
 
-    console.log("👉 Buoc 3: Chuan bi listen...");
-    await listenOnPort(PORT);
-    console.log("👉 Da listen thanh cong tren port " + PORT);
+    // Do not call listenOnPort on Vercel serverless functions
+    if (!process.env.VERCEL) {
+      console.log("👉 Buoc 3: Chuan bi listen...");
+      await listenOnPort(PORT);
+      console.log("👉 Da listen thanh cong tren port " + PORT);
+    } else {
+      console.log("👉 Đang chạy trên Vercel: Bỏ qua listenOnPort.");
+    }
   }
 }
 
