@@ -206,250 +206,125 @@ export const PartnersView: React.FC<PartnersViewProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Desktop Table View */}
-      <div className="hidden lg:block card shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/10 bg-card-dark/80 backdrop-blur-xl rounded-xl overflow-hidden">
-        <div className="overflow-x-auto max-h-[calc(100vh-270px)] overflow-y-auto custom-scrollbar">
-          <table className="w-full text-left border-collapse min-w-[900px] lg:min-w-[1000px] xl:min-w-[1100px]">
-            <thead>
-              <tr className="bg-[#16161c] border-b border-white/10">
-                <th className="px-5 py-3.5 text-[11px] font-black text-primary uppercase tracking-[0.2em] w-[22%] sticky top-0 bg-[#16161c] z-30">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="size-4 opacity-70" /> Thông tin công ty
-                  </div>
-                </th>
-                <th className="px-5 py-3.5 text-[11px] font-black text-primary uppercase tracking-[0.2em] w-[35%] sticky top-0 bg-[#16161c] z-30">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="size-4 opacity-70" /> Địa chỉ liên hệ
-                  </div>
-                </th>
-                <th className="px-5 py-3.5 text-[11px] font-black text-primary uppercase tracking-[0.2em] w-[15%] sticky top-0 bg-[#16161c] z-30">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="size-4 opacity-70" /> Tài khoản thanh toán
-                  </div>
-                </th>
-                <th className="px-5 py-3.5 text-[11px] font-black text-primary uppercase tracking-[0.2em] w-[18%] sticky top-0 bg-[#16161c] z-30">
-                  <div className="flex items-center gap-2">
-                    <UserCheck className="size-4 opacity-70" /> Đại diện pháp luật
-                  </div>
-                </th>
-                <th className="py-3.5 pl-5 pr-8 text-[11px] font-black text-primary uppercase tracking-[0.2em] text-right w-[10%] sticky top-0 bg-[#16161c] z-30">Hành động</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {filteredPartners.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-5 py-12 text-center">
-                    <div className="flex flex-col items-center gap-3 opacity-20">
-                      <Users className="size-12 text-white" />
-                      <p className="text-xs font-black uppercase tracking-[0.2em] text-white">Chưa có dữ liệu đối tác</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredPartners.map((partner) => (
-                  <tr
-                    key={partner.id}
-                    onClick={() => onEdit(partner)}
-                    onContextMenu={(e) => handleContextMenu(e, partner)}
-                    className="cursor-pointer hover:bg-primary/5 transition-all duration-200 group relative"
-                  >
-                    <td className="px-5 py-4 relative">
-                      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                      <div className="relative z-10">
-                        <div className="font-bold text-white group-hover:text-primary transition-colors text-[14px] tracking-tight leading-tight mb-1.5">
-                          {partner.name}
-                        </div>
-                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-white/5 border border-white/10 rounded-md group-hover:border-primary/30 transition-all">
-                          <Hash className="size-2.5 text-primary/60" />
-                          <span className="text-[10px] font-black text-text-dim uppercase tracking-wider">MST: {partner.taxCode}</span>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <div className="space-y-2 max-w-md">
-                        <div className="flex gap-2 group/item">
-                          <div className="shrink-0 size-7 rounded-lg bg-white/5 flex items-center justify-center border border-white/10 group-hover/item:border-primary/20 transition-all mt-0.5">
-                            <History className="size-3 text-text-dim" />
-                          </div>
-                          <div className="text-[12px] font-bold text-text-dim leading-relaxed group-hover:text-white/80 transition-colors">
-                            <span className="text-[8px] font-black text-primary/40 uppercase block mb-0.5 tracking-widest">Địa chỉ cũ</span>
-                            {partner.address}
-                          </div>
-                        </div>
-                        {partner.addressPostMerger && (
-                          <div className="flex gap-2 group/item p-2 bg-primary/5 rounded-xl border border-primary/20">
-                            <div className="shrink-0 size-7 rounded-lg bg-primary/20 flex items-center justify-center border border-primary/30 mt-0.5">
-                              <MapPin className="size-3 text-primary" />
-                            </div>
-                            <div className="text-[12px] font-black text-primary leading-relaxed">
-                              <span className="text-[8px] font-black text-primary/60 uppercase block mb-0.5 tracking-widest">Địa chỉ mới (2025)</span>
-                              {partner.addressPostMerger}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-1.5 text-white font-black text-xs group-hover:text-primary transition-colors">
-                          <CreditCard className="size-3 opacity-50" />
-                          {partner.accountNumber || '---'}
-                        </div>
-                        <div className="text-[9px] text-text-dim uppercase font-black tracking-widest leading-tight pl-4.5 opacity-60">
-                          {partner.bankName || '---'}
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
-                          <div className="size-7 rounded-full bg-gradient-to-tr from-white/10 to-white/5 border border-white/10 flex items-center justify-center shadow-md group-hover:border-primary/30 transition-all">
-                            <UserIcon className="size-3 text-text-dim group-hover:text-primary" />
-                          </div>
-                          <div>
-                            <div className="text-white font-black text-xs flex items-center gap-1">
-                              <span className="text-primary/60">
-                                {(() => {
-                                  const g = partner.gender?.toLowerCase();
-                                  if (g === 'nam' || g === 'm' || g === 'male' || g === 'ông') return 'Ông.';
-                                  if (g === 'nữ' || g === 'f' || g === 'female' || g === 'bà') return 'Bà.';
-                                  return '';
-                                })()}
-                              </span>
-                              {partner.representative || '---'}
-                            </div>
-                            <div className="text-[9px] text-text-dim font-black uppercase mt-0.5 italic tracking-wider opacity-60">
-                              {partner.position || 'Giám đốc'}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="py-3 pl-5 pr-8 text-right">
-                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0">
-                        <button
-                          onClick={() => onEdit(partner)}
-                          className="size-8 bg-white/5 border border-white/10 text-text-dim rounded-xl flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all shadow-md active:scale-90"
-                          title="Chỉnh sửa hồ sơ"
-                        >
-                          <Edit3 className="size-3.5" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            onDelete(partner.id);
-                          }}
-                          className="size-8 bg-red-500/5 border border-red-500/10 text-text-dim rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 transition-all shadow-md active:scale-90"
-                          title="Xóa đối tác"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Mobile Card Grid View */}
-      <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-6">
+      {/* Partners Grid View */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredPartners.length === 0 ? (
-          <div className="p-12 text-center bg-card-dark/40 border border-border-dark rounded-3xl opacity-40 col-span-full">
-            <Users className="size-12 mx-auto mb-2 text-white" />
-            <p className="text-[11px] font-black uppercase tracking-wider text-white">Chưa có dữ liệu đối tác</p>
+          <div className="p-12 text-center bg-card-dark/40 border border-border-dark rounded-3xl opacity-40 col-span-full py-24 flex flex-col items-center justify-center gap-3">
+            <Users className="size-12 text-white" />
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-white">Chưa có dữ liệu đối tác</p>
           </div>
         ) : (
           filteredPartners.map((partner) => (
-            <div
+            <motion.div
               key={partner.id}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
               onClick={() => onEdit(partner)}
-              className="p-6 rounded-[32px] bg-card-dark border border-white/10 hover:border-primary/50 transition-all duration-300 flex flex-col gap-4 shadow-xl active:scale-[0.98] cursor-pointer group relative overflow-hidden"
+              onContextMenu={(e) => handleContextMenu(e, partner)}
+              className="p-6 rounded-[32px] bg-card-dark border border-white/10 hover:border-primary/50 transition-all duration-300 flex flex-col gap-4 shadow-xl active:scale-[0.98] cursor-pointer group relative overflow-hidden h-full justify-between"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               
-              {/* Header: Name and Tax Code */}
-              <div className="flex items-start justify-between gap-2 border-b border-white/5 pb-3 relative z-10">
-                <div className="space-y-1 max-w-[75%]">
-                  <div className="font-bold text-white group-hover:text-primary transition-colors text-[15px] tracking-tight leading-snug">
-                    {partner.name}
-                  </div>
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-white/5 border border-white/10 rounded-lg">
-                    <Hash className="size-3 text-primary/60" />
-                    <span className="text-[10px] font-black text-text-dim uppercase tracking-wider">MST: {partner.taxCode}</span>
-                  </div>
-                </div>
-                {/* Delete Button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    onDelete(partner.id);
-                  }}
-                  className="size-9 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-md shrink-0 relative z-20"
-                  title="Xóa đối tác"
-                >
-                  <Trash2 className="size-4" />
-                </button>
-              </div>
-
-              {/* Addresses section */}
-              <div className="space-y-3 relative z-10">
-                <div className="flex gap-2">
-                  <div className="shrink-0 size-8 rounded-xl bg-white/5 flex items-center justify-center border border-white/10 mt-0.5">
-                    <History className="size-3.5 text-text-dim" />
-                  </div>
-                  <div className="text-xs text-text-dim leading-relaxed font-medium">
-                    <span className="text-[8px] font-black text-primary/40 uppercase block tracking-widest mb-0.5">Địa chỉ cũ</span>
-                    {partner.address}
-                  </div>
-                </div>
-                {partner.addressPostMerger && (
-                  <div className="flex gap-2 p-3.5 bg-primary/5 rounded-2xl border border-primary/20">
-                    <div className="shrink-0 size-8 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30 mt-0.5">
-                      <MapPin className="size-3.5 text-primary" />
+              <div className="relative z-10 flex flex-col gap-3.5 h-full justify-between">
+                {/* Top Row: Logo, Name, Tax Code & Actions */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="size-12 rounded-[18px] bg-primary/10 text-primary font-black text-lg flex items-center justify-center border border-primary/20 shrink-0 uppercase shadow-inner group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
+                      {partner.name ? partner.name.charAt(0) : '?'}
                     </div>
-                    <div className="text-xs text-primary leading-relaxed font-bold">
-                      <span className="text-[8px] font-black text-primary/60 uppercase block tracking-widest mb-0.5">Địa chỉ mới (2025)</span>
-                      {partner.addressPostMerger}
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-white group-hover:text-primary transition-colors text-sm sm:text-base tracking-tight leading-snug truncate">
+                        {partner.name || '---'}
+                      </h3>
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-white/5 border border-white/10 rounded-lg mt-1 group-hover:border-primary/20">
+                        <Hash className="size-2.5 text-primary/60" />
+                        <span className="text-[9px] font-black text-text-dim uppercase tracking-wider">MST: {partner.taxCode || '---'}</span>
+                      </div>
                     </div>
                   </div>
-                )}
-              </div>
-
-              {/* Bank & Representative details (Grid layout) */}
-              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-white/5 relative z-10">
-                {/* Bank account details */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-[8px] font-black text-text-dim/40 uppercase tracking-widest flex items-center gap-1"><CreditCard className="size-3" /> TK Ngân Hàng</span>
-                  <div className="text-[13px] font-bold text-white truncate">{partner.accountNumber || '---'}</div>
-                  <div className="text-[9px] text-text-dim truncate uppercase font-bold tracking-wider opacity-60">{partner.bankName || '---'}</div>
-                </div>
-                {/* Representative details */}
-                <div className="flex flex-col gap-1 border-l border-white/5 pl-3">
-                  <span className="text-[8px] font-black text-text-dim/40 uppercase tracking-widest flex items-center gap-1"><UserIcon className="size-3" /> Đại Diện</span>
-                  <div className="text-[13px] font-bold text-white truncate">
-                    <span className="text-primary/60 mr-0.5 font-black">
-                      {(() => {
-                        const g = partner.gender?.toLowerCase();
-                        if (g === 'nam' || g === 'm' || g === 'male' || g === 'ông') return 'Ông.';
-                        if (g === 'nữ' || g === 'f' || g === 'female' || g === 'bà') return 'Bà.';
-                        return '';
-                      })()}
-                    </span>
-                    {partner.representative || '---'}
+                  
+                  {/* Actions */}
+                  <div className="flex gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onEdit(partner); }}
+                      className="size-8 bg-white/5 border border-white/10 text-text-dim rounded-xl flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all shadow-md active:scale-90"
+                    >
+                      <Edit3 className="size-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        if (confirm(`Bạn có chắc chắn muốn xóa đối tác "${partner.name}"?`)) {
+                          onDelete(partner.id);
+                        }
+                      }}
+                      className="size-8 bg-red-500/5 border border-red-500/10 text-text-dim rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 transition-all shadow-md active:scale-90"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
                   </div>
-                  <div className="text-[9px] text-text-dim truncate uppercase font-bold tracking-wider italic opacity-60">{partner.position || 'Giám đốc'}</div>
+                </div>
+
+                {/* Middle Row: Representative and Bank Info */}
+                <div className="grid grid-cols-2 gap-3.5 py-3 border-y border-white/5">
+                  {/* Representative */}
+                  <div className="space-y-1">
+                    <span className="text-[8px] font-black text-text-dim uppercase tracking-widest block">Đại diện</span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="size-6 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+                        <UserIcon className="size-3 text-text-dim" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-white font-bold text-xs truncate">
+                          {(() => {
+                            const g = partner.gender?.toLowerCase();
+                            if (g === 'nam' || g === 'm' || g === 'male' || g === 'ông') return 'Ông ';
+                            if (g === 'nữ' || g === 'f' || g === 'female' || g === 'bà') return 'Bà ';
+                            return '';
+                          })()}{partner.representative || '---'}
+                        </div>
+                        <div className="text-[8px] text-text-dim uppercase font-black truncate">{partner.position || 'Giám đốc'}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bank Details */}
+                  <div className="space-y-1">
+                    <span className="text-[8px] font-black text-text-dim uppercase tracking-widest block">Tài khoản</span>
+                    <div className="min-w-0">
+                      <div className="text-white font-bold text-xs truncate flex items-center gap-1">
+                        <CreditCard className="size-3 text-primary/60 shrink-0" />
+                        {partner.accountNumber || '---'}
+                      </div>
+                      <div className="text-[8px] text-text-dim uppercase font-black truncate pl-4">{partner.bankName || '---'}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom Row: Contact Info & Map Pin Address */}
+                <div className="space-y-2.5 mt-1">
+                  <div className="flex gap-2 items-start">
+                    <History className="size-3.5 text-text-dim shrink-0 mt-0.5" />
+                    <div className="text-[11px] font-bold text-text-dim leading-relaxed">
+                      <span className="text-[8px] font-black text-primary/40 uppercase block tracking-widest">Địa chỉ gốc</span>
+                      <span className="line-clamp-2">{partner.address || '---'}</span>
+                    </div>
+                  </div>
+                  {partner.addressPostMerger && (
+                    <div className="flex gap-2 items-start p-2.5 bg-primary/5 rounded-xl border border-primary/20">
+                      <MapPin className="size-3.5 text-primary shrink-0 mt-0.5" />
+                      <div className="text-[11px] font-black text-primary leading-relaxed">
+                        <span className="text-[8px] font-black text-primary/60 uppercase block tracking-widest">Địa chỉ mới (2025)</span>
+                        <span className="line-clamp-2">{partner.addressPostMerger}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))
         )}
       </div>

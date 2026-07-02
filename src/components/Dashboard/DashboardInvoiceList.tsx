@@ -160,15 +160,15 @@ export const DashboardInvoiceList: React.FC<Props> = ({
       {!isMobile && sortedInvoices.length > 0 && (
         <div className="invoice-table-header invoice-row-grid rounded-2xl border border-border-dark select-none py-3 px-6 text-[10px]">
           <div>STT</div>
-          <div><SortableHeader field="invoiceNumber">Số hóa đơn</SortableHeader></div>
-          <div className="invoice-col-date-header text-center"><SortableHeader field="date">Ngày xuất</SortableHeader></div>
-          <div><SortableHeader field="seller">Bên Bán</SortableHeader></div>
-          <div className="invoice-col-buyer-header"><SortableHeader field="buyer">Bên Mua</SortableHeader></div>
-          <div className="invoice-col-contract-header">Số hợp đồng</div>
-          <div className="invoice-col-contract-date-header">Ngày ký HĐ</div>
-          <div>Tổng giá trị</div>
-          <div><SortableHeader field="category">Trạng thái</SortableHeader></div>
-          <div><SortableHeader field="type">Nguồn</SortableHeader></div>
+          <div><SortableHeader field="invoiceNumber">SỐ HÓA ĐƠN</SortableHeader></div>
+          <div className="invoice-col-date-header text-center"><SortableHeader field="date">NGÀY XUẤT</SortableHeader></div>
+          <div><SortableHeader field="seller">BÊN BÁN</SortableHeader></div>
+          <div className="invoice-col-buyer-header"><SortableHeader field="buyer">BÊN MUA</SortableHeader></div>
+          <div className="invoice-col-contract-header">SỐ HỢP ĐỒNG</div>
+          <div className="invoice-col-contract-date-header">NGÀY KÝ HĐ</div>
+          <div>TỔNG GIÁ TRỊ</div>
+          <div><SortableHeader field="category">TRẠNG THÁI</SortableHeader></div>
+          <div><SortableHeader field="type">NGUỒN</SortableHeader></div>
           <div className="text-right"></div>
         </div>
       )}

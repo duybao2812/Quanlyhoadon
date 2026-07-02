@@ -18,7 +18,9 @@ import {
   AlertCircle,
   ChevronLeft,
   History,
-  Edit3
+  Edit3,
+  Zap,
+  Cpu
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../services/supabaseClient';
@@ -1062,7 +1064,9 @@ import { ExtendedInvoiceItem } from './demoData';
           transition={{ duration: 0.3 }}
           className="min-h-[400px]"
         >
-          <div className="space-y-6 pb-20">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 pb-20">
+            {/* Left/Main Column - Invoices */}
+            <div className="xl:col-span-2 space-y-6">
               {/* Header & Smart Filter Button Slot */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-sidebar-dark/40 p-6 rounded-3xl border border-border-dark shadow-2xl relative">
                 <div className="space-y-1">
@@ -1436,6 +1440,77 @@ import { ExtendedInvoiceItem } from './demoData';
                 renderInvoiceList(filteredInvoices)
               )}
             </div>
+
+            {/* Right/Side Column - Bento Extra Widgets */}
+            <div className="xl:col-span-1 space-y-6">
+              {/* Contract Panel */}
+              <div className="bg-sidebar-dark/40 p-6 rounded-3xl border border-border-dark shadow-xl space-y-4 hover:border-violet-500/20 transition-all duration-300">
+                 <h4 className="text-sm font-black uppercase text-white tracking-widest flex items-center gap-2">
+                   <Zap size={14} className="text-violet-400 animate-pulse" />
+                   Hợp đồng gần đây
+                 </h4>
+                 {contracts.length === 0 ? (
+                   <div className="text-xs text-text-dim italic">Chưa có hợp đồng nào</div>
+                 ) : (
+                   <div className="space-y-3">
+                     {contracts.slice(0, 4).map(c => (
+                       <div key={c.id} className="p-3 bg-white/5 border border-border-dark/60 rounded-xl flex flex-col gap-1 hover:border-violet-500/30 transition-all cursor-pointer">
+                         <div className="flex justify-between items-center">
+                           <span className="text-xs font-bold text-white truncate max-w-[180px]">{c.fileName || 'Hợp đồng không tên'}</span>
+                           <span className="text-[9px] uppercase font-black px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20 shrink-0">{c.contractType === 'ocr_pdf' ? 'PDF OCR' : 'Word Docx'}</span>
+                         </div>
+                         <div className="text-[10px] text-text-dim flex justify-between">
+                           <span>Mã bên A: {c.partyAId || 'N/A'}</span>
+                           <span>Phân loại: {c.documentType === 'incoming' ? 'Đầu vào' : c.documentType === 'outgoing' ? 'Đầu ra' : 'Hợp đồng'}</span>
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                 )}
+              </div>
+
+              {/* Partner Panel */}
+              <div className="bg-sidebar-dark/40 p-6 rounded-3xl border border-border-dark shadow-xl space-y-4 hover:border-amber-500/20 transition-all duration-300">
+                 <h4 className="text-sm font-black uppercase text-white tracking-widest flex items-center gap-2">
+                   <Users size={14} className="text-amber-400" />
+                   Đối tác nổi bật
+                 </h4>
+                 {partners.length === 0 ? (
+                   <div className="text-xs text-text-dim italic">Chưa có đối tác nào</div>
+                 ) : (
+                   <div className="space-y-3">
+                     {partners.slice(0, 4).map(p => (
+                       <div key={p.id} className="p-3 bg-white/5 border border-border-dark/60 rounded-xl flex flex-col gap-1 hover:border-amber-500/30 transition-all cursor-pointer">
+                         <span className="text-xs font-bold text-white truncate">{p.name}</span>
+                         <div className="text-[10px] text-text-dim flex justify-between">
+                           <span>MST: {p.taxCode}</span>
+                           <span>Đại diện: {p.representative || '---'}</span>
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                 )}
+              </div>
+
+              {/* Quick AI & Storage Widget */}
+              <div className="bg-sidebar-dark/40 p-6 rounded-3xl border border-border-dark shadow-xl space-y-4 hover:border-rose-500/20 transition-all duration-300">
+                 <h4 className="text-sm font-black uppercase text-white tracking-widest flex items-center gap-2">
+                   <Cpu size={14} className="text-rose-400" />
+                   Xử lý thông minh AI
+                 </h4>
+                 <div className="space-y-3">
+                   <div className="p-3 bg-white/5 border border-border-dark/60 rounded-xl flex items-center justify-between">
+                     <span className="text-xs font-bold text-text-dim">Mô hình AI trích xuất</span>
+                     <span className="text-[10px] font-black uppercase tracking-wider text-white bg-rose-500/15 border border-rose-500/20 px-2 py-0.5 rounded-lg">Mistral Large</span>
+                   </div>
+                   <div className="p-3 bg-white/5 border border-border-dark/60 rounded-xl flex items-center justify-between">
+                     <span className="text-xs font-bold text-text-dim">Hồ sơ đã tự động hóa</span>
+                     <span className="text-[10px] font-black text-white bg-green-500/15 border border-green-500/20 px-2 py-0.5 rounded-lg">{generatedDocs.length} tệp</span>
+                   </div>
+                 </div>
+              </div>
+            </div>
+          </div>
         </motion.div>
       </AnimatePresence>
 

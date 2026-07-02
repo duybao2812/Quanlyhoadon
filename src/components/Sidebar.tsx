@@ -147,7 +147,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           e.stopPropagation();
           setIsPinned(!isPinned);
         }}
-        className="absolute -right-3 top-20 size-6 bg-primary text-white rounded-full flex items-center justify-center shadow-lg z-10 hover:bg-primary-hover transition-colors"
+        className="absolute -right-3 top-20 size-6 bg-primary text-white rounded-full flex items-center justify-center shadow-lg z-10 hover:bg-primary-hover hover:scale-110 active:scale-90 transition-all cursor-pointer"
       >
         {isPinned ? <ChevronLeft className="size-4" /> : <ChevronRight className="size-4" />}
       </button>
@@ -171,27 +171,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto overflow-x-hidden">
-        {menuItems.map((item) => (
-          <div key={item.id} className="relative group/item">
-            <button
-              onClick={() => setActiveTab(item.id as Tab)}
-              className={cn(
-                "sidebar-link w-full flex items-center transition-all duration-200 relative",
-                !isExpanded ? "justify-center p-3" : "justify-start p-3",
-                (activeTab === item.id || (item.id === 'contract' && activeTab === 'quick-contract')) && "sidebar-link-active"
-              )}
-            >
-              <item.icon className={cn("size-5 shrink-0 transition-transform", (activeTab === item.id || (item.id === 'contract' && activeTab === 'quick-contract')) && "scale-110")} />
-              {isExpanded && (
-                <motion.span
-                  initial={{ opacity: 0, x: -5 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="ml-3 font-bold text-base whitespace-nowrap tracking-tight"
-                >
-                  {item.label}
-                </motion.span>
-              )}
-            </button>
+        {menuItems.map((item) => {
+          const isItemActive = activeTab === item.id || 
+            (item.id === 'contract' && (activeTab === 'quick-contract' || activeTab === 'quotation'));
+          
+          return (
+            <div key={item.id} className="relative group/item">
+              <button
+                onClick={() => setActiveTab(item.id as Tab)}
+                className={cn(
+                  "sidebar-link w-full flex items-center transition-all duration-200 relative",
+                  !isExpanded ? "justify-center p-3" : "justify-start p-3",
+                  isItemActive && "sidebar-link-active"
+                )}
+              >
+                {isItemActive && (
+                  <motion.div
+                    layoutId="activeIndicator"
+                    className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-primary rounded-r-full"
+                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                  />
+                )}
+                <item.icon className={cn("size-5 shrink-0 transition-transform", isItemActive && "scale-110")} />
+                {isExpanded && (
+                  <motion.span
+                    initial={{ opacity: 0, x: -5 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="ml-3 font-bold text-base whitespace-nowrap tracking-tight"
+                  >
+                    {item.label}
+                  </motion.span>
+                )}
+              </button>
 
             {item.id === 'contract' && isExpanded && (
               <div className="pl-8 pr-2 mt-1 space-y-1">
@@ -274,7 +285,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )
             )}
           </div>
-        ))}
+        )})}
       </nav>
 
       <div className={cn(

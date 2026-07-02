@@ -3952,6 +3952,7 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
   return (
     <div className={cn(
       "flex h-full w-full font-sans select-none overflow-hidden bg-bg-dark",
+      `theme-${activeTab}`,
       isIframeMode() && "wallpaper-glass-theme"
     )}>
       {/* Review Modal */}
@@ -4473,27 +4474,11 @@ UPDATE public.contracts SET owner_id = '${currentUser.uid}';`, "color: #00ff66; 
               </div>
             </div>
           ) : (
-            <>
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-2">
-                  <div className={`size-2 rounded-full ${isLoadingInvoices || isProcessing ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500'}`}></div>
-                  <span>AI MODEL: MISTRAL-LARGE-LATEST (PREMIUM)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Globe className="size-3" />
-                  <span>AI REGION: ASIA-SOUTHEAST1 (SINGAPORE)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Zap className="size-3" />
-                  <span>API STATUS: HEALTHY | REQUESTS: {requestCount}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="flex items-center gap-1"><Cpu className="size-3" /> GAS SERVICE: CONNECTED</span>
-                <span className="text-border-dark">|</span>
-                <span>© 2026 SMARTINVOICE PRO</span>
-              </div>
-            </>
+            <div className="flex items-center gap-4 ml-auto">
+              <span className="flex items-center gap-1"><Cpu className="size-3" /> GAS SERVICE: CONNECTED</span>
+              <span className="text-border-dark">|</span>
+              <span>© 2026 SMARTINVOICE PRO</span>
+            </div>
           )}
         </footer>
       </main>

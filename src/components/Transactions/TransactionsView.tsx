@@ -843,7 +843,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
                 
                 {showDatePicker && (
                   <div className="absolute right-0 mt-2 p-4 bg-stone-900 border border-border-dark rounded-2xl shadow-2xl z-50 w-64 space-y-3">
-                    <h4 className="text-[10px] font-black uppercase text-white tracking-wider">Chọn khoảng ngày</h4>
+                    <h4 className="text-[10px] font-black uppercase text-foreground tracking-wider">Chọn khoảng ngày</h4>
                     <div className="space-y-2">
                       <div className="space-y-1">
                         <label className="text-[9px] font-bold text-text-dim uppercase">Từ ngày</label>
@@ -855,7 +855,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
                             setFilterYear('all');
                             setFilterQuarter('all');
                           }}
-                          className="w-full px-3 py-1.5 bg-black/40 border border-border-dark rounded-xl text-xs text-white focus:outline-none focus:border-primary/45"
+                          className="w-full px-3 py-1.5 bg-black/40 border border-border-dark rounded-xl text-xs text-foreground focus:outline-none focus:border-primary/45"
                         />
                       </div>
                       <div className="space-y-1">
@@ -868,7 +868,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
                             setFilterYear('all');
                             setFilterQuarter('all');
                           }}
-                          className="w-full px-3 py-1.5 bg-black/40 border border-border-dark rounded-xl text-xs text-white focus:outline-none focus:border-primary/45"
+                          className="w-full px-3 py-1.5 bg-black/40 border border-border-dark rounded-xl text-xs text-foreground focus:outline-none focus:border-primary/45"
                         />
                       </div>
                     </div>
@@ -880,7 +880,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
                           setEndDate('');
                           setShowDatePicker(false);
                         }}
-                        className="px-2.5 py-1.5 bg-white/5 border border-border-dark text-white rounded-lg text-[9px] font-bold hover:bg-white/10"
+                        className="px-2.5 py-1.5 bg-white/5 border border-border-dark text-foreground rounded-lg text-[9px] font-bold hover:bg-white/10"
                       >
                         Đặt lại
                       </button>
@@ -958,10 +958,10 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
                           
                           {/* SỐ TIỀN */}
                           <td className="px-5 py-3.5 text-right whitespace-nowrap">
-                            <span className={`text-xs font-extrabold ${isCredit ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            <span className={`text-xs font-extrabold tabular-nums ${isCredit ? 'text-emerald-400' : 'text-rose-400'}`}>
                               {isCredit ? '+' : '-'}{formatCurrency(displayAmount)}
                             </span>
-                            <p className="text-[9px] text-text-dim font-mono mt-0.5">Dư: {formatCurrency(tx.computedAccumulated)}</p>
+                            <p className="text-[9px] text-text-dim font-mono mt-0.5 tabular-nums">Dư: {formatCurrency(tx.computedAccumulated)}</p>
                           </td>
                           
                           {/* TRẠNG THÁI ĐỐI SOÁT */}
@@ -1034,7 +1034,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({ ownerId }) =
                   <div className="flex flex-col min-w-0">
                     <span className="text-[8px] font-black uppercase tracking-wider text-text-dim leading-none truncate">{stat.label}</span>
                     <div className="flex items-baseline gap-1 mt-1 truncate">
-                      <span className="text-xs font-extrabold tracking-tight text-white truncate">{stat.value}</span>
+                      <span className="text-xs font-extrabold tracking-tight text-white truncate tabular-nums">{stat.value}</span>
                       {stat.unit && <span className="text-[8px] font-bold text-text-dim/60 uppercase shrink-0">{stat.unit}</span>}
                     </div>
                   </div>

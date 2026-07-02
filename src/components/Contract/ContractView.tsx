@@ -2232,6 +2232,7 @@ export const ContractView = ({
   onOpenQuotation?: () => void
 }) => {
   const { toast } = useToast();
+  const [isClausesExpanded, setIsClausesExpanded] = useState(false);
   const dayRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const monthRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const yearRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -3951,64 +3952,80 @@ export const ContractView = ({
 
                 {(selectedTemplate === 'HDNT' || selectedTemplate === 'HDTC' || selectedTemplate === 'HDCM') && (
                   <div className="pt-3 border-t border-border-dark space-y-3 text-left">
-                    <h4 className="text-[10px] font-black uppercase text-white tracking-wider flex items-center gap-1.5 justify-start">
-                      <PenTool className="size-3.5 text-primary" />
-                      Hiệu Chỉnh Điều Khoản {selectedTemplate === 'HDNT' ? 'HĐNT' : selectedTemplate === 'HDTC' ? 'HĐTC' : 'HĐCM'}
-                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => setIsClausesExpanded(!isClausesExpanded)}
+                      className="w-full flex items-center justify-between text-[10px] font-black uppercase text-white tracking-wider hover:text-primary transition-colors cursor-pointer select-none"
+                    >
+                      <div className="flex items-center gap-1.5 justify-start">
+                        <PenTool className="size-3.5 text-primary" />
+                        Hiệu Chỉnh Điều Khoản {selectedTemplate === 'HDNT' ? 'HĐNT' : selectedTemplate === 'HDTC' ? 'HĐTC' : 'HĐCM'}
+                      </div>
+                      <ChevronDown className={cn("size-3.5 text-text-dim transition-transform duration-300", isClausesExpanded && "rotate-180")} />
+                    </button>
                     
-                    <div className="space-y-3">
-                      {/* Điều 4 */}
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[9px] font-black uppercase text-text-dim tracking-wider">
-                          Điều 4: Phương thức nghiệm thu
-                        </label>
-                        <textarea
-                          className="w-full min-h-[60px] bg-sidebar-dark border border-border-dark focus:border-primary rounded-xl px-2.5 py-1.5 text-xs text-stone-200 focus:outline-none transition-all custom-scrollbar resize-y leading-relaxed font-sans"
-                          value={formData['dieu4_content'] || ''}
-                          onChange={(e) => handleFieldChange('dieu4_content', e.target.value)}
-                          placeholder="Nhập nội dung Điều 4..."
-                        />
-                      </div>
+                    <AnimatePresence>
+                      {isClausesExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden space-y-3"
+                        >
+                          {/* Điều 4 */}
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[9px] font-black uppercase text-text-dim tracking-wider">
+                              Điều 4: Phương thức nghiệm thu
+                            </label>
+                            <textarea
+                              className="w-full min-h-[60px] bg-sidebar-dark border border-border-dark focus:border-primary rounded-xl px-2.5 py-1.5 text-xs text-stone-200 focus:outline-none transition-all custom-scrollbar resize-y leading-relaxed font-sans"
+                              value={formData['dieu4_content'] || ''}
+                              onChange={(e) => handleFieldChange('dieu4_content', e.target.value)}
+                              placeholder="Nhập nội dung Điều 4..."
+                            />
+                          </div>
 
-                      {/* Điều 5 */}
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[9px] font-black uppercase text-text-dim tracking-wider">
-                          Điều 5: Phương thức thanh toán
-                        </label>
-                        <textarea
-                          className="w-full min-h-[60px] bg-sidebar-dark border border-border-dark focus:border-primary rounded-xl px-2.5 py-1.5 text-xs text-stone-200 focus:outline-none transition-all custom-scrollbar resize-y leading-relaxed font-sans"
-                          value={formData['dieu5_content'] || ''}
-                          onChange={(e) => handleFieldChange('dieu5_content', e.target.value)}
-                          placeholder="Nhập nội dung Điều 5..."
-                        />
-                      </div>
+                          {/* Điều 5 */}
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[9px] font-black uppercase text-text-dim tracking-wider">
+                              Điều 5: Phương thức thanh toán
+                            </label>
+                            <textarea
+                              className="w-full min-h-[60px] bg-sidebar-dark border border-border-dark focus:border-primary rounded-xl px-2.5 py-1.5 text-xs text-stone-200 focus:outline-none transition-all custom-scrollbar resize-y leading-relaxed font-sans"
+                              value={formData['dieu5_content'] || ''}
+                              onChange={(e) => handleFieldChange('dieu5_content', e.target.value)}
+                              placeholder="Nhập nội dung Điều 5..."
+                            />
+                          </div>
 
-                      {/* Điều 6.1 */}
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[9px] font-black uppercase text-text-dim tracking-wider">
-                          Điều 6.1: Trách nhiệm Bên A
-                        </label>
-                        <textarea
-                          className="w-full min-h-[90px] bg-sidebar-dark border border-border-dark focus:border-primary rounded-xl px-2.5 py-1.5 text-xs text-stone-200 focus:outline-none transition-all custom-scrollbar resize-y leading-relaxed font-sans"
-                          value={formData['dieu6_a_content'] || ''}
-                          onChange={(e) => handleFieldChange('dieu6_a_content', e.target.value)}
-                          placeholder="Nhập trách nhiệm Bên A..."
-                        />
-                      </div>
+                          {/* Điều 6.1 */}
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[9px] font-black uppercase text-text-dim tracking-wider">
+                              Điều 6.1: Trách nhiệm Bên A
+                            </label>
+                            <textarea
+                              className="w-full min-h-[90px] bg-sidebar-dark border border-border-dark focus:border-primary rounded-xl px-2.5 py-1.5 text-xs text-stone-200 focus:outline-none transition-all custom-scrollbar resize-y leading-relaxed font-sans"
+                              value={formData['dieu6_a_content'] || ''}
+                              onChange={(e) => handleFieldChange('dieu6_a_content', e.target.value)}
+                              placeholder="Nhập trách nhiệm Bên A..."
+                            />
+                          </div>
 
-                      {/* Điều 6.2 */}
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[9px] font-black uppercase text-text-dim tracking-wider">
-                          Điều 6.2: Trách nhiệm Bên B
-                        </label>
-                        <textarea
-                          className="w-full min-h-[90px] bg-sidebar-dark border border-border-dark focus:border-primary rounded-xl px-2.5 py-1.5 text-xs text-stone-200 focus:outline-none transition-all custom-scrollbar resize-y leading-relaxed font-sans"
-                          value={formData['dieu6_b_content'] || ''}
-                          onChange={(e) => handleFieldChange('dieu6_b_content', e.target.value)}
-                          placeholder="Nhập trách nhiệm Bên B..."
-                        />
-                      </div>
-                    </div>
+                          {/* Điều 6.2 */}
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[9px] font-black uppercase text-text-dim tracking-wider">
+                              Điều 6.2: Trách nhiệm Bên B
+                            </label>
+                            <textarea
+                              className="w-full min-h-[90px] bg-sidebar-dark border border-border-dark focus:border-primary rounded-xl px-2.5 py-1.5 text-xs text-stone-200 focus:outline-none transition-all custom-scrollbar resize-y leading-relaxed font-sans"
+                              value={formData['dieu6_b_content'] || ''}
+                              onChange={(e) => handleFieldChange('dieu6_b_content', e.target.value)}
+                              placeholder="Nhập trách nhiệm Bên B..."
+                            />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 )}
               </div>
